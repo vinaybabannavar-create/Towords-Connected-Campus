@@ -1671,6 +1671,12 @@ function ProjectTracker({ student }) {
 Student Project Prompt:
 "${promptToUse}"
 
+ENGINEERING RULES — follow strictly, a professor may question every choice you make:
+1. Match storage to data type. Never suggest object storage (S3, blob storage) for numeric data like face/voice embeddings, vectors, or scores — those belong in a database column, a JSON field, or a vector DB (pgvector, Pinecone). Object storage is only for actual files (images, videos, PDFs, documents).
+2. Be internally consistent. If the flow diagram describes a step as "automated", the matching REST endpoint's purpose must also describe it as automated (e.g. triggered by a scheduler/event) — do not contradict the flow with a "manual trigger" description for the same action, or vice versa.
+3. If the project involves any kind of alert, notification, or repeated check, the database schema MUST include a field to track whether that alert/action was already sent or performed (e.g. "alert_sent", "notified_at") — otherwise the system has no way to prevent duplicate or missed actions.
+4. Only include a component (cache, queue, load balancer, etc.) if the prompt's scale, latency, or concurrency actually justifies it. Do not add infrastructure just because similar projects typically have it. If included, its "reason" field must state the specific justification, not a generic one.
+
 Construct an end-to-end architecture and workflow flow diagram. Return JSON in this EXACT structure:
 {
   "projectName": "Title derived from prompt",
