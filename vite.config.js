@@ -340,6 +340,23 @@ export default defineConfig(({ mode }) => {
                 return;
               }
 
+              if (pathname === '/projects/delete' && req.method === 'POST') {
+                const raw = await readBody(req);
+                const { id } = JSON.parse(raw || '{}');
+
+                if (!id) {
+                  sendJSON(res, 400, { error: 'Project ID is required to delete.' });
+                  return;
+                }
+
+                try {
+                  await db.query('DELETE FROM projects WHERE id = ?', [id]);
+                } catch (e) {}
+
+                sendJSON(res, 200, { success: true });
+                return;
+              }
+
               // Gate Passes
               if (pathname === '/gatepasses' && req.method === 'GET') {
                 const bec = url.searchParams.get('bec');

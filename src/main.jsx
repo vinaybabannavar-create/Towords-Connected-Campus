@@ -1875,6 +1875,10 @@ Keep it clear, specific, and avoid markdown tables.`,
     const nextProjects = projects.filter((p) => p.id !== id);
     setProjects(nextProjects);
     setJSON(STORAGE_KEYS.projects, nextProjects);
+    apiFetch('/api/db/projects/delete', {
+      method: 'POST',
+      body: JSON.stringify({ id })
+    });
   };
 
   return (
