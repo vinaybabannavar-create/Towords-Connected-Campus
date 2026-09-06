@@ -3996,11 +3996,12 @@ function POPlacementWorkspace({ student, setPage }) {
 
       {/* Modal: Post / Edit Placement Drive */}
       {isDriveModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70 backdrop-blur-xs overflow-y-auto">
-          <div className="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl border border-stone-200 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-stone-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/75 backdrop-blur-sm">
+          <div className="relative flex flex-col w-full max-w-2xl max-h-[90vh] rounded-2xl bg-white shadow-2xl border border-stone-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-stone-200 bg-stone-50/50 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-100 text-emerald-800">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-100 text-emerald-800 shrink-0">
                   <Building2 className="h-5 w-5" />
                 </div>
                 <div>
@@ -4015,239 +4016,242 @@ function POPlacementWorkspace({ student, setPage }) {
               <button
                 type="button"
                 onClick={() => setIsDriveModalOpen(false)}
-                className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+                className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveDrive} className="mt-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
-                    Company Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. TCS, Zoho, Google, Infosys"
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
-                    Domain / Industry *
-                  </label>
-                  <select
-                    value={formData.domain}
-                    onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
-                    className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="Software & Cloud Services">Software & Cloud Services</option>
-                    <option value="Product Development & SaaS">Product Development & SaaS</option>
-                    <option value="Enterprise AI & Data Science">Enterprise AI & Data Science</option>
-                    <option value="FinTech & Banking Solutions">FinTech & Banking Solutions</option>
-                    <option value="Cybersecurity & Networking">Cybersecurity & Networking</option>
-                    <option value="Core Engineering & IoT">Core Engineering & IoT</option>
-                    <option value="IT Consulting & Analytics">IT Consulting & Analytics</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
-                    Job Role *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Software Engineer, SDE-1, Cloud Specialist"
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
-                    Job Type
-                  </label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="Full-Time">Full-Time</option>
-                    <option value="Internship">Internship</option>
-                    <option value="Full-Time + Internship">Full-Time + Internship</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
-                    Salary / Stipend *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. ₹8.5 - ₹12 LPA or ₹35,000/mo"
-                    value={formData.salary}
-                    onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
-                    className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
-                    Min CGPA Criteria
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 6.5 or 7.0"
-                    value={formData.minCgpa}
-                    onChange={(e) => setFormData({ ...formData, minCgpa: e.target.value })}
-                    className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
-                    Eligible Branches
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. CSE, ISE, ECE, EEE"
-                    value={formData.branches}
-                    onChange={(e) => setFormData({ ...formData, branches: e.target.value })}
-                    className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
-                  Required Technical Skills (comma separated) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Java, Python, React, SQL, Cloud Basics, Data Structures"
-                  value={formData.skills}
-                  onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
-                  className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
-                    Drive Date
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.driveDate}
-                    onChange={(e) => setFormData({ ...formData, driveDate: e.target.value })}
-                    className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
-                    Application Deadline
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.deadline}
-                    onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                    className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
-                  Job Description & Selection Rounds
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Details on selection process: Round 1 (Online Assessment), Round 2 (Technical Interview), Round 3 (HR)..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              {/* Company JD PDF Document Upload */}
-              <div className="rounded-xl border border-stone-200 bg-stone-50/80 p-4 space-y-2">
-                <label className="block text-xs font-black uppercase tracking-wider text-stone-800">
-                  Company Official JD Document / PDF (Optional)
-                </label>
-                <p className="text-xs text-stone-500">
-                  Upload official company notification PDF or brochure shared by corporate recruiters.
-                </p>
-
-                {formData.pdfUrl ? (
-                  <div className="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-900 font-bold">
-                    <div className="flex items-center gap-2 truncate">
-                      <FileText className="h-4 w-4 text-emerald-600 shrink-0" />
-                      <span className="truncate">{formData.pdfName || 'Company_JD_Notice.pdf'}</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <a
-                        href={formData.pdfUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-md bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 text-[11px] font-black transition"
-                      >
-                        Preview PDF
-                      </a>
-                      <button
-                        type="button"
-                        onClick={handleRemovePdf}
-                        className="rounded-md bg-rose-100 hover:bg-rose-200 text-rose-700 px-2.5 py-1 text-[11px] font-bold transition cursor-pointer"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
-                    <label className="inline-flex items-center justify-center gap-2 rounded-lg bg-stone-950 hover:bg-stone-800 text-white px-4 py-2.5 text-xs font-bold transition cursor-pointer shrink-0 shadow-xs">
-                      <FolderUp className="h-4 w-4 text-emerald-400" />
-                      <span>Upload Company PDF</span>
-                      <input
-                        type="file"
-                        accept=".pdf,application/pdf"
-                        onChange={handlePdfUpload}
-                        className="hidden"
-                      />
+            {/* Form */}
+            <form onSubmit={handleSaveDrive} className="flex flex-col flex-1 overflow-hidden min-h-0">
+              {/* Form Body - Scrollable */}
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                      Company Name *
                     </label>
-                    <span className="text-xs text-stone-400 font-medium">
-                      Supports .pdf files up to 10MB
-                    </span>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. TCS, Zoho, Google, Infosys"
+                      value={formData.company}
+                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                      className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
                   </div>
-                )}
+
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                      Domain / Industry *
+                    </label>
+                    <select
+                      value={formData.domain}
+                      onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
+                      className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="Software & Cloud Services">Software & Cloud Services</option>
+                      <option value="Product Development & SaaS">Product Development & SaaS</option>
+                      <option value="Enterprise AI & Data Science">Enterprise AI & Data Science</option>
+                      <option value="FinTech & Banking Solutions">FinTech & Banking Solutions</option>
+                      <option value="Cybersecurity & Networking">Cybersecurity & Networking</option>
+                      <option value="Core Engineering & IoT">Core Engineering & IoT</option>
+                      <option value="IT Consulting & Analytics">IT Consulting & Analytics</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                      Job Role *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Software Engineer, SDE-1, Cloud Specialist"
+                      value={formData.role}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                      className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                      Job Type
+                    </label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                      className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="Full-Time">Full-Time</option>
+                      <option value="Internship">Internship</option>
+                      <option value="Full-Time + Internship">Full-Time + Internship</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                      Salary / Stipend *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. ₹8.5 - ₹12 LPA or ₹35,000/mo"
+                      value={formData.salary}
+                      onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
+                      className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                      Min CGPA Criteria
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 6.5 or 7.0"
+                      value={formData.minCgpa}
+                      onChange={(e) => setFormData({ ...formData, minCgpa: e.target.value })}
+                      className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                      Eligible Branches
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. CSE, ISE, ECE, EEE"
+                      value={formData.branches}
+                      onChange={(e) => setFormData({ ...formData, branches: e.target.value })}
+                      className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                    Required Technical Skills (comma separated) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Java, Python, React, SQL, Cloud Basics, Data Structures"
+                    value={formData.skills}
+                    onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
+                    className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                      Drive Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.driveDate}
+                      onChange={(e) => setFormData({ ...formData, driveDate: e.target.value })}
+                      className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                      Application Deadline
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.deadline}
+                      onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                      className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                    Job Description & Selection Rounds
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Details on selection process: Round 1 (Online Assessment), Round 2 (Technical Interview), Round 3 (HR)..."
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full rounded-lg border border-stone-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Company JD PDF Document Upload */}
+                <div className="rounded-xl border border-stone-200 bg-stone-50/80 p-4 space-y-2">
+                  <label className="block text-xs font-black uppercase tracking-wider text-stone-800">
+                    Company Official JD Document / PDF (Optional)
+                  </label>
+                  <p className="text-xs text-stone-500">
+                    Upload official company notification PDF or brochure shared by corporate recruiters.
+                  </p>
+
+                  {formData.pdfUrl ? (
+                    <div className="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-900 font-bold">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileText className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span className="truncate">{formData.pdfName || 'Company_JD_Notice.pdf'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <a
+                          href={formData.pdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-md bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 text-[11px] font-black transition"
+                        >
+                          Preview PDF
+                        </a>
+                        <button
+                          type="button"
+                          onClick={handleRemovePdf}
+                          className="rounded-md bg-rose-100 hover:bg-rose-200 text-rose-700 px-2.5 py-1 text-[11px] font-bold transition cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
+                      <label className="inline-flex items-center justify-center gap-2 rounded-lg bg-stone-950 hover:bg-stone-800 text-white px-4 py-2.5 text-xs font-bold transition cursor-pointer shrink-0 shadow-xs">
+                        <FolderUp className="h-4 w-4 text-emerald-400" />
+                        <span>Upload Company PDF</span>
+                        <input
+                          type="file"
+                          accept=".pdf,application/pdf"
+                          onChange={handlePdfUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      <span className="text-xs text-stone-400 font-medium">
+                        Supports .pdf files up to 10MB
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-200">
+              {/* Modal Footer - Sticky */}
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-stone-200 bg-stone-50/50 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsDriveModalOpen(false)}
-                  className="rounded-lg px-4 py-2 text-xs font-bold text-stone-600 hover:bg-stone-100"
+                  className="rounded-lg px-4 py-2 text-xs font-bold text-stone-600 hover:bg-stone-200/60 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 text-xs font-black shadow-md transition"
+                  className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 text-xs font-black shadow-md transition cursor-pointer"
                 >
                   {editingDrive ? 'Update Placement Drive' : 'Publish Drive to Campus'}
                 </button>
@@ -4259,9 +4263,9 @@ function POPlacementWorkspace({ student, setPage }) {
 
       {/* Modal: View Registered Applicants & Excel Export */}
       {viewingApplicantsDrive && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70 backdrop-blur-xs overflow-y-auto">
-          <div className="relative w-full max-w-4xl rounded-2xl bg-white p-6 shadow-2xl border border-stone-200 my-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-stone-200 gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/75 backdrop-blur-sm">
+          <div className="relative flex flex-col w-full max-w-4xl max-h-[90vh] rounded-2xl bg-white p-6 shadow-2xl border border-stone-200 overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-stone-200 gap-4 shrink-0">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="rounded-md bg-stone-950 text-white px-2.5 py-0.5 text-xs font-black">
@@ -4288,7 +4292,7 @@ function POPlacementWorkspace({ student, setPage }) {
                 <button
                   type="button"
                   onClick={() => setViewingApplicantsDrive(null)}
-                  className="rounded-lg p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+                  className="rounded-lg p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -4296,7 +4300,7 @@ function POPlacementWorkspace({ student, setPage }) {
             </div>
 
             {/* Applicant search inside modal */}
-            <div className="mt-4">
+            <div className="mt-4 shrink-0">
               <input
                 type="text"
                 placeholder="Search registered students by name, USN, or department..."
@@ -4307,7 +4311,7 @@ function POPlacementWorkspace({ student, setPage }) {
             </div>
 
             {/* Applicants Table */}
-            <div className="mt-4 overflow-x-auto rounded-xl border border-stone-200 max-h-96">
+            <div className="mt-4 flex-1 overflow-x-auto overflow-y-auto rounded-xl border border-stone-200 min-h-0">
               {currentApplicants.length === 0 ? (
                 <div className="p-8 text-center text-stone-500 text-xs">
                   No registered student applications matching your query.
@@ -4315,10 +4319,10 @@ function POPlacementWorkspace({ student, setPage }) {
               ) : (
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-stone-950 text-white font-black">
+                    <tr className="bg-stone-950 text-white font-black sticky top-0 z-10">
                       <th className="p-3">#</th>
                       <th className="p-3">Candidate</th>
-                      <th className="p-3">BEC USN</th>
+                      <th className="p-3">USN</th>
                       <th className="p-3">Dept & Year</th>
                       <th className="p-3">CGPA</th>
                       <th className="p-3">Contact</th>
