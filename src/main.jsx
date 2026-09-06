@@ -1674,7 +1674,7 @@ function ProjectTracker({ student }) {
     };
 
     fetchProjects();
-    const interval = setInterval(fetchProjects, 3000);
+    const interval = setInterval(fetchProjects, 6000);
     return () => clearInterval(interval);
   }, [student?.bec]);
 
@@ -3609,7 +3609,7 @@ function POPlacementWorkspace({ student, setPage }) {
     };
 
     fetchDrivesAndRegistrations();
-    const interval = setInterval(fetchDrivesAndRegistrations, 2000);
+    const interval = setInterval(fetchDrivesAndRegistrations, 6000);
     return () => clearInterval(interval);
   }, []);
 
@@ -4499,7 +4499,7 @@ function PlacementLedger({ student, setPage }) {
     };
 
     fetchDrivesAndRegistrations();
-    const interval = setInterval(fetchDrivesAndRegistrations, 2000);
+    const interval = setInterval(fetchDrivesAndRegistrations, 6000);
     return () => clearInterval(interval);
   }, []);
 
@@ -5635,7 +5635,7 @@ function GatePass({ student }) {
 
   useEffect(() => {
     fetchPasses();
-    const interval = setInterval(fetchPasses, 2000);
+    const interval = setInterval(fetchPasses, 6000);
     const syncLocal = () => {
       setPasses(getJSON(STORAGE_KEYS.gatePasses, []));
     };
@@ -5920,7 +5920,7 @@ function TeacherGatePassView({ student }) {
 
   useEffect(() => {
     fetchPasses();
-    const interval = setInterval(fetchPasses, 2000);
+    const interval = setInterval(fetchPasses, 6000);
     const syncLocal = () => {
       setPasses(getJSON(STORAGE_KEYS.gatePasses, []));
     };
@@ -6119,7 +6119,7 @@ function HODGatePassView({ student }) {
 
   useEffect(() => {
     fetchPasses();
-    const interval = setInterval(fetchPasses, 2000);
+    const interval = setInterval(fetchPasses, 6000);
     const syncLocal = () => {
       setPasses(getJSON(STORAGE_KEYS.gatePasses, []));
     };
@@ -6368,7 +6368,7 @@ function GateSecurityTerminal() {
 
   useEffect(() => {
     fetchPasses();
-    const interval = setInterval(fetchPasses, 2000);
+    const interval = setInterval(fetchPasses, 6000);
     const syncLocal = () => {
       setPasses(getJSON(STORAGE_KEYS.gatePasses, []));
     };
