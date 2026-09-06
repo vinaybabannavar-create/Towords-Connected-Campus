@@ -1885,6 +1885,55 @@ Keep it clear, specific, and avoid markdown tables.`,
         </div>
       </div>
 
+      {/* Student Scope Horizontal Header Banner (Directly Below Top Navigation) */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-stone-200 bg-white p-4 sm:p-5 shadow-sm">
+        <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+          <div className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/60 shrink-0">
+            <Sparkles className="h-5 w-5 text-emerald-700" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded-md">
+                STUDENT SCOPE
+              </span>
+              <span className="rounded-md bg-stone-100 px-2 py-0.5 text-[11px] font-bold text-stone-700">
+                {student.usn || student.bec}
+              </span>
+            </div>
+            <h3 className="mt-1 text-base sm:text-lg font-black text-stone-900 truncate">
+              {student.name ? `${student.name}'s Projects` : `${student.usn || student.bec} Workspace`}
+            </h3>
+            <p className="text-xs text-stone-500 font-medium">
+              Saved architectures & repo reports stay private to your student login.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-3 rounded-xl bg-stone-50 border border-stone-200 px-4 py-2">
+            <div className="text-center">
+              <p className="text-[9px] font-black uppercase tracking-wider text-stone-400">SAVED</p>
+              <p className="text-base font-black text-stone-900">{myProjects.length}</p>
+            </div>
+            <div className="h-7 w-[1px] bg-stone-200 mx-1"></div>
+            <div className="text-center">
+              <p className="text-[9px] font-black uppercase tracking-wider text-stone-400">ENGINES</p>
+              <p className="text-base font-black text-emerald-700">2 Active</p>
+            </div>
+          </div>
+
+          {myProjects.length > 0 && activeTool !== 'saved' && (
+            <button
+              onClick={() => setActiveTool('saved')}
+              className="hidden md:inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 shadow-2xs transition"
+            >
+              <BookOpenCheck className="h-4 w-4 text-emerald-700" />
+              <span>View Saved ({myProjects.length})</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {activeTool === 'saved' ? (
         /* Dedicated Full Saved Projects View */
         <div className="space-y-4">
@@ -1931,95 +1980,20 @@ Keep it clear, specific, and avoid markdown tables.`,
           )}
         </div>
       ) : (
-        /* Balanced 2-Column Responsive Layout */
-        <section className="grid min-w-0 gap-4 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[330px_minmax(0,1fr)]">
-          {/* Left Column: Scope + Saved Projects List */}
-          <div className="space-y-4">
-            <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-black uppercase tracking-wider text-emerald-700">Student Scope</p>
-                <span className="rounded-md bg-stone-100 px-2 py-0.5 text-[11px] font-bold text-stone-600">
-                  {student.usn || student.bec}
-                </span>
-              </div>
-              <h3 className="mt-2 text-base font-black text-stone-900 truncate">
-                {student.name ? `${student.name}'s Projects` : `${student.usn || student.bec} Workspace`}
-              </h3>
-              <p className="mt-1 text-xs leading-relaxed text-stone-500">
-                Saved architectures & repo reports stay private to your student login.
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <MiniMetric label="Saved" value={myProjects.length} />
-                <MiniMetric label="Engines" value="2 Active" />
-              </div>
-            </div>
-
-            {/* Saved Projects in Left Column */}
-            <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-black uppercase tracking-wider text-stone-600">My Saved Projects</h4>
-                {myProjects.length > 0 && (
-                  <button
-                    onClick={() => setActiveTool('saved')}
-                    className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 transition"
-                  >
-                    View All ({myProjects.length}) →
-                  </button>
-                )}
-              </div>
-
-              {myProjects.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-stone-200 bg-stone-50/60 p-4 text-center">
-                  <BookOpenCheck className="mx-auto h-5 w-5 text-stone-400 mb-1" />
-                  <p className="text-xs font-bold text-stone-700">No saved projects yet</p>
-                  <p className="mt-0.5 text-[11px] text-stone-500">
-                    Generate an architecture or analyze a repo to save one.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-                  {myProjects.map((p) => (
-                    <div key={p.id} className="group rounded-lg border border-stone-200 bg-stone-50 p-2.5 transition hover:bg-stone-100/80">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <span className="text-[9px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
-                            {p.phase}
-                          </span>
-                          <h5 className="mt-1 text-xs font-black text-stone-900 truncate">{p.title}</h5>
-                        </div>
-                        <button
-                          onClick={() => deleteProject(p.id)}
-                          title="Delete saved project"
-                          className="opacity-0 group-hover:opacity-100 p-1 text-stone-400 hover:text-rose-600 rounded transition shrink-0"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <div className="mt-1.5 flex items-center justify-between text-[10px] text-stone-500 font-semibold">
-                        <span>{p.progress}% ready</span>
-                        <span>{p.createdAt}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Column: Active Tool */}
-          <div className="min-w-0">
-            {activeTool === 'architecture' && (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5 shadow-sm">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-lg bg-stone-950 text-white shrink-0">
-                      <Workflow className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-black text-stone-900">AI Architecture & Flow Diagram Generator</h3>
-                      <p className="text-xs text-stone-600">Enter your project prompt/description to generate the complete system architecture flow diagram.</p>
-                    </div>
+        /* Full-Width Workspace Container */
+        <div className="space-y-6">
+          {activeTool === 'architecture' && (
+            <div className="space-y-6">
+              <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6 shadow-sm">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-stone-950 text-white shrink-0">
+                    <Workflow className="h-5 w-5" />
                   </div>
+                  <div>
+                    <h3 className="text-lg font-black text-stone-900">AI Architecture & Flow Diagram Generator</h3>
+                    <p className="text-xs text-stone-600">Enter your project prompt/description to generate the complete system architecture flow diagram.</p>
+                  </div>
+                </div>
 
                   <div className="mb-3.5">
                     <p className="mb-1.5 text-[11px] font-bold text-stone-500 uppercase tracking-wider">Try Sample Prompts:</p>
@@ -2187,8 +2161,7 @@ Keep it clear, specific, and avoid markdown tables.`,
               </div>
             )}
           </div>
-        </section>
-      )}
+        )}
     </ModuleFrame>
   );
 }
