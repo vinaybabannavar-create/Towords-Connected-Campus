@@ -68,6 +68,7 @@ import {
 } from 'lucide-react';
 import './styles.css';
 import { CollegeCalendar } from './CollegeCalendar';
+import { COLLEGE_CALENDAR_EVENTS } from './collegeCalendarData';
 import { StudentProfileModal, calculateProfileCompletion, getMissingProfileItems } from './StudentProfileModal';
 
 const REPO_LOADING_STEPS = [
@@ -6332,9 +6333,81 @@ function CampusChatBot({ student, activePage }) {
     }
   }, [messages, loading, open, isFullScreen, showHistory]);
 
+  const getCalendarEventsForChat = () => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+    const todayEvents = (COLLEGE_CALENDAR_EVENTS || []).filter(
+      (e) => e.startDate <= todayStr && e.endDate >= todayStr
+    );
+
+    const tomorrowEvents = (COLLEGE_CALENDAR_EVENTS || []).filter(
+      (e) => e.startDate <= tomorrowStr && e.endDate >= tomorrowStr
+    );
+
+    const upcomingEvents = (COLLEGE_CALENDAR_EVENTS || [])
+      .filter((e) => e.startDate >= todayStr)
+      .slice(0, 8);
+
+    return { todayStr, todayEvents, tomorrowEvents, upcomingEvents };
+  };
+
   const getSmartCampusResponse = (query) => {
     const q = (query || '').toLowerCase();
     const name = student?.name ? student.name.split(' ')[0] : 'there';
+    const { todayStr, todayEvents, tomorrowEvents, upcomingEvents } = getCalendarEventsForChat();
+
+    if (
+      q.includes('today') ||
+      q.includes('speacial') ||
+      q.includes('special') ||
+      q.includes('event') ||
+      q.includes('calendar') ||
+      q.includes('schedule') ||
+      q.includes('date') ||
+      q.includes('exam') ||
+      q.includes('ia') ||
+      q.includes('fest') ||
+      q.includes('holiday')
+    ) {
+      const dateObj = new Date(todayStr + 'T00:00:00');
+      const formattedDate = dateObj.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      let reply = `📅 **Academic Calendar Events for Today (${formattedDate}):**\n\n`;
+
+      if (todayEvents.length > 0) {
+        reply += `🌟 **Today's Special Events:**\n`;
+        todayEvents.forEach((ev) => {
+          reply += `• **${ev.title}** (${ev.category} • Dept: ${ev.dept})\n`;
+        });
+      } else {
+        reply += `No special exam or holiday scheduled specifically for today (${formattedDate}). Regular academic day.\n`;
+      }
+
+      if (tomorrowEvents.length > 0) {
+        reply += `\n📌 **Tomorrow's Schedule:**\n`;
+        tomorrowEvents.forEach((ev) => {
+          reply += `• **${ev.title}** (${ev.category} • Dept: ${ev.dept})\n`;
+        });
+      }
+
+      if (upcomingEvents.length > 0) {
+        reply += `\n🚀 **Upcoming Key Events & Exams:**\n`;
+        upcomingEvents.slice(0, 5).forEach((ev) => {
+          reply += `• **${ev.startDate}**: ${ev.title} (${ev.category})\n`;
+        });
+      }
+
+      return reply;
+    }
 
     if (q.includes('gate pass') || q.includes('gatepass') || q.includes('leave') || q.includes('permission')) {
       return `🚪 **Digital Gate Pass System:**\n1. Go to the **Gate Pass** module on your dashboard.\n2. Enter Departure Time, Expected Return Time, Reason, and Parent/Guardian Contact.\n3. Hit **Submit Digital Gate Pass**.\n4. **2-Step Approval Chain:** First endorsed by your **Class Teacher**, then approved by your **HOD**.\n5. Once approved, present your **Digital QR Pass** (with 6-character Security Key) at the Security Gate Terminal for live scanning.`;
@@ -6346,10 +6419,6 @@ function CampusChatBot({ student, activePage }) {
 
     if (q.includes('placement') || q.includes('jd') || q.includes('job') || q.includes('resume') || q.includes('ats')) {
       return `💼 **Placements & Intelligent JD Matcher:**\n• **JD Matcher:** Open the **Placements** module. Paste any company Job Description (or upload your resume) to calculate your **ATS Match Score %**, matching skills, missing prerequisite skills, and a 7-day preparation roadmap.\n• **Placement Ledger:** View active campus recruitment drives, company CTC packages, minimum CGPA eligibility cutoffs, and scheduled test slots.`;
-    }
-
-    if (q.includes('calendar') || q.includes('date') || q.includes('exam') || q.includes('ia') || q.includes('assessment') || q.includes('holiday')) {
-      return `📅 **Official College Academic Calendar:**\n• Synchronized calendar featuring 112 official semester dates.\n• View timelines for **IA-1**, **IA-2**, and **IA-3** internal tests, practical exams, technical fests, workshops, and holidays.\n• Filter by categories (**Exams**, **Events**, **Holidays**) or search by date in the **Academic Calendar** tab.`;
     }
 
     if (q.includes('profile') || q.includes('completion') || q.includes('skill')) {
@@ -6374,6 +6443,8 @@ function CampusChatBot({ student, activePage }) {
     setMessage('');
     setLoading(true);
 
+    const { todayStr, todayEvents, tomorrowEvents, upcomingEvents } = getCalendarEventsForChat();
+
     try {
       const reply = await callAI(
         `You are the official AI Campus Assistant for this college's Digital Campus Portal.
@@ -6384,6 +6455,11 @@ STUDENT DETAILS:
 • Department: ${student.department || 'General'}
 • Year/Semester: ${student.year || 'Student'}
 • Active Portal Page: ${activePage || 'dashboard'}
+
+TODAY'S CALENDAR CONTEXT (${todayStr}):
+• Today's Events: ${todayEvents.length > 0 ? todayEvents.map((e) => `"${e.title}" (${e.category} • Dept: ${e.dept})`).join('; ') : 'No special events today (regular academic schedule)'}
+• Tomorrow's Events: ${tomorrowEvents.length > 0 ? tomorrowEvents.map((e) => `"${e.title}" (${e.category} • Dept: ${e.dept})`).join('; ') : 'None'}
+• Next Upcoming Events: ${upcomingEvents.slice(0, 6).map((e) => `${e.startDate}: ${e.title} (${e.category})`).join(' | ')}
 
 EXACT PORTAL FEATURES & SYSTEM KNOWLEDGE BASE:
 1. **Gate Pass Module**:
@@ -6398,7 +6474,6 @@ EXACT PORTAL FEATURES & SYSTEM KNOWLEDGE BASE:
    - Tool 1: Built-in AI Architecture & Flow Diagram Generator. Generates 5 system tiers (Frontend, API Gateway, Service Layer, Database, Security), REST endpoints, database schemas, and Viva defense questions.
    - Tool 2: Live GitHub Repository Analyzer. Reads public GitHub repos live, generates architecture breakdowns and viva prep checklist.
    - Tool 3: Saved Projects Workspace. Saves projects directly to student's account.
-   - IMPORTANT: DO NOT suggest external Draw.io, Lucidchart, or ChatGPT; explain that our portal does it natively!
 
 3. **Placements & JD Matcher Module**:
    - Location: "Placements" tab.
@@ -6408,6 +6483,7 @@ EXACT PORTAL FEATURES & SYSTEM KNOWLEDGE BASE:
 4. **Academic Calendar Module**:
    - Location: "Academic Calendar" tab.
    - Contains 112 official dates, IA-1, IA-2, IA-3 test schedules, fests, workshops, and holidays with interactive search and category filters.
+   - When asked about events today, tomorrow, or upcoming, list the EXACT events from the calendar context above!
 
 Conversation:
 ${nextMessages.map((item) => `${item.role}: ${item.text}`).join('\n')}
@@ -6415,6 +6491,7 @@ ${nextMessages.map((item) => `${item.role}: ${item.text}`).join('\n')}
 INSTRUCTIONS:
 • Reply in simple, polite, student-friendly language.
 • Address student as ${studentFirstName}.
+• If the student asks what is today's special event or schedule, name the exact event (${todayEvents.length > 0 ? todayEvents.map((e) => e.title).join(', ') : 'None'}) and what is coming up next!
 • Format key points with **bold** text, bullet points •, and numbered steps (1. 2. 3.).
 • Keep responses accurate to this portal.`,
         { maxOutputTokens: 900, temperature: 0.45 }
