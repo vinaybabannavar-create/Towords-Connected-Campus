@@ -1,5 +1,5 @@
 import express from 'express';
-import { getDbPool } from '../db.js';
+import { executeQuery } from '../db.js';
 
 const router = express.Router();
 
@@ -7,25 +7,32 @@ const router = express.Router();
 router.post('/auth/login', async (req, res) => {
   try {
     const { bec, password, role } = req.body || {};
-    let query = 'SELECT bec, name, department, year, role FROM students WHERE bec = ? AND password = ?';
-    let params = [bec, password];
+    if (!bec || !password) {
+      return res.status(400).json({ error: 'BEC / USN and Password are required.' });
+    }
+
+    const cleanBec = String(bec).trim();
+    const cleanPassword = String(password).trim();
+
+    let query = 'SELECT bec, name, department, year, role FROM students WHERE UPPER(TRIM(bec)) = UPPER(TRIM(?)) AND password = ?';
+    let params = [cleanBec, cleanPassword];
 
     if (role) {
-      query += ' AND role = ?';
-      params.push(role);
+      query += ' AND (LOWER(role) = LOWER(?) OR (role IS NULL AND LOWER(?) = "student"))';
+      params.push(role, role);
     }
     query += ' LIMIT 1';
 
-    const db = await getDbPool();
-    const [rows] = await db.query(query, params);
+    const [rows] = await executeQuery(query, params);
 
-    if (rows.length > 0) {
+    if (rows && rows.length > 0) {
       res.json({ success: true, student: rows[0] });
     } else {
-      res.status(401).json({ error: 'Invalid BEC number, password, or role selection.' });
+      res.status(401).json({ error: 'Invalid ID, password, or role selection.' });
     }
   } catch (err) {
-    res.status(500).json({ error: 'Login authentication error: ' + err.message });
+    console.error('Login error:', err.message);
+    res.status(500).json({ error: 'Authentication service temporarily unavailable: ' + err.message });
   }
 });
 

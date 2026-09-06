@@ -1,13 +1,12 @@
 import express from 'express';
-import { getDbPool } from '../db.js';
+import { executeQuery } from '../db.js';
 
 const router = express.Router();
 
 // GET /api/db/students (Fetch student and staff profiles)
 router.get('/students', async (req, res) => {
   try {
-    const db = await getDbPool();
-    const [rows] = await db.query(
+    const [rows] = await executeQuery(
       'SELECT bec, name, department, year, role, created_at FROM students ORDER BY created_at DESC'
     );
     res.json({ students: rows });
@@ -24,10 +23,11 @@ router.post('/students', async (req, res) => {
       return res.status(400).json({ error: 'BEC / Staff ID, name, and password are required.' });
     }
 
+    const cleanBec = String(bec).trim().toUpperCase();
+    const cleanPassword = String(password).trim();
     const userRole = role || 'student';
-    const db = await getDbPool();
 
-    await db.query(
+    await executeQuery(
       `INSERT INTO students (bec, name, department, year, password, role) 
        VALUES (?, ?, ?, ?, ?, ?) 
        ON DUPLICATE KEY UPDATE 
@@ -36,7 +36,7 @@ router.post('/students', async (req, res) => {
          year = VALUES(year), 
          password = VALUES(password), 
          role = VALUES(role)`,
-      [bec, name, department || '', year || 'III Year', password, userRole]
+      [cleanBec, String(name).trim(), department || '', year || 'III Year', cleanPassword, userRole]
     );
 
     res.json({ success: true, message: 'Account saved to TiDB Cloud.' });
@@ -55,8 +55,9 @@ router.post('/students/update', async (req, res) => {
       return res.status(400).json({ error: 'BEC / USN identifier is required.' });
     }
 
-    const db = await getDbPool();
-    const [result] = await db.query(
+    const cleanBec = String(bec).trim().toUpperCase();
+
+    const [result] = await executeQuery(
       `UPDATE students 
        SET 
          name = COALESCE(?, name), 
@@ -64,22 +65,22 @@ router.post('/students/update', async (req, res) => {
          year = COALESCE(?, year), 
          password = COALESCE(?, password), 
          role = COALESCE(?, role)
-       WHERE bec = ?`,
+       WHERE UPPER(TRIM(bec)) = UPPER(TRIM(?))`,
       [
         name ?? null,
         department ?? null,
         year ?? null,
         password ?? null,
         role ?? null,
-        bec
+        cleanBec
       ]
     );
 
     if (result.affectedRows === 0) {
-      await db.query(
+      await executeQuery(
         `INSERT INTO students (bec, name, department, year, password, role) 
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [bec, name || '', department || '', year || 'III Year', password || 'password123', role || 'student']
+        [cleanBec, name || '', department || '', year || 'III Year', password || 'password123', role || 'student']
       );
     }
 

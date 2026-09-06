@@ -1,13 +1,12 @@
 import express from 'express';
-import { getDbPool } from '../db.js';
+import { executeQuery } from '../db.js';
 
 const router = express.Router();
 
 // GET /api/db/status (Health check endpoint)
 router.get('/status', async (req, res) => {
   try {
-    const db = await getDbPool();
-    await db.query('SELECT 1');
+    await executeQuery('SELECT 1');
     const dbName = process.env.TIDB_DATABASE || 'bec_portal';
     res.json({ online: true, database: `TiDB Cloud (${dbName})` });
   } catch (err) {

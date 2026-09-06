@@ -590,12 +590,14 @@ const apiFetch = async (url, options = {}) => {
       headers: { 'Content-Type': 'application/json' },
       ...options
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Request failed');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { error: data.error || `Request failed with status ${res.status}` };
+    }
     return data;
   } catch (err) {
     console.warn('TiDB API notice:', err.message);
-    return null;
+    return { error: err.message || 'Network request failed' };
   }
 };
 
@@ -850,8 +852,14 @@ function App() {
   };
 
   const login = async (bec, password, role) => {
+    const cleanBec = (bec || '').trim().toUpperCase();
+    const cleanPass = (password || '').trim();
+
     const found = students.find(
-      (s) => s.bec === bec && s.password === password && (!role || s.role === role || (!s.role && role === 'student'))
+      (s) =>
+        (s.bec || '').trim().toUpperCase() === cleanBec &&
+        s.password === cleanPass &&
+        (!role || (s.role || 'student').toLowerCase() === role.toLowerCase())
     );
     if (found) {
       const home = getRoleHomePage(found.role || role);
@@ -860,18 +868,18 @@ function App() {
       localStorage.setItem(STORAGE_KEYS.session, found.bec);
       setSessionBec(found.bec);
       setPage(home);
-      return true;
+      return { success: true };
     }
 
     // Try TiDB Cloud database login
     const res = await apiFetch('/api/db/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ bec, password, role })
+      body: JSON.stringify({ bec: cleanBec, password: cleanPass, role })
     });
 
     if (res?.success && res.student) {
-      const dbStudent = { ...res.student, password };
-      const nextStudents = [...students.filter((s) => s.bec !== bec), dbStudent];
+      const dbStudent = { ...res.student, password: cleanPass };
+      const nextStudents = [...students.filter((s) => (s.bec || '').trim().toUpperCase() !== cleanBec), dbStudent];
       setStudents(nextStudents);
       setJSON(STORAGE_KEYS.students, nextStudents);
       const home = getRoleHomePage(dbStudent.role || role);
@@ -880,10 +888,13 @@ function App() {
       localStorage.setItem(STORAGE_KEYS.session, dbStudent.bec);
       setSessionBec(dbStudent.bec);
       setPage(home);
-      return true;
+      return { success: true };
     }
 
-    return false;
+    return {
+      success: false,
+      error: res?.error || 'Invalid ID, password, or role selection.'
+    };
   };
 
   const logout = () => {
@@ -1017,9 +1028,13 @@ function AuthScreen({ students, onCreateAccount, onLogin, initialRole = 'student
       return;
     }
 
-    const success = await onLogin(bec, password, role);
-    if (!success) {
-      setError('Invalid ID, password, or role selection.');
+    const loginResult = await onLogin(bec, password, role);
+    const ok = (typeof loginResult === 'object' && loginResult !== null) ? loginResult.success : Boolean(loginResult);
+    if (!ok) {
+      const msg = (typeof loginResult === 'object' && loginResult?.error)
+        ? loginResult.error
+        : 'Invalid ID, password, or role selection.';
+      setError(msg);
     }
   };
 
