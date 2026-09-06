@@ -6356,9 +6356,14 @@ function CampusChatBot({ student, activePage }) {
   };
 
   const getSmartCampusResponse = (query) => {
-    const q = (query || '').toLowerCase();
+    const q = (query || '').trim().toLowerCase();
     const name = student?.name ? student.name.split(' ')[0] : 'there';
     const { todayStr, todayEvents, tomorrowEvents, upcomingEvents } = getCalendarEventsForChat();
+
+    // Natural greeting
+    if (/^(hi|hello|hey|hey bro|hi bro|hola|namaste|good morning|good evening|good afternoon|yo|sup)\b/i.test(q)) {
+      return `Hey ${name}! 👋 How's it going? How can I help you today with your campus activities?`;
+    }
 
     if (
       q.includes('today') ||
@@ -6384,7 +6389,7 @@ function CampusChatBot({ student, activePage }) {
       let reply = `📅 **Academic Calendar Events for Today (${formattedDate}):**\n\n`;
 
       if (todayEvents.length > 0) {
-        reply += `🌟 **Today's Special Events:**\n`;
+        reply += `🌟 **Today's Event:**\n`;
         todayEvents.forEach((ev) => {
           reply += `• **${ev.title}** (${ev.category} • Dept: ${ev.dept})\n`;
         });
@@ -6425,7 +6430,7 @@ function CampusChatBot({ student, activePage }) {
       return `👤 **Student Profile (100% Completion):**\n• Tap your profile button in the top navigation bar.\n• Ensure all fields are updated: Full Name, USN (${student?.bec || 'USN'}), Department, Year/Sem, Email, Contact, Skills tags, Portfolio/GitHub links, and Resume PDF upload.`;
     }
 
-    return `🤖 Hi ${name}! I'm your dedicated Campus Assistant. Here is what I can help you with:\n• **Gate Passes:** Application process, teacher & HOD approvals, and QR security validation.\n• **Project Tracker:** Generating AI system architectures, flow diagrams, and viva defense questions.\n• **Placements:** ATS JD matching score, missing skills, and placement drive schedules.\n• **Academic Calendar:** Internal Assessment (IA) test dates, fests, and official holidays.\n\nTap any quick suggestion below or ask a question!`;
+    return `🤖 Hi ${name}! I'm here to help with your campus tasks. Ask me anything about **Gate Passes**, **Project Architecture**, **Placements & JD Matching**, or the **Academic Calendar**!`;
   };
 
   const sendMessage = async (event, overrideText) => {
@@ -6447,54 +6452,35 @@ function CampusChatBot({ student, activePage }) {
 
     try {
       const reply = await callAI(
-        `You are the official AI Campus Assistant for this college's Digital Campus Portal.
+        `You are the smart, legendary AI Campus Assistant for Basaveshwar Engineering College (BEC).
 
-STUDENT DETAILS:
+STUDENT PROFILE:
 • Name: ${student.name || 'Student'}
-• USN / Student ID: ${student.bec || 'N/A'}
+• USN: ${student.bec || 'N/A'}
 • Department: ${student.department || 'General'}
-• Year/Semester: ${student.year || 'Student'}
-• Active Portal Page: ${activePage || 'dashboard'}
+• Year: ${student.year || 'Student'}
 
-TODAY'S CALENDAR CONTEXT (${todayStr}):
-• Today's Events: ${todayEvents.length > 0 ? todayEvents.map((e) => `"${e.title}" (${e.category} • Dept: ${e.dept})`).join('; ') : 'No special events today (regular academic schedule)'}
-• Tomorrow's Events: ${tomorrowEvents.length > 0 ? tomorrowEvents.map((e) => `"${e.title}" (${e.category} • Dept: ${e.dept})`).join('; ') : 'None'}
-• Next Upcoming Events: ${upcomingEvents.slice(0, 6).map((e) => `${e.startDate}: ${e.title} (${e.category})`).join(' | ')}
+CALENDAR DATA REFERENCE (${todayStr}):
+• Today's Event: ${todayEvents.length > 0 ? todayEvents.map((e) => `"${e.title}" (${e.category})`).join(', ') : 'None'}
+• Tomorrow's Event: ${tomorrowEvents.length > 0 ? tomorrowEvents.map((e) => `"${e.title}" (${e.category})`).join(', ') : 'None'}
+• Next Upcoming: ${upcomingEvents.slice(0, 4).map((e) => `${e.startDate}: ${e.title}`).join(' | ')}
 
-EXACT PORTAL FEATURES & SYSTEM KNOWLEDGE BASE:
-1. **Gate Pass Module**:
-   - Location: "Gate Pass" tab.
-   - Purpose: Paperless departure permits with cryptographic QR verification.
-   - Application fields: Departure Time, Return Time, Reason, Parent Contact.
-   - 2-Step Approval: First endorsed by Class Teacher, then approved by HOD.
-   - Final Output: Digital QR Gate Pass + 6-character Security Key (e.g., 904CD3) scanned live at Security Gate Terminal.
+PORTAL CORE MODULES:
+1. Gate Pass: 2-step approval (Teacher -> HOD) -> Digital QR code for security terminal.
+2. Project Tracker: Native AI Architecture generation (5 tiers), GitHub repo analysis, Viva prep.
+3. Placements: Live Placement Drives Ledger, Candidate Registration, Resume Skill Extractor, JD ATS Matcher.
+4. Academic Calendar: 112 official dates, IA-1, IA-2, IA-3 test schedules, fests, holidays.
 
-2. **Project Tracker Module**:
-   - Location: "Project Tracker" tab.
-   - Tool 1: Built-in AI Architecture & Flow Diagram Generator. Generates 5 system tiers (Frontend, API Gateway, Service Layer, Database, Security), REST endpoints, database schemas, and Viva defense questions.
-   - Tool 2: Live GitHub Repository Analyzer. Reads public GitHub repos live, generates architecture breakdowns and viva prep checklist.
-   - Tool 3: Saved Projects Workspace. Saves projects directly to student's account.
-
-3. **Placements & JD Matcher Module**:
-   - Location: "Placements" tab.
-   - Tool 1: Intelligent JD Matcher. Calculates ATS score %, matching skills, missing skills, and 7-day preparation roadmap.
-   - Tool 2: Placement Ledger. Shows active company drives, CTC packages, eligibility cutoffs, and test schedules.
-
-4. **Academic Calendar Module**:
-   - Location: "Academic Calendar" tab.
-   - Contains 112 official dates, IA-1, IA-2, IA-3 test schedules, fests, workshops, and holidays with interactive search and category filters.
-   - When asked about events today, tomorrow, or upcoming, list the EXACT events from the calendar context above!
-
-Conversation:
+CONVERSATION HISTORY:
 ${nextMessages.map((item) => `${item.role}: ${item.text}`).join('\n')}
 
-INSTRUCTIONS:
-• Reply in simple, polite, student-friendly language.
-• Address student as ${studentFirstName}.
-• If the student asks what is today's special event or schedule, name the exact event (${todayEvents.length > 0 ? todayEvents.map((e) => e.title).join(', ') : 'None'}) and what is coming up next!
-• Format key points with **bold** text, bullet points •, and numbered steps (1. 2. 3.).
-• Keep responses accurate to this portal.`,
-        { maxOutputTokens: 900, temperature: 0.45 }
+CRITICAL BEHAVIORAL RULES:
+1. ALWAYS ANSWER ONLY WHAT THE USER ASKS. Do not give unsolicited long lists or unrelated information.
+2. IF THE USER SAYS A GREETING ("hi", "hello", "hey", "hi bro", etc.): Respond naturally, warmly, and concisely in 1-2 sentences (e.g. "Hey ${studentFirstName}! How can I help you today?"). NEVER dump calendar schedules or portal overviews on a simple greeting!
+3. IF THE USER ASKS ABOUT TODAY'S EVENT / CALENDAR / EXAMS: Directly state the exact event for today (${todayEvents.length > 0 ? todayEvents.map((e) => e.title).join(', ') : 'No special event today'}) and upcoming dates.
+4. IF THE USER ASKS ABOUT A SPECIFIC MODULE (Gate pass, Placement, Project, etc.): Answer precisely and clearly about that topic only.
+5. Be concise, smart, professional, and friendly like a true AI legend.`,
+        { maxOutputTokens: 600, temperature: 0.3 }
       );
       updateCurrentSession([...nextMessages, { role: 'assistant', text: reply }]);
     } catch (error) {
