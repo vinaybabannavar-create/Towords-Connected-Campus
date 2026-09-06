@@ -401,55 +401,72 @@ const extractReadmeSummary = (readme, repo) => {
 
 const articleFor = (phrase) => (/^[aeiou]/i.test(phrase) ? 'an' : 'a');
 
+const hasKeyword = (text, keyword) => {
+  if (!text || !keyword) return false;
+  if (!keyword.includes(' ') && keyword.length <= 5) {
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+    return regex.test(text);
+  }
+  return text.toLowerCase().includes(keyword.toLowerCase());
+};
+
+const hasAnyKeyword = (text, keywords) => keywords.some((kw) => hasKeyword(text, kw));
+
+const checkHasPackageJson = (snapshot) => (
+  Boolean(snapshot?.files && snapshot.files.some((f) => f.toLowerCase().endsWith('package.json')))
+);
+
 const detectProjectType = (text, repoName) => {
-  const haystack = `${text} ${repoName}`.toLowerCase();
+  const haystack = `${text} ${repoName}`;
   const types = [
-    ['AI assistant', ['ai', 'openai', 'gemini', 'llm', 'chatbot', 'rag', 'agent']],
-    ['vendor or business management system', ['vendor', 'supplier', 'invoice', 'procurement', 'business']],
-    ['student or college portal', ['student', 'college', 'campus', 'attendance', 'hod', 'teacher']],
-    ['e-commerce platform', ['cart', 'product', 'order', 'payment', 'checkout']],
-    ['placement or career tool', ['placement', 'job', 'resume', 'jd', 'interview']],
-    ['healthcare application', ['doctor', 'patient', 'appointment', 'medical', 'health']]
+    ['AI assistant', ['openai', 'gemini api', 'chatbot', 'chat bot', 'gpt', 'llm', 'rag model', 'ai agent', 'generative ai', 'ai assistant']],
+    ['vendor or business management system', ['vendor', 'supplier', 'invoice', 'procurement', 'billing', 'inventory', 'business']],
+    ['student or college portal', ['student', 'college', 'campus', 'attendance', 'hod', 'teacher', 'gate pass']],
+    ['e-commerce platform', ['cart', 'product', 'order', 'payment', 'checkout', 'stripe']],
+    ['placement or career tool', ['placement', 'resume', 'job description', 'interview prep', 'ats score']],
+    ['healthcare application', ['doctor', 'patient', 'appointment', 'medical', 'hospital', 'clinic', 'health']]
   ];
-  return types.find(([, keys]) => keys.some((key) => haystack.includes(key)))?.[0] || 'web application';
+  return types.find(([, keys]) => hasAnyKeyword(haystack, keys))?.[0] || 'web application';
 };
 
 const detectModules = (files, text) => {
   const pathModules = files
     .filter((file) => /(pages|components|routes|controllers|models|services|api|app|src)\//i.test(file))
     .map((file) => readableName(file.split('/').pop() || file))
-    .filter((name) => name.length > 2 && !['index', 'main', 'app'].includes(name.toLowerCase()));
+    .filter((name) => name.length > 2 && !['index', 'main', 'app', 'vite', 'setup'].includes(name.toLowerCase()));
 
   const keywordModules = [
-    ['Login and account access', ['login', 'signup', 'auth', 'password']],
-    ['Dashboard overview', ['dashboard', 'overview', 'analytics']],
-    ['Data/API service', ['api', 'service', 'fetch', 'axios']],
-    ['Admin or management panel', ['admin', 'manage', 'ledger']],
-    ['AI matching or recommendation', ['match', 'recommend', 'ai', 'prompt']]
+    ['Login and account access', ['login', 'signup', 'auth', 'jwt', 'password']],
+    ['Dashboard overview', ['dashboard', 'analytics', 'overview']],
+    ['Data/API service', ['api service', 'rest api', 'axios', 'fetch', 'endpoints']],
+    ['Admin or management panel', ['admin', 'management panel', 'ledger', 'admin panel']],
+    ['AI matching or recommendation', ['recommendation engine', 'match score', 'openai', 'gemini api', 'embedding', 'similarity search']]
   ]
-    .filter(([, keys]) => keys.some((key) => text.includes(key)))
+    .filter(([, keys]) => hasAnyKeyword(text, keys))
     .map(([module]) => module);
 
   return [...new Set([...keywordModules, ...pathModules])].slice(0, 10);
 };
 
 const detectUserFlow = (text, projectType) => {
-  if (text.includes('login') || text.includes('auth')) {
+  if (hasAnyKeyword(text, ['login', 'auth', 'signup', 'jwt'])) {
     return `User opens the ${projectType}, logs in, reaches the main dashboard, then uses project modules based on their role or data.`;
   }
-  if (text.includes('chat') || text.includes('prompt')) {
+  if (hasAnyKeyword(text, ['chat', 'prompt', 'assistant', 'query'])) {
     return `User enters a query or prompt, the app processes it through the AI/data layer, then returns a useful result in the interface.`;
   }
-  if (text.includes('upload') || text.includes('file')) {
+  if (hasAnyKeyword(text, ['upload', 'file upload', 'resume upload'])) {
     return `User uploads or enters data, the app processes it, then shows results, records, or recommendations.`;
   }
   return `User opens the ${projectType}, navigates through the available screens, and completes the main project workflow shown by the repo modules.`;
 };
 
 const buildEvidence = (snapshot, modules) => {
+  const hasPackageJson = checkHasPackageJson(snapshot);
   const evidence = [
     snapshot.readme ? 'README content was found and used for project summary.' : 'README was missing or too small, so analysis used repo files and metadata.',
-    snapshot.files.includes('package.json') ? 'package.json was found, so frontend/dependency signals were checked.' : 'package.json was not found in the fetched file tree.',
+    hasPackageJson ? 'package.json was found, so frontend/dependency signals were checked.' : 'package.json was not found in the fetched file tree.',
     modules.length ? `Detected modules include ${modules.slice(0, 4).join(', ')}.` : 'Module names were not clear; stronger folder names will improve verification.'
   ];
 
@@ -509,15 +526,15 @@ const analyzeRepoSnapshot = (snapshot, manualNotes) => {
     ['Authentication', ['login', 'signup', 'auth', 'jwt', 'session', 'password']],
     ['Dashboard', ['dashboard', 'analytics', 'metric', 'overview']],
     ['API Integration', ['api', 'fetch', 'axios', 'endpoint', 'express', 'controller']],
-    ['Database Layer', ['schema', 'model', 'mongodb', 'mysql', 'postgres', 'firebase', 'prisma']],
-    ['Responsive UI', ['tailwind', 'responsive', 'mobile', 'media', 'css']],
+    ['Database Layer', ['schema', 'model', 'mongodb', 'mysql', 'postgres', 'firebase', 'prisma', 'sqlite', 'tidb']],
+    ['Responsive UI', ['tailwind', 'responsive', 'mobile', 'media query', 'css']],
     ['Routing', ['router', 'routes', 'protectedroute', 'navigation']],
-    ['Testing', ['test', 'spec', 'vitest', 'jest', 'cypress']],
-    ['Documentation', ['readme', 'docs', 'architecture', 'setup']]
+    ['Testing', ['vitest', 'jest', 'cypress', 'mocha', 'playwright', 'unit test']],
+    ['Documentation', ['readme', 'docs', 'architecture', 'setup guide']]
   ];
 
   const found = featureSignals
-    .filter(([, keys]) => keys.some((key) => allText.includes(key)))
+    .filter(([, keys]) => hasAnyKeyword(allText, keys))
     .map(([name]) => name);
 
   const folders = [...new Set(snapshot.files.map((file) => file.split('/')[0]).filter(Boolean))].slice(0, 8);
@@ -526,6 +543,7 @@ const analyzeRepoSnapshot = (snapshot, manualNotes) => {
   const modules = detectModules(snapshot.files, allText);
   const score = Math.min(98, 35 + found.length * 7 + Math.min(languageNames.length * 3, 12) + (snapshot.readme.length > 400 ? 8 : 0));
   const mainStack = languageNames.length ? languageNames : manualNotes.stack.split(',').map((item) => item.trim()).filter(Boolean);
+  const hasPackageJson = checkHasPackageJson(snapshot);
 
   return {
     repoName: snapshot.repo.name,
@@ -549,8 +567,8 @@ const analyzeRepoSnapshot = (snapshot, manualNotes) => {
     architecture: [
       `Primary languages: ${mainStack.join(', ') || 'Not detected'}.`,
       snapshot.readme ? 'README is available for project explanation.' : 'README is missing; add setup, features, screenshots, and architecture.',
-      filesText.includes('package.json') ? 'JavaScript package setup found.' : 'Package/dependency file was not found in fetched tree.',
-      allText.includes('auth') || allText.includes('login') ? 'Authentication signals detected.' : 'Authentication module not clearly visible from repo content.'
+      hasPackageJson ? 'JavaScript package setup found.' : 'Package/dependency file was not found in fetched tree.',
+      hasAnyKeyword(allText, ['auth', 'login', 'jwt']) ? 'Authentication signals detected.' : 'Authentication module not clearly visible from repo content.'
     ],
     improvements: [
       snapshot.readme.length > 400 ? 'Add screenshots and final output images to make evaluation easier.' : 'Write a stronger README with abstract, features, setup, and screenshots.',
