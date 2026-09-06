@@ -31,18 +31,6 @@ export const getDbPool = async () => {
   if (!initPromise) {
     initPromise = (async () => {
       try {
-        const initConn = await mysql.createConnection({
-          host: tidbHost,
-          port: tidbPort,
-          user: tidbUser,
-          password: tidbPassword,
-          database: 'test',
-          connectTimeout: 20000,
-          ssl: { rejectUnauthorized: false }
-        });
-        await initConn.query(`CREATE DATABASE IF NOT EXISTS \`${tidbDatabase}\`;`);
-        await initConn.end();
-
         // 1. Students / Staff accounts
         await pool.query(`
           CREATE TABLE IF NOT EXISTS students (

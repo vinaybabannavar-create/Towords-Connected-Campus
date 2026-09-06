@@ -56,17 +56,32 @@ router.post('/students/update', async (req, res) => {
     }
 
     const db = await getDbPool();
-    await db.query(
-      `INSERT INTO students (bec, name, department, year, password, role) 
-       VALUES (?, ?, ?, ?, ?, ?) 
-       ON DUPLICATE KEY UPDATE 
-         name = COALESCE(VALUES(name), name), 
-         department = COALESCE(VALUES(department), department), 
-         year = COALESCE(VALUES(year), year), 
-         password = COALESCE(VALUES(password), password), 
-         role = COALESCE(VALUES(role), role)`,
-      [bec, name || '', department || '', year || 'III Year', password || 'password123', role || 'student']
+    const [result] = await db.query(
+      `UPDATE students 
+       SET 
+         name = COALESCE(?, name), 
+         department = COALESCE(?, department), 
+         year = COALESCE(?, year), 
+         password = COALESCE(?, password), 
+         role = COALESCE(?, role)
+       WHERE bec = ?`,
+      [
+        name ?? null,
+        department ?? null,
+        year ?? null,
+        password ?? null,
+        role ?? null,
+        bec
+      ]
     );
+
+    if (result.affectedRows === 0) {
+      await db.query(
+        `INSERT INTO students (bec, name, department, year, password, role) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [bec, name || '', department || '', year || 'III Year', password || 'password123', role || 'student']
+      );
+    }
 
     res.json({ success: true, message: 'Student profile updated successfully.' });
   } catch (err) {
