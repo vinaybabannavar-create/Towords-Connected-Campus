@@ -338,7 +338,7 @@ export default defineConfig(({ mode }) => {
                       g.roll_no || g.rollNo || '',
                       g.branch || 'CSE',
                       g.year_sem || g.yearSem || '3rd Yr, 6th Sem',
-                      g.college_name || g.collegeName || 'Basaveshwar Engineering College',
+                      g.college_name || g.collegeName || 'Engineering College',
                       g.department || g.branch || 'CSE',
                       g.reason,
                       g.document_name || g.documentName || '',

@@ -249,7 +249,7 @@ const exportApplicantsToExcel = (drive, applicants) => {
     app.studentName || app.name || 'N/A',
     app.studentBec || app.rollNo || app.bec || 'N/A',
     app.department || app.branch || 'CSE',
-    app.college || app.collegeName || 'Basaveshwar Engineering College',
+    app.college || app.collegeName || 'Engineering College',
     app.yearSem || app.year || 'N/A',
     app.phone || app.mobile || 'N/A',
     app.email || 'N/A',
@@ -4271,7 +4271,7 @@ function POPlacementWorkspace({ student, setPage }) {
                 </div>
                 <h3 className="text-xl font-black text-stone-950 mt-1">Registered Student Candidates</h3>
                 <p className="text-xs text-stone-500">
-                  Total {getDriveApplicants(viewingApplicantsDrive.id).length} registered applicants from Basaveshwar Engineering College.
+                  Total {getDriveApplicants(viewingApplicantsDrive.id).length} registered applicants across the college campus.
                 </p>
               </div>
 
@@ -5034,7 +5034,7 @@ const encodePassData = (pass) => {
       r: pass.roll_no || pass.rollNo || '',
       br: pass.branch || pass.department || 'CSE',
       y: pass.year_sem || pass.yearSem || 'III Year',
-      c: pass.college_name || pass.collegeName || 'Basaveshwar Engineering College',
+      c: pass.college_name || pass.collegeName || student?.college || 'Engineering College',
       re: pass.reason,
       p: pass.ai_priority || 'HIGH',
       k: pass.security_key || '1BE7F7',
@@ -5249,7 +5249,7 @@ function PublicGatePassVerification({ passId, encodedData }) {
         {/* College Header */}
         <div className="text-center space-y-1">
           <div className="inline-flex items-center gap-2 rounded-full bg-stone-900 text-white px-4 py-1 text-[11px] font-black uppercase tracking-wider shadow-sm">
-            <GraduationCap className="h-3.5 w-3.5 text-emerald-400" /> {pass.college_name || pass.collegeName || 'Basaveshwar Engineering College'}
+            <GraduationCap className="h-3.5 w-3.5 text-emerald-400" /> {pass.college_name || pass.collegeName || student?.college || 'Engineering College'}
           </div>
           <p className="text-xs font-bold text-stone-500">Digital Gate Security Verification</p>
         </div>
@@ -5461,7 +5461,7 @@ function DocumentViewerModal({ pass, onClose }) {
             /* Official Digital Leave Letter & Slip Preview */
             <div className="rounded-xl border border-stone-200 bg-white p-6 text-left space-y-4 shadow-xs">
               <div className="border-b border-stone-200 pb-3 text-center">
-                <p className="text-xs font-bold uppercase tracking-widest text-emerald-800">Basaveshwar Engineering College</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-emerald-800">{pass.college_name || pass.collegeName || student?.college || 'Digital Campus Portal'}</p>
                 <h4 className="text-base font-black text-stone-950">STUDENT PERMISSION & LEAVE LETTER</h4>
                 <p className="text-[11px] text-stone-500">Autonomous Institution Affiliated to VTU, Belagavi</p>
               </div>
@@ -5631,7 +5631,7 @@ function GatePass({ student }) {
       roll_no: form.rollNo.trim() || '42',
       branch: form.branch.trim() || 'CSE',
       year_sem: form.yearSem.trim() || 'III Year',
-      college_name: form.collegeName.trim() || 'Basaveshwar Engineering College',
+      college_name: form.collegeName.trim() || student?.college || 'Engineering College',
       department: form.branch.trim() || 'CSE',
       reason: form.reason.trim(),
       document_name: selectedFile ? selectedFile.name : (form.documentName || ''),
@@ -6873,7 +6873,7 @@ function CampusChatBot({ student, activePage }) {
 
     const { todayStr, todayEvents, tomorrowEvents, upcomingEvents } = getCalendarEventsForChat();
 
-    const systemInstruction = `You are the smart, legendary AI Campus Assistant for Basaveshwar Engineering College (BEC).
+    const systemInstruction = `You are the smart, helpful AI Campus Assistant for Towards Connected Campus (Smart Campus Portal).
 
 STUDENT PROFILE:
 • Name: ${student.name || 'Student'}

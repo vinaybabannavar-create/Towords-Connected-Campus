@@ -1,6 +1,6 @@
-﻿# 🎓 Towards Connected Campus (BEC Smart Campus Portal)
+# 🎓 Towards Connected Campus (BEC Smart Campus Portal)
 
-A unified, multi-role digital campus platform developed for **Basaveshwar Engineering College (BEC)**. This application connects **Students**, **Class Teachers**, **Heads of Departments (HODs)**, **Gate Security**, and **Placement Officers (PO)** in one ecosystem.
+A unified, multi-role digital campus platform developed for **Smart Connected Campus**. This application connects **Students**, **Class Teachers**, **Heads of Departments (HODs)**, **Gate Security**, and **Placement Officers (PO)** in one ecosystem.
 
 ---
 

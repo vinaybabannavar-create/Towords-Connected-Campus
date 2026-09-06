@@ -814,7 +814,7 @@ export function StudentProfileModal({ student, isOpen, onClose, onSave }) {
                   <input
                     type="text"
                     required
-                    placeholder="Enter your college name (e.g. Basaveshwar Engineering College)"
+                    placeholder="Enter your college / institute name"
                     value={formData.college}
                     onChange={(e) => handleInputChange('college', e.target.value)}
                     className="input pl-10 text-xs"
