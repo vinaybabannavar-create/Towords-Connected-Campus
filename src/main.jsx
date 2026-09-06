@@ -1657,6 +1657,7 @@ function Insight({ title, text, icon: Icon }) {
 function ProjectTracker({ student }) {
   const [projects, setProjects] = useState(() => getJSON(STORAGE_KEYS.projects, []));
   const [activeTool, setActiveTool] = useState('architecture');
+  const [selectedSavedProjectId, setSelectedSavedProjectId] = useState(null);
   const [archPrompt, setArchPrompt] = useState('');
   const [archLoading, setArchLoading] = useState(false);
   const [archError, setArchError] = useState('');
@@ -1936,8 +1937,8 @@ Keep it clear, specific, and avoid markdown tables.`,
 
       {activeTool === 'saved' ? (
         /* Dedicated Full Saved Projects View */
-        <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-4 sm:p-5 shadow-sm">
             <div>
               <h3 className="text-lg font-black text-stone-900">Saved Projects & AI Reports</h3>
               <p className="text-xs text-stone-500">
@@ -1972,10 +1973,31 @@ Keep it clear, specific, and avoid markdown tables.`,
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {myProjects.map((project) => (
-                <ProjectCard key={project.id} project={project} onDelete={deleteProject} />
-              ))}
+            <div className="space-y-6">
+              {/* 1. Compact Grid of Saved Projects */}
+              <div>
+                <p className="mb-3 text-xs font-black uppercase tracking-wider text-stone-500">
+                  Select a project from your workspace list:
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {myProjects.map((project) => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      isSelected={(selectedSavedProjectId || myProjects[0]?.id) === project.id}
+                      onSelect={(id) => setSelectedSavedProjectId(id)}
+                      onDelete={deleteProject}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. Full-Width Selected Project Inspector Below */}
+              {(() => {
+                const activeProj = myProjects.find((p) => p.id === selectedSavedProjectId) || myProjects[0];
+                if (!activeProj) return null;
+                return <SavedProjectInspector project={activeProj} onDelete={deleteProject} />;
+              })()}
             </div>
           )}
         </div>
@@ -2756,51 +2778,244 @@ function MiniMetric({ label, value }) {
   );
 }
 
-function ProjectCard({ project, onDelete }) {
+function ProjectCard({ project, isSelected, onSelect, onDelete }) {
   return (
-    <article className="min-w-0 rounded-lg border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">{project.phase}</p>
-          <h3 className="mt-2 break-words text-xl font-black">{project.title}</h3>
-          <p className="mt-1 break-words text-sm text-stone-600">Guide: {project.guide}</p>
+    <article
+      onClick={() => onSelect && onSelect(project.id)}
+      className={`cursor-pointer min-w-0 rounded-xl border transition p-4 sm:p-5 shadow-sm flex flex-col justify-between ${
+        isSelected
+          ? 'border-emerald-500 bg-emerald-50/20 ring-2 ring-emerald-500/20 shadow-md'
+          : 'border-stone-200 bg-white hover:border-stone-300 hover:shadow-md'
+      }`}
+    >
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+              project.phase === 'Repo Analysis' ? 'bg-fuchsia-100 text-fuchsia-900 border border-fuchsia-200' : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+            }`}>
+              {project.phase}
+            </span>
+            <h3 className="mt-2 text-base font-black text-stone-900 truncate">{project.title}</h3>
+            <p className="mt-0.5 text-xs text-stone-500">Guide: {project.guide || 'Not assigned'}</p>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+            {onDelete && (
+              <button
+                onClick={() => onDelete(project.id)}
+                title="Delete saved project"
+                className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <BookOpenCheck className="h-6 w-6 text-amber-600" />
-          {onDelete && (
-            <button
-              onClick={() => onDelete(project.id)}
-              title="Delete saved project"
-              className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+
+        <p className="mt-3 text-xs leading-5 text-stone-600 font-medium line-clamp-2">
+          {project.problem || project.explanation?.whatBuilt || 'Saved project architecture record.'}
+        </p>
+
+        <div className="mt-3.5">
+          <div className="flex items-center justify-between text-[11px] font-bold text-stone-500 mb-1">
+            <span>Readiness / Score</span>
+            <span className="text-stone-900">{project.progress}%</span>
+          </div>
+          <div className="h-2 rounded-full bg-stone-100 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-emerald-500 to-amber-400" style={{ width: `${project.progress}%` }} />
+          </div>
+        </div>
+
+        <div className="mt-3.5 flex flex-wrap gap-1.5">
+          {(project.stack || []).slice(0, 4).map((tech) => (
+            <span key={tech} className="rounded-md bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-700">
+              {tech}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
+        <span className="text-[11px] font-semibold text-stone-400">{project.createdAt}</span>
+        <span className={`text-xs font-bold inline-flex items-center gap-1 ${isSelected ? 'text-emerald-700' : 'text-stone-600 group-hover:text-emerald-700'}`}>
+          {isSelected ? '✓ Viewing Below' : 'View Full Details →'}
+        </span>
+      </div>
+    </article>
+  );
+}
+
+function SavedProjectInspector({ project, onDelete }) {
+  if (!project) return null;
+
+  return (
+    <div className="space-y-6 pt-6 border-t-2 border-stone-200">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-100 text-emerald-800">
+            <BookOpenCheck className="h-4 w-4" />
+          </span>
+          <h4 className="text-base font-black text-stone-900">Full Project Report Inspector</h4>
+        </div>
+        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md">
+          Active Selection
+        </span>
+      </div>
+
+      {/* 1. Header Project Banner */}
+      <div className="min-w-0 overflow-hidden rounded-xl bg-gradient-to-br from-stone-950 via-stone-900 to-emerald-950 p-6 text-white shadow-lg border border-white/10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-400/20 border border-emerald-400/30 px-3 py-0.5 text-xs font-bold text-emerald-300">
+              <BookOpenCheck className="h-3.5 w-3.5" />
+              {project.phase}
+            </div>
+            <h3 className="text-2xl font-black tracking-tight sm:text-3xl text-white break-words">
+              {project.title}
+            </h3>
+            <p className="mt-1 text-xs text-stone-300">
+              Guide: <span className="text-white font-bold">{project.guide || 'Not assigned'}</span> • Saved on: {project.createdAt}
+            </p>
+            {project.repoUrl && (
+              <a
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition"
+                href={project.repoUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span>View GitHub Repository</span> <ArrowRight className="h-3.5 w-3.5" />
+              </a>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4 shrink-0">
+            <div className="flex flex-col items-center justify-center rounded-xl bg-white/10 border border-white/15 px-4 py-3 text-center">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300">Readiness</span>
+              <span className="text-2xl sm:text-3xl font-black text-white">{project.progress}%</span>
+            </div>
+            {onDelete && (
+              <button
+                onClick={() => onDelete(project.id)}
+                className="flex items-center justify-center gap-2 rounded-lg bg-rose-600/80 hover:bg-rose-600 px-4 py-3 font-bold text-white shadow-md transition shrink-0 text-xs"
+              >
+                <Trash2 className="h-4 w-4" /> Delete
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Overview / Saved Explanation */}
+      {(project.problem || project.explanation?.whatBuilt) && (
+        <div className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+          <div className="mb-3 flex items-center justify-between border-b border-stone-100 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-100 text-emerald-900">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <div>
+                <h4 className="text-base font-black text-stone-900">Project Concept & Scope</h4>
+                <p className="text-xs text-stone-500">Problem statement and architectural summary</p>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-sm leading-relaxed text-stone-700 font-medium whitespace-pre-wrap">
+            {project.explanation?.whatBuilt || project.problem}
+          </p>
+
+          {project.explanation?.userFlow && (
+            <div className="mt-4 rounded-lg bg-stone-50 border border-stone-200 p-4">
+              <p className="text-xs font-black uppercase tracking-wider text-emerald-800 mb-1">Standard User Flow</p>
+              <p className="text-xs leading-relaxed text-stone-600 font-medium">{project.explanation.userFlow}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 3. AI Project Review & Viva Defense Talking Points */}
+      {project.aiReview && (
+        <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50/70 to-teal-50/40 p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 text-emerald-950">
+            <div className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-700 text-white">
+              <Bot className="h-4 w-4" />
+            </div>
+            <div>
+              <h4 className="text-base font-black">AI Review & Viva Defense Guide</h4>
+              <p className="text-xs text-emerald-800">Key architectural points to highlight during faculty reviews</p>
+            </div>
+          </div>
+          <div className="space-y-3 text-sm font-medium leading-relaxed text-stone-800 whitespace-pre-wrap rounded-lg bg-white/80 p-5 border border-emerald-200/60 shadow-2xs">
+            {project.aiReview}
+          </div>
+        </div>
+      )}
+
+      {/* 4. 2-Column Technical Diagnostics */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Left Column: Features & Stack */}
+        <div className="space-y-6">
+          <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+            <h4 className="mb-3 text-xs font-black uppercase tracking-wider text-stone-700">Project Features</h4>
+            <div className="flex flex-wrap gap-2">
+              {(project.features || []).map((f) => (
+                <span key={f} className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-bold text-emerald-900">
+                  ⚡ {f}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+            <h4 className="mb-3 text-xs font-black uppercase tracking-wider text-stone-700">Tech Stack & Structure</h4>
+            <div className="mb-3">
+              <p className="text-[11px] font-bold text-stone-400 uppercase mb-1.5">Stack</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(project.stack || []).map((s) => (
+                  <span key={s} className="rounded-md bg-stone-900 px-2.5 py-0.5 text-xs font-bold text-amber-300">
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {project.folders?.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold text-stone-400 uppercase mb-1.5">Modules / Folders</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {project.folders.map((folder) => (
+                    <span key={folder} className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-700 font-mono">
+                      📁 {folder}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: Milestones / Improvements */}
+        <div className="space-y-6">
+          <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+            <h4 className="mb-3 text-xs font-black uppercase tracking-wider text-stone-700">Milestones & Action Items</h4>
+            <div className="space-y-2.5">
+              {(project.milestones || ['Complete architecture verification', 'Implement core backend services', 'Prepare final project report']).map((ms, idx) => (
+                <div key={idx} className="flex items-start gap-2.5 rounded-lg bg-stone-50 p-2.5 border border-stone-200/80">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                  <span className="text-xs font-bold text-stone-700 leading-5">{ms}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {project.special && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+              <p className="text-xs font-bold text-amber-900">📌 {project.special}</p>
+            </div>
           )}
         </div>
       </div>
-      <p className="mt-4 break-words text-sm leading-6 text-stone-600">{project.problem}</p>
-      {project.explanation?.whatBuilt && (
-        <div className="mt-4 min-w-0 overflow-hidden rounded-lg bg-stone-950 p-4 text-white">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-300">Saved Explanation</p>
-          <p className="mt-2 break-words text-sm font-semibold leading-6 text-stone-200">{project.explanation.whatBuilt}</p>
-        </div>
-      )}
-      {project.aiReview && (
-        <div className="mt-4 min-w-0 overflow-hidden rounded-lg bg-emerald-50 p-4">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-800">AI Review</p>
-          <p className="mt-2 whitespace-pre-wrap break-words text-sm font-semibold leading-7 text-stone-800">{project.aiReview}</p>
-        </div>
-      )}
-      <div className="mt-5 h-3 rounded-full bg-stone-100">
-        <div className="h-3 rounded-full bg-gradient-to-r from-emerald-500 to-amber-400" style={{ width: `${project.progress}%` }} />
-      </div>
-      <p className="mt-3 text-sm font-bold text-stone-600">{project.progress}% ready</p>
-      <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2">
-        <ProjectMiniList title="Features" items={project.features || []} />
-        <ProjectMiniList title="Stack" items={project.stack || []} />
-      </div>
-      {project.special && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-800">{project.special}</p>}
-    </article>
+    </div>
   );
 }
 
