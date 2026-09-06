@@ -1656,6 +1656,28 @@ function Insight({ title, text, icon: Icon }) {
 
 function ProjectTracker({ student }) {
   const [projects, setProjects] = useState(() => getJSON(STORAGE_KEYS.projects, []));
+
+  useEffect(() => {
+    if (!student?.bec) return;
+    const fetchProjects = () => {
+      apiFetch(`/api/db/projects?bec=${encodeURIComponent(student.bec)}`).then((res) => {
+        if (res?.projects && Array.isArray(res.projects)) {
+          const map = new Map();
+          const local = getJSON(STORAGE_KEYS.projects, []);
+          local.forEach((p) => { if (p?.id) map.set(p.id, p); });
+          res.projects.forEach((p) => { if (p?.id) map.set(p.id, { ...map.get(p.id), ...p }); });
+          const merged = Array.from(map.values());
+          setProjects(merged);
+          setJSON(STORAGE_KEYS.projects, merged);
+        }
+      });
+    };
+
+    fetchProjects();
+    const interval = setInterval(fetchProjects, 3000);
+    return () => clearInterval(interval);
+  }, [student?.bec]);
+
   const [activeTool, setActiveTool] = useState('architecture');
   const [selectedSavedProjectId, setSelectedSavedProjectId] = useState(null);
   const [archPrompt, setArchPrompt] = useState('');
@@ -1747,33 +1769,35 @@ Construct an end-to-end architecture and workflow flow diagram. Return JSON in t
 
   const saveArchProject = () => {
     if (!archResult) return;
-    const nextProjects = [
-      ...projects,
-      {
-        id: crypto.randomUUID(),
-        bec: student.bec,
-        title: archResult.projectName || 'Project Architecture',
-        guide: 'Guide not assigned',
-        phase: 'Architecture Plan',
-        progress: 85,
-        problem: archPrompt || archResult.summary,
-        stack: (archResult.recommendedStack || []).map((s) => s.tech),
-        repoUrl: '',
-        folders: (archResult.layers || []).map((l) => l.name),
-        explanation: {
-          projectType: archResult.projectName,
-          whatBuilt: archResult.summary,
-          userFlow: (archResult.flowSteps || []).map((s) => `${s.step}. ${s.title}`).join(' → ')
-        },
-        aiReview: (archResult.vivaTalkingPoints || []).join('\n• '),
-        features: (archResult.flowSteps || []).map((s) => s.title),
-        special: 'AI-generated architecture flow diagram saved.',
-        milestones: (archResult.endpoints || []).map((e) => `${e.method} ${e.path} - ${e.purpose}`),
-        createdAt: new Date().toLocaleDateString()
-      }
-    ];
+    const newProject = {
+      id: crypto.randomUUID(),
+      bec: student.bec,
+      title: archResult.projectName || 'Project Architecture',
+      guide: 'Guide not assigned',
+      phase: 'Architecture Plan',
+      progress: 85,
+      problem: archPrompt || archResult.summary,
+      stack: (archResult.recommendedStack || []).map((s) => s.tech),
+      repoUrl: '',
+      folders: (archResult.layers || []).map((l) => l.name),
+      explanation: {
+        projectType: archResult.projectName,
+        whatBuilt: archResult.summary,
+        userFlow: (archResult.flowSteps || []).map((s) => `${s.step}. ${s.title}`).join(' → ')
+      },
+      aiReview: (archResult.vivaTalkingPoints || []).join('\n• '),
+      features: (archResult.flowSteps || []).map((s) => s.title),
+      special: 'AI-generated architecture flow diagram saved.',
+      milestones: (archResult.endpoints || []).map((e) => `${e.method} ${e.path} - ${e.purpose}`),
+      createdAt: new Date().toLocaleDateString()
+    };
+    const nextProjects = [...projects, newProject];
     setProjects(nextProjects);
     setJSON(STORAGE_KEYS.projects, nextProjects);
+    apiFetch('/api/db/projects', {
+      method: 'POST',
+      body: JSON.stringify(newProject)
+    });
   };
 
   const analyzeRepo = async () => {
@@ -1819,29 +1843,31 @@ Keep it clear, specific, and avoid markdown tables.`,
 
   const saveRepoProject = () => {
     if (!repoReport) return;
-    const nextProjects = [
-      ...projects,
-      {
-        id: crypto.randomUUID(),
-        bec: student.bec,
-        title: repoReport.repoName,
-        guide: 'Guide not assigned',
-        phase: 'Repo Analysis',
-        progress: repoReport.score,
-        problem: repoForm.description || 'Existing repository analysis',
-        stack: repoReport.stack || repoForm.stack.split(',').map((item) => item.trim()).filter(Boolean),
-        repoUrl: repoReport.repoUrl,
-        folders: repoReport.folders,
-        explanation: repoReport.explanation,
-        aiReview: repoReport.aiReview,
-        features: repoReport.features,
-        special: 'Repo analysis saved with improvement roadmap.',
-        milestones: repoReport.improvements,
-        createdAt: new Date().toLocaleDateString()
-      }
-    ];
+    const newProject = {
+      id: crypto.randomUUID(),
+      bec: student.bec,
+      title: repoReport.repoName,
+      guide: 'Guide not assigned',
+      phase: 'Repo Analysis',
+      progress: repoReport.score,
+      problem: repoForm.description || 'Existing repository analysis',
+      stack: repoReport.stack || repoForm.stack.split(',').map((item) => item.trim()).filter(Boolean),
+      repoUrl: repoReport.repoUrl,
+      folders: repoReport.folders,
+      explanation: repoReport.explanation,
+      aiReview: repoReport.aiReview,
+      features: repoReport.features,
+      special: 'Repo analysis saved with improvement roadmap.',
+      milestones: repoReport.improvements,
+      createdAt: new Date().toLocaleDateString()
+    };
+    const nextProjects = [...projects, newProject];
     setProjects(nextProjects);
     setJSON(STORAGE_KEYS.projects, nextProjects);
+    apiFetch('/api/db/projects', {
+      method: 'POST',
+      body: JSON.stringify(newProject)
+    });
   };
 
   const deleteProject = (id) => {
@@ -3562,20 +3588,37 @@ function POPlacementWorkspace({ student, setPage }) {
   const [formData, setFormData] = useState(initialForm);
 
   useEffect(() => {
-    const handleStorageUpdate = () => {
-      const rawDrives = getJSON(STORAGE_KEYS.placementDrives, INITIAL_PLACEMENT_DRIVES);
-      const rawRegs = getJSON(STORAGE_KEYS.placementRegistrations, []);
-      setDrives(Array.isArray(rawDrives) ? rawDrives : INITIAL_PLACEMENT_DRIVES);
-      setRegistrations(Array.isArray(rawRegs) ? rawRegs.filter((r) => r && r.id !== 'reg_1' && r.id !== 'reg_2') : []);
+    const fetchDrivesAndRegistrations = () => {
+      apiFetch('/api/db/drives').then((res) => {
+        if (res?.drives && Array.isArray(res.drives) && res.drives.length > 0) {
+          setDrives(res.drives);
+          setJSON(STORAGE_KEYS.placementDrives, res.drives);
+        }
+      });
+      apiFetch('/api/db/registrations').then((res) => {
+        if (res?.registrations && Array.isArray(res.registrations)) {
+          const filtered = res.registrations.filter((r) => r && r.id !== 'reg_1' && r.id !== 'reg_2');
+          setRegistrations(filtered);
+          setJSON(STORAGE_KEYS.placementRegistrations, filtered);
+        }
+      });
     };
-    window.addEventListener('storage', handleStorageUpdate);
-    return () => window.removeEventListener('storage', handleStorageUpdate);
+
+    fetchDrivesAndRegistrations();
+    const interval = setInterval(fetchDrivesAndRegistrations, 2000);
+    return () => clearInterval(interval);
   }, []);
 
-  const saveDrives = (nextDrives) => {
+  const saveDrives = (nextDrives, driveToSave = null) => {
     setDrives(nextDrives);
     setJSON(STORAGE_KEYS.placementDrives, nextDrives);
     window.dispatchEvent(new Event('storage'));
+    if (driveToSave) {
+      apiFetch('/api/db/drives', {
+        method: 'POST',
+        body: JSON.stringify(driveToSave)
+      });
+    }
   };
 
   const handleOpenCreate = () => {
@@ -3648,13 +3691,12 @@ function POPlacementWorkspace({ student, setPage }) {
 
     const branchesArray = formData.branches.split(',').map((b) => b.trim()).filter(Boolean);
 
+    let driveToSave = null;
     if (editingDrive) {
-      const updated = drives.map((d) =>
-        d.id === editingDrive.id
-          ? { ...d, ...formData, branches: branchesArray }
-          : d
-      );
-      saveDrives(updated);
+      const target = { ...editingDrive, ...formData, branches: branchesArray };
+      const updated = drives.map((d) => (d.id === editingDrive.id ? target : d));
+      driveToSave = target;
+      saveDrives(updated, driveToSave);
     } else {
       const newDrive = {
         id: `drive_${Date.now()}`,
@@ -3663,19 +3705,22 @@ function POPlacementWorkspace({ student, setPage }) {
         postedBy: student?.name ? `Placement Cell (${student.name})` : 'Placement Cell (PO)',
         createdAt: new Date().toISOString().split('T')[0]
       };
-      saveDrives([newDrive, ...drives]);
+      driveToSave = newDrive;
+      saveDrives([newDrive, ...drives], driveToSave);
     }
     setIsDriveModalOpen(false);
   };
 
   const handleToggleStatus = (driveId) => {
+    let target = null;
     const updated = drives.map((d) => {
       if (d.id === driveId) {
-        return { ...d, status: d.status === 'Active' ? 'Closed' : 'Active' };
+        target = { ...d, status: d.status === 'Active' ? 'Closed' : 'Active' };
+        return target;
       }
       return d;
     });
-    saveDrives(updated);
+    saveDrives(updated, target);
   };
 
   const handleDeleteDrive = (driveId) => {
@@ -3685,6 +3730,10 @@ function POPlacementWorkspace({ student, setPage }) {
       setRegistrations(updatedRegs);
       setJSON(STORAGE_KEYS.placementRegistrations, updatedRegs);
       saveDrives(updatedDrives);
+      apiFetch('/api/db/drives/delete', {
+        method: 'POST',
+        body: JSON.stringify({ id: driveId })
+      });
     }
   };
 
@@ -4429,14 +4478,25 @@ function PlacementLedger({ student, setPage }) {
   });
 
   useEffect(() => {
-    const handleStorageUpdate = () => {
-      const rawDrives = getJSON(STORAGE_KEYS.placementDrives, INITIAL_PLACEMENT_DRIVES);
-      const rawRegs = getJSON(STORAGE_KEYS.placementRegistrations, []);
-      setDrives(Array.isArray(rawDrives) ? rawDrives : INITIAL_PLACEMENT_DRIVES);
-      setRegistrations(Array.isArray(rawRegs) ? rawRegs.filter((r) => r && r.id !== 'reg_1' && r.id !== 'reg_2') : []);
+    const fetchDrivesAndRegistrations = () => {
+      apiFetch('/api/db/drives').then((res) => {
+        if (res?.drives && Array.isArray(res.drives) && res.drives.length > 0) {
+          setDrives(res.drives);
+          setJSON(STORAGE_KEYS.placementDrives, res.drives);
+        }
+      });
+      apiFetch('/api/db/registrations').then((res) => {
+        if (res?.registrations && Array.isArray(res.registrations)) {
+          const filtered = res.registrations.filter((r) => r && r.id !== 'reg_1' && r.id !== 'reg_2');
+          setRegistrations(filtered);
+          setJSON(STORAGE_KEYS.placementRegistrations, filtered);
+        }
+      });
     };
-    window.addEventListener('storage', handleStorageUpdate);
-    return () => window.removeEventListener('storage', handleStorageUpdate);
+
+    fetchDrivesAndRegistrations();
+    const interval = setInterval(fetchDrivesAndRegistrations, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleOpenRegistrationModal = (drive) => {
@@ -4509,6 +4569,11 @@ function PlacementLedger({ student, setPage }) {
     setRegistrations(nextRegs);
     setJSON(STORAGE_KEYS.placementRegistrations, nextRegs);
     window.dispatchEvent(new Event('storage'));
+
+    apiFetch('/api/db/registrations', {
+      method: 'POST',
+      body: JSON.stringify(newReg)
+    });
 
     const currentDrive = registeringDrive;
     setRegisteringDrive(null);

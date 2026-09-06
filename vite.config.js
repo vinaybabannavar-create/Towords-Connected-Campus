@@ -5,21 +5,32 @@ import fs from 'fs';
 import path from 'path';
 
 const LOCAL_GATEPASS_FILE = path.resolve(process.cwd(), 'gate_passes_data.json');
+const LOCAL_DRIVES_FILE = path.resolve(process.cwd(), 'placement_drives_data.json');
+const LOCAL_REGISTRATIONS_FILE = path.resolve(process.cwd(), 'placement_registrations_data.json');
 
-const getLocalPasses = () => {
+const getLocalFileJSON = (filePath, fallback = []) => {
   try {
-    if (fs.existsSync(LOCAL_GATEPASS_FILE)) {
-      return JSON.parse(fs.readFileSync(LOCAL_GATEPASS_FILE, 'utf-8') || '[]');
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8') || '[]');
     }
   } catch (e) {}
-  return [];
+  return fallback;
 };
 
-const saveLocalPasses = (passes) => {
+const saveLocalFileJSON = (filePath, data) => {
   try {
-    fs.writeFileSync(LOCAL_GATEPASS_FILE, JSON.stringify(passes, null, 2), 'utf-8');
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
   } catch (e) {}
 };
+
+const getLocalPasses = () => getLocalFileJSON(LOCAL_GATEPASS_FILE, []);
+const saveLocalPasses = (passes) => saveLocalFileJSON(LOCAL_GATEPASS_FILE, passes);
+
+const getLocalDrives = () => getLocalFileJSON(LOCAL_DRIVES_FILE, []);
+const saveLocalDrives = (drives) => saveLocalFileJSON(LOCAL_DRIVES_FILE, drives);
+
+const getLocalRegistrations = () => getLocalFileJSON(LOCAL_REGISTRATIONS_FILE, []);
+const saveLocalRegistrations = (regs) => saveLocalFileJSON(LOCAL_REGISTRATIONS_FILE, regs);
 
 const readBody = (req) => (
   new Promise((resolve, reject) => {
@@ -155,7 +166,47 @@ export default defineConfig(({ mode }) => {
             await pool.query("ALTER TABLE gate_passes ADD COLUMN hod_approval VARCHAR(255);");
             await pool.query("ALTER TABLE gate_passes ADD COLUMN rejection_reason TEXT;");
           } catch (e) { /* Columns exist */ }
-          console.log('✅ TiDB Cloud schema initialized & ready for multi-role staff data');
+
+          await pool.query(`
+            CREATE TABLE IF NOT EXISTS placement_drives (
+              id VARCHAR(100) PRIMARY KEY,
+              company VARCHAR(255) NOT NULL,
+              domain VARCHAR(255),
+              role VARCHAR(255) NOT NULL,
+              type VARCHAR(100),
+              salary VARCHAR(255),
+              skills TEXT,
+              min_cgpa VARCHAR(50),
+              branches JSON,
+              drive_date VARCHAR(50),
+              deadline VARCHAR(50),
+              description TEXT,
+              pdf_url LONGTEXT,
+              pdf_name VARCHAR(255),
+              status VARCHAR(50) DEFAULT 'Active',
+              posted_by VARCHAR(255),
+              created_at VARCHAR(100)
+            );
+          `);
+
+          await pool.query(`
+            CREATE TABLE IF NOT EXISTS placement_registrations (
+              id VARCHAR(100) PRIMARY KEY,
+              drive_id VARCHAR(100) NOT NULL,
+              student_bec VARCHAR(50) NOT NULL,
+              student_name VARCHAR(255) NOT NULL,
+              department VARCHAR(100),
+              year VARCHAR(50),
+              cgpa VARCHAR(50),
+              phone VARCHAR(50),
+              email VARCHAR(255),
+              skills TEXT,
+              resume_url LONGTEXT,
+              resume_name VARCHAR(255),
+              registered_at VARCHAR(100)
+            );
+          `);
+          console.log('✅ TiDB Cloud schema initialized & ready for multi-role staff data, drives & registrations');
         } catch (err) {
           console.error('TiDB schema init notice:', err.message);
         }
@@ -461,6 +512,138 @@ export default defineConfig(({ mode }) => {
                 } catch (e) {}
 
                 sendJSON(res, 200, { success: true });
+                return;
+              }
+
+              // Placement Drives API
+              if (pathname === '/drives' && req.method === 'GET') {
+                const local = getLocalDrives();
+                let rows = [];
+                try {
+                  [rows] = await db.query('SELECT * FROM placement_drives ORDER BY created_at DESC');
+                } catch (err) {}
+                const map = new Map();
+                local.forEach((d) => { if (d?.id) map.set(d.id, d); });
+                rows.forEach((d) => { if (d?.id) map.set(d.id, { ...map.get(d.id), ...d }); });
+                sendJSON(res, 200, { drives: Array.from(map.values()) });
+                return;
+              }
+
+              if (pathname === '/drives' && req.method === 'POST') {
+                const raw = await readBody(req);
+                const d = JSON.parse(raw || '{}');
+
+                if (!d.id || !d.company || !d.role) {
+                  sendJSON(res, 400, { error: 'Drive ID, company name, and role are required.' });
+                  return;
+                }
+
+                const local = getLocalDrives();
+                const nextLocal = [d, ...local.filter((item) => item.id !== d.id)];
+                saveLocalDrives(nextLocal);
+
+                try {
+                  await db.query(
+                    `INSERT INTO placement_drives (id, company, domain, role, type, salary, skills, min_cgpa, branches, drive_date, deadline, description, pdf_url, pdf_name, status, posted_by, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE company=VALUES(company), domain=VALUES(domain), role=VALUES(role), type=VALUES(type), salary=VALUES(salary), skills=VALUES(skills), min_cgpa=VALUES(min_cgpa), branches=VALUES(branches), drive_date=VALUES(drive_date), deadline=VALUES(deadline), description=VALUES(description), pdf_url=VALUES(pdf_url), pdf_name=VALUES(pdf_name), status=VALUES(status)`,
+                    [
+                      d.id,
+                      d.company,
+                      d.domain || '',
+                      d.role,
+                      d.type || 'Full-Time',
+                      d.salary || '',
+                      d.skills || '',
+                      d.minCgpa || d.min_cgpa || '',
+                      JSON.stringify(Array.isArray(d.branches) ? d.branches : (d.branches || '').split(',').map((b) => b.trim()).filter(Boolean)),
+                      d.driveDate || d.drive_date || '',
+                      d.deadline || '',
+                      d.description || '',
+                      d.pdfUrl || d.pdf_url || '',
+                      d.pdfName || d.pdf_name || '',
+                      d.status || 'Active',
+                      d.postedBy || d.posted_by || 'Placement Cell (PO)',
+                      d.createdAt || d.created_at || new Date().toISOString().split('T')[0]
+                    ]
+                  );
+                } catch (e) {}
+
+                sendJSON(res, 200, { success: true, message: 'Placement drive saved.' });
+                return;
+              }
+
+              if (pathname === '/drives/delete' && req.method === 'POST') {
+                const raw = await readBody(req);
+                const { id } = JSON.parse(raw || '{}');
+
+                if (!id) {
+                  sendJSON(res, 400, { error: 'Drive ID is required to delete.' });
+                  return;
+                }
+
+                const local = getLocalDrives();
+                saveLocalDrives(local.filter((d) => d.id !== id));
+
+                try {
+                  await db.query('DELETE FROM placement_drives WHERE id = ?', [id]);
+                } catch (e) {}
+
+                sendJSON(res, 200, { success: true });
+                return;
+              }
+
+              // Placement Registrations API
+              if (pathname === '/registrations' && req.method === 'GET') {
+                const local = getLocalRegistrations();
+                let rows = [];
+                try {
+                  [rows] = await db.query('SELECT * FROM placement_registrations ORDER BY registered_at DESC');
+                } catch (err) {}
+                const map = new Map();
+                local.forEach((r) => { if (r?.id) map.set(r.id, r); });
+                rows.forEach((r) => { if (r?.id) map.set(r.id, { ...map.get(r.id), ...r }); });
+                sendJSON(res, 200, { registrations: Array.from(map.values()) });
+                return;
+              }
+
+              if (pathname === '/registrations' && req.method === 'POST') {
+                const raw = await readBody(req);
+                const r = JSON.parse(raw || '{}');
+
+                if (!r.id || !r.driveId || !r.studentBec) {
+                  sendJSON(res, 400, { error: 'Registration ID, Drive ID, and Student BEC are required.' });
+                  return;
+                }
+
+                const local = getLocalRegistrations();
+                const nextLocal = [r, ...local.filter((item) => item.id !== r.id)];
+                saveLocalRegistrations(nextLocal);
+
+                try {
+                  await db.query(
+                    `INSERT INTO placement_registrations (id, drive_id, student_bec, student_name, department, year, cgpa, phone, email, skills, resume_url, resume_name, registered_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE student_name=VALUES(student_name), department=VALUES(department), year=VALUES(year), cgpa=VALUES(cgpa), phone=VALUES(phone), email=VALUES(email), skills=VALUES(skills), resume_url=VALUES(resume_url), resume_name=VALUES(resume_name)`,
+                    [
+                      r.id,
+                      r.driveId || r.drive_id,
+                      r.studentBec || r.student_bec,
+                      r.studentName || r.student_name || 'Student',
+                      r.department || 'CSE',
+                      r.year || 'III Year',
+                      r.cgpa || '',
+                      r.phone || '',
+                      r.email || '',
+                      r.skills || '',
+                      r.resumeUrl || r.resume_url || '',
+                      r.resumeName || r.resume_name || '',
+                      r.registeredAt || r.registered_at || new Date().toISOString()
+                    ]
+                  );
+                } catch (e) {}
+
+                sendJSON(res, 200, { success: true, message: 'Placement registration saved.' });
                 return;
               }
 
