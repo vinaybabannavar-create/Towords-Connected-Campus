@@ -486,30 +486,66 @@ export default defineConfig(({ mode }) => {
             try {
               const rawBody = await readBody(req);
               const body = JSON.parse(rawBody || '{}');
-              const prompt = String(body.prompt || '').trim();
 
-              if (!prompt) {
-                sendJSON(res, 400, { error: 'Prompt is required.' });
+              const geminiPayload = {};
+
+              // 1. Native systemInstruction
+              if (body.systemInstruction && typeof body.systemInstruction === 'string' && body.systemInstruction.trim()) {
+                geminiPayload.systemInstruction = {
+                  parts: [{ text: body.systemInstruction.trim() }]
+                };
+              }
+
+              // 2. Structured contents (alternating user/model)
+              let contents = [];
+
+              if (Array.isArray(body.history) && body.history.length > 0) {
+                for (const item of body.history) {
+                  if (item && item.text && typeof item.text === 'string' && item.text.trim()) {
+                    const role = item.role === 'model' || item.role === 'assistant' ? 'model' : 'user';
+                    contents.push({
+                      role,
+                      parts: [{ text: item.text.trim() }]
+                    });
+                  }
+                }
+              }
+
+              // Append current user message or prompt
+              if (body.message && typeof body.message === 'string' && body.message.trim()) {
+                contents.push({
+                  role: 'user',
+                  parts: [{ text: body.message.trim() }]
+                });
+              } else if (contents.length === 0 && body.prompt && typeof body.prompt === 'string' && body.prompt.trim()) {
+                contents.push({
+                  role: 'user',
+                  parts: [{ text: body.prompt.trim() }]
+                });
+              }
+
+              // Ensure conversation starts with 'user' role for Gemini compliance
+              while (contents.length > 0 && contents[0].role === 'model') {
+                contents.shift();
+              }
+
+              if (contents.length === 0) {
+                sendJSON(res, 400, { error: 'A message or prompt is required.' });
                 return;
               }
+
+              geminiPayload.contents = contents;
+              geminiPayload.generationConfig = {
+                temperature: body.temperature ?? 0.3,
+                maxOutputTokens: body.maxOutputTokens ?? 600
+              };
 
               const geminiResponse = await fetch(
                 `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
                 {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    contents: [
-                      {
-                        role: 'user',
-                        parts: [{ text: prompt }]
-                      }
-                    ],
-                    generationConfig: {
-                      temperature: body.temperature ?? 0.35,
-                      maxOutputTokens: body.maxOutputTokens ?? 1400
-                    }
-                  })
+                  body: JSON.stringify(geminiPayload)
                 }
               );
 

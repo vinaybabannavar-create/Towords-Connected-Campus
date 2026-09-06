@@ -589,15 +589,15 @@ const getJSON = (key, fallback) => {
 
 const setJSON = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 
-const callAI = async (prompt, options = {}) => {
+const callAI = async (input, options = {}) => {
+  const payload = typeof input === 'string'
+    ? { prompt: input, ...options }
+    : { ...input, ...options };
+
   const response = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      prompt,
-      temperature: options.temperature,
-      maxOutputTokens: options.maxOutputTokens
-    })
+    body: JSON.stringify(payload)
   });
 
   const data = await response.json();
@@ -6450,9 +6450,7 @@ function CampusChatBot({ student, activePage }) {
 
     const { todayStr, todayEvents, tomorrowEvents, upcomingEvents } = getCalendarEventsForChat();
 
-    try {
-      const reply = await callAI(
-        `You are the smart, legendary AI Campus Assistant for Basaveshwar Engineering College (BEC).
+    const systemInstruction = `You are the smart, legendary AI Campus Assistant for Basaveshwar Engineering College (BEC).
 
 STUDENT PROFILE:
 • Name: ${student.name || 'Student'}
@@ -6471,17 +6469,28 @@ PORTAL CORE MODULES:
 3. Placements: Live Placement Drives Ledger, Candidate Registration, Resume Skill Extractor, JD ATS Matcher.
 4. Academic Calendar: 112 official dates, IA-1, IA-2, IA-3 test schedules, fests, holidays.
 
-CONVERSATION HISTORY:
-${nextMessages.map((item) => `${item.role}: ${item.text}`).join('\n')}
-
 CRITICAL BEHAVIORAL RULES:
 1. ALWAYS ANSWER ONLY WHAT THE USER ASKS. Do not give unsolicited long lists or unrelated information.
 2. IF THE USER SAYS A GREETING ("hi", "hello", "hey", "hi bro", etc.): Respond naturally, warmly, and concisely in 1-2 sentences (e.g. "Hey ${studentFirstName}! How can I help you today?"). NEVER dump calendar schedules or portal overviews on a simple greeting!
 3. IF THE USER ASKS ABOUT TODAY'S EVENT / CALENDAR / EXAMS: Directly state the exact event for today (${todayEvents.length > 0 ? todayEvents.map((e) => e.title).join(', ') : 'No special event today'}) and upcoming dates.
-4. IF THE USER ASKS ABOUT A SPECIFIC MODULE (Gate pass, Placement, Project, etc.): Answer precisely and clearly about that topic only.
-5. Be concise, smart, professional, and friendly like a true AI legend.`,
-        { maxOutputTokens: 600, temperature: 0.3 }
-      );
+4. IF THE USER ASKS ABOUT A SPECIFIC MODULE (Gate pass, Placement, Project, etc.): Answer precisely and clearly about that topic only. Ground your answers strictly in the portal modules described above.
+5. Be concise, smart, professional, and friendly like a true AI legend.`;
+
+    const historyTurns = messages
+      .filter((item) => item.text && item.text.trim())
+      .map((item) => ({
+        role: item.role === 'assistant' ? 'model' : 'user',
+        text: item.text.trim()
+      }));
+
+    try {
+      const reply = await callAI({
+        systemInstruction,
+        history: historyTurns,
+        message: cleanMessage,
+        temperature: 0.3,
+        maxOutputTokens: 600
+      });
       updateCurrentSession([...nextMessages, { role: 'assistant', text: reply }]);
     } catch (error) {
       const fallback = getSmartCampusResponse(cleanMessage);
