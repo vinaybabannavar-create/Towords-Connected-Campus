@@ -579,9 +579,14 @@ const analyzeRepoSnapshot = (snapshot, manualNotes) => {
   };
 };
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+
 const apiFetch = async (url, options = {}) => {
   try {
-    const res = await fetch(url, {
+    const fullUrl = url.startsWith('http')
+      ? url
+      : `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+    const res = await fetch(fullUrl, {
       headers: { 'Content-Type': 'application/json' },
       ...options
     });
@@ -612,7 +617,8 @@ const callAI = async (input, options = {}) => {
     ? { prompt: input, ...options }
     : { ...input, ...options };
 
-  const response = await fetch('/api/ai', {
+  const fullUrl = `${API_BASE_URL}/api/ai`;
+  const response = await fetch(fullUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)

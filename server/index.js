@@ -3,7 +3,9 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import statusRoutes from './routes/status.js';
 import authRoutes from './routes/auth.js';
+import studentRoutes from './routes/students.js';
 import gatePassRoutes from './routes/gatepasses.js';
 import driveRoutes from './routes/drives.js';
 import registrationRoutes from './routes/registrations.js';
@@ -18,26 +20,19 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: process.env.ALLOWED_ORIGIN || true, credentials: true }));
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
-// Database Health Check Route
-app.get('/api/db/status', async (req, res) => {
-  try {
-    const db = await getDbPool();
-    await db.query('SELECT 1');
-    res.json({ online: true, database: 'TiDB Cloud (' + (process.env.TIDB_DATABASE || 'bec_portal') + ')' });
-  } catch (err) {
-    res.status(500).json({ online: false, error: err.message });
-  }
-});
-
 // API Routes
+app.use('/api/db', statusRoutes);
 app.use('/api/db', authRoutes);
+app.use('/api/db', studentRoutes);
 app.use('/api/db', gatePassRoutes);
 app.use('/api/db', driveRoutes);
+app.use('/api/db/drives', driveRoutes);
 app.use('/api/db', registrationRoutes);
+app.use('/api/db/registrations', registrationRoutes);
 app.use('/api/db', projectRoutes);
 app.use('/api', aiRoutes);
 
