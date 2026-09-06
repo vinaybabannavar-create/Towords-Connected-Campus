@@ -44,13 +44,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Initialize DB and Start Server
-getDbPool().then(() => {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Towards Connected Campus Express Backend Server running on http://localhost:${PORT}`);
-  });
-}).catch((err) => {
-  console.error('Failed to start server:', err);
+// Start Server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Towards Connected Campus Express Backend Server running on http://localhost:${PORT}`);
+});
+
+// Initialize DB pool in background
+getDbPool().catch((err) => {
+  console.warn('⚠️ DB pool background initialization notice:', err.message);
 });
 
 export default app;
