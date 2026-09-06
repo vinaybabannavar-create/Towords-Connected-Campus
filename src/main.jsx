@@ -2118,17 +2118,68 @@ Keep it clear, specific, and avoid markdown tables.`,
             )}
 
             {activeTool === 'repo' && (
-              <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5 shadow-sm">
-                  <Field label="Repository Link" value={repoForm.url} onChange={(value) => setRepoForm({ ...repoForm, url: value })} placeholder="https://github.com/name/project" />
-                  <p className="-mt-2 mb-4 text-xs font-bold text-stone-500">Public GitHub repos are fetched live through the GitHub API.</p>
-                  <label className="mb-4 block">
-                    <span className="mb-2 block text-sm font-bold text-stone-700">Extra Notes</span>
-                    <textarea className="input min-h-24" value={repoForm.description} onChange={(e) => setRepoForm({ ...repoForm, description: e.target.value })} placeholder="Optional: explain hidden features or modules not clear in README." />
-                  </label>
-                  {repoError && <p className="mb-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">{repoError}</p>}
-                  <button disabled={repoLoading} onClick={analyzeRepo} className="flex w-full items-center justify-center gap-2 rounded-lg bg-stone-950 px-4 py-3 font-black text-white hover:bg-fuchsia-700 disabled:cursor-not-allowed disabled:opacity-70 transition shadow-sm">
-                    <Code2 className="h-4 w-4" /> {repoLoading ? 'Reading GitHub Repo...' : 'Analyze Live Repo'}
+              <div className="space-y-6">
+                <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6 shadow-sm">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="grid h-10 w-10 place-items-center rounded-lg bg-stone-950 text-white shrink-0">
+                      <GitBranch className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-stone-900">Live GitHub Repository Analyzer</h3>
+                      <p className="text-xs text-stone-600">Enter any public GitHub repository link to inspect code structure, detect modules, verify dependencies, and generate an AI viva defense report.</p>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <p className="mb-1.5 text-[11px] font-bold text-stone-500 uppercase tracking-wider">Quick Sample Repos:</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = "https://github.com/vinaybabannavar-create/Towords-Connected-Campus";
+                          setRepoForm({ ...repoForm, url });
+                        }}
+                        className="rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-stone-700 transition hover:bg-emerald-100 hover:text-emerald-900"
+                      >
+                        💡 BEC Connected Campus
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-bold text-stone-700">GitHub Repository URL <span className="text-emerald-600">*</span></span>
+                      <input
+                        type="text"
+                        className="input text-sm"
+                        value={repoForm.url}
+                        onChange={(e) => setRepoForm({ ...repoForm, url: e.target.value })}
+                        placeholder="https://github.com/owner/repository-name"
+                      />
+                      <span className="mt-1 block text-[11px] font-semibold text-stone-400">Public GitHub repositories are fetched live via GitHub API</span>
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-bold text-stone-700">Extra Notes / Clarifications (Optional)</span>
+                      <input
+                        type="text"
+                        className="input text-sm"
+                        value={repoForm.description}
+                        onChange={(e) => setRepoForm({ ...repoForm, description: e.target.value })}
+                        placeholder="e.g. 6th Sem Mini-Project, contains GST billing..."
+                      />
+                      <span className="mt-1 block text-[11px] font-semibold text-stone-400">Highlights features that might not be detailed in the README</span>
+                    </label>
+                  </div>
+
+                  {repoError && <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">{repoError}</p>}
+
+                  <button
+                    disabled={repoLoading}
+                    onClick={analyzeRepo}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-stone-950 px-4 py-2.5 text-sm font-black text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70 transition shadow-sm"
+                  >
+                    <Code2 className="h-4 w-4" /> {repoLoading ? 'Reading GitHub Repo...' : 'Analyze Live GitHub Repo'}
                   </button>
                 </div>
 
@@ -2440,12 +2491,12 @@ function RepoReport({ report, loading, onSave }) {
 
   if (loading) {
     return (
-      <div className="grid min-h-[420px] place-items-center rounded-lg border border-stone-200 bg-white p-8 text-center">
+      <div className="grid min-h-[420px] place-items-center rounded-xl border border-stone-200 bg-white p-8 text-center shadow-sm">
         <div className="max-w-md">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-stone-200 border-t-fuchsia-700" />
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-fuchsia-50 px-3 py-1 text-xs font-bold text-fuchsia-800">
-            <Sparkles className="h-3.5 w-3.5" />
-            Analyzing in real-time
+          <div className="mx-auto mb-4 h-14 w-14 animate-spin rounded-full border-4 border-stone-200 border-t-emerald-600" />
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3.5 py-1 text-xs font-bold text-emerald-800">
+            <Sparkles className="h-4 w-4 text-emerald-600" />
+            Analyzing GitHub Repository in Real-Time
           </div>
           <h3 className="text-xl font-black text-stone-900 transition-all duration-300">
             {currentStep.title}
@@ -2460,12 +2511,14 @@ function RepoReport({ report, loading, onSave }) {
 
   if (!report) {
     return (
-      <div className="grid min-h-[420px] place-items-center rounded-lg border border-dashed border-stone-300 bg-white p-8 text-center">
-        <div>
-          <GitBranch className="mx-auto mb-4 h-10 w-10 text-fuchsia-600" />
-          <h3 className="text-xl font-black">Analyze a live GitHub repo</h3>
-          <p className="mt-2 max-w-md text-sm leading-6 text-stone-600">
-            Paste a public repo link and the tracker will fetch languages, README, file tree, feature signals, architecture notes, and improvement roadmap.
+      <div className="grid min-h-[320px] place-items-center rounded-xl border border-dashed border-stone-300 bg-white p-8 text-center shadow-sm">
+        <div className="max-w-md">
+          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-stone-100 text-stone-700">
+            <GitBranch className="h-6 w-6" />
+          </div>
+          <h3 className="text-base font-black text-stone-900">Live Repo Analysis Workspace</h3>
+          <p className="mt-1.5 text-xs leading-5 text-stone-500">
+            Paste a public GitHub link above and hit <strong>Analyze Live GitHub Repo</strong>. The engine will inspect file trees, identify frameworks, verify dependency trees, and generate defense notes.
           </p>
         </div>
       </div>
@@ -2473,60 +2526,218 @@ function RepoReport({ report, loading, onSave }) {
   }
 
   return (
-    <div className="min-w-0 overflow-hidden rounded-lg border border-stone-200 bg-white p-4 sm:p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-fuchsia-700">Repo Health</p>
-          <h3 className="mt-2 break-words text-xl font-black sm:text-2xl">{report.repoName}</h3>
-          {report.repoUrl && (
-            <a className="mt-2 inline-flex max-w-full items-center gap-2 break-all text-sm font-black text-emerald-700 hover:text-emerald-900" href={report.repoUrl} target="_blank" rel="noreferrer">
-              Open GitHub Repo <ArrowRight className="h-4 w-4" />
-            </a>
-          )}
-        </div>
-        <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-stone-950 text-2xl font-black text-white sm:h-24 sm:w-24 sm:text-3xl">
-          {report.score}
+    <div className="space-y-6">
+      {/* 1. Header Banner */}
+      <div className="min-w-0 overflow-hidden rounded-xl bg-gradient-to-br from-stone-950 via-stone-900 to-emerald-950 p-6 text-white shadow-lg border border-white/10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-400/20 border border-emerald-400/30 px-3 py-0.5 text-xs font-bold text-emerald-300">
+              <GitBranch className="h-3.5 w-3.5" />
+              Verified Repository Report
+            </div>
+            <h3 className="text-2xl font-black tracking-tight sm:text-3xl text-white break-words">
+              {report.repoName}
+            </h3>
+            {report.repoUrl && (
+              <a
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition"
+                href={report.repoUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span>View on GitHub</span> <ArrowRight className="h-3.5 w-3.5" />
+              </a>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4 shrink-0">
+            <div className="flex flex-col items-center justify-center rounded-xl bg-white/10 border border-white/15 px-4 py-3 text-center">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300">Repo Score</span>
+              <span className="text-2xl sm:text-3xl font-black text-white">{report.score}/100</span>
+            </div>
+            <button
+              onClick={onSave}
+              className="flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-5 py-3 font-black text-stone-950 shadow-md transition hover:bg-emerald-400 hover:scale-[1.02] shrink-0"
+            >
+              <Rocket className="h-4 w-4" /> Save Analysis
+            </button>
+          </div>
         </div>
       </div>
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <MiniMetric label="Stars" value={report.stars ?? 0} />
-        <MiniMetric label="Forks" value={report.forks ?? 0} />
-        <MiniMetric label="Updated" value={report.updatedAt ?? 'Live'} />
+
+      {/* 2. Metrics Bar */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-black uppercase tracking-wider text-stone-500">Stars</p>
+          <p className="mt-1 text-xl font-black text-stone-900">⭐ {report.stars ?? 0}</p>
+        </div>
+        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-black uppercase tracking-wider text-stone-500">Forks</p>
+          <p className="mt-1 text-xl font-black text-stone-900">🍴 {report.forks ?? 0}</p>
+        </div>
+        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-black uppercase tracking-wider text-stone-500">Primary Stack</p>
+          <p className="mt-1 text-sm font-black text-stone-900 truncate">
+            {(report.stack || [])[0] || 'JavaScript'}
+          </p>
+        </div>
+        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+          <p className="text-[11px] font-black uppercase tracking-wider text-stone-500">Last Updated</p>
+          <p className="mt-1 text-sm font-black text-stone-900 truncate">{report.updatedAt ?? 'Live'}</p>
+        </div>
       </div>
+
+      {/* 3. Project Overview & Workflow */}
       {report.explanation && (
-        <div className="mt-5 min-w-0 overflow-hidden rounded-lg bg-stone-950 p-4 text-white sm:p-5">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">What Student Built</p>
-          <h4 className="mt-2 text-xl font-black capitalize">{report.explanation.projectType}</h4>
-          <p className="mt-3 whitespace-normal break-words text-sm leading-6 text-stone-200">{report.explanation.whatBuilt}</p>
-          <div className="mt-4 rounded-lg bg-white/10 p-4">
-            <p className="text-sm font-black text-amber-200">Main User Flow</p>
-            <p className="mt-2 whitespace-normal break-words text-sm leading-6 text-stone-200">{report.explanation.userFlow}</p>
+        <div className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between border-b border-stone-100 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-100 text-emerald-900">
+                <BookOpenCheck className="h-4 w-4" />
+              </span>
+              <div>
+                <h4 className="text-base font-black text-stone-900">Project Overview & Architecture</h4>
+                <p className="text-xs text-stone-500">Extracted from repository structure and documentation</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black capitalize text-emerald-900">
+              {report.explanation.projectType}
+            </span>
+          </div>
+
+          <p className="text-sm leading-relaxed text-stone-700 font-medium">{report.explanation.whatBuilt}</p>
+
+          <div className="mt-4 rounded-lg bg-stone-50 border border-stone-200 p-4">
+            <p className="text-xs font-black uppercase tracking-wider text-emerald-800 mb-1">Standard User Workflow</p>
+            <p className="text-xs leading-relaxed text-stone-600 font-medium">{report.explanation.userFlow}</p>
           </div>
         </div>
       )}
+
+      {/* 4. AI Deep-Dive Review */}
       {report.aiReview && (
-        <div className="mt-5 min-w-0 overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
-          <div className="mb-3 flex items-center gap-2 text-emerald-900">
-            <Bot className="h-5 w-5" />
-            <h4 className="font-black">AI Project Review</h4>
+        <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50/70 to-teal-50/40 p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 text-emerald-950">
+            <div className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-700 text-white">
+              <Bot className="h-4 w-4" />
+            </div>
+            <div>
+              <h4 className="text-base font-black">AI Project Review & Viva Defense Points</h4>
+              <p className="text-xs text-emerald-800">Comprehensive analysis synthesized from repository source files</p>
+            </div>
           </div>
-          <div className="whitespace-pre-wrap break-words text-sm font-semibold leading-7 text-stone-800">{report.aiReview}</div>
+          <div className="space-y-3 text-sm font-medium leading-relaxed text-stone-800 whitespace-pre-wrap rounded-lg bg-white/80 p-5 border border-emerald-200/60 shadow-2xs">
+            {report.aiReview}
+          </div>
         </div>
       )}
-      {report.aiError && (
-        <p className="mt-5 rounded-lg bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-800">
-          GitHub analysis worked, but AI review is currently unavailable: {report.aiError}
-        </p>
-      )}
-      {report.explanation && <ProjectSection title="Modules Found" items={report.explanation.modules} dark={false} />}
-      <ProjectSection title="Detected Features" items={report.features} dark={false} />
-      <ProjectSection title="Detected Stack" items={report.stack || []} dark={false} />
-      <ProjectSection title="Top Folders" items={report.folders || []} dark={false} />
-      {report.explanation && <DetailList title="Verification Evidence" items={report.explanation.evidence} />}
-      <ProjectSection title="Architecture Notes" items={report.architecture} dark={false} />
-      <ProjectSection title="Recommended Improvements" items={report.improvements} dark={false} />
-      <button onClick={onSave} className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-fuchsia-700 px-4 py-3 font-black text-white hover:bg-fuchsia-800">
-        <Rocket className="h-4 w-4" /> Save Analysis
+
+      {/* 5. 2-Column Technical Diagnostics Grid */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Left Column: Modules & Features & Stack */}
+        <div className="space-y-6">
+          {report.explanation && (
+            <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+              <h4 className="mb-3 text-xs font-black uppercase tracking-wider text-stone-700">Modules Found</h4>
+              <div className="flex flex-wrap gap-2">
+                {report.explanation.modules.map((m) => (
+                  <span key={m} className="rounded-lg bg-stone-100 border border-stone-200 px-2.5 py-1 text-xs font-bold text-stone-800">
+                    📦 {m}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+            <h4 className="mb-3 text-xs font-black uppercase tracking-wider text-stone-700">Detected Features</h4>
+            <div className="flex flex-wrap gap-2">
+              {report.features.map((f) => (
+                <span key={f} className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-bold text-emerald-900">
+                  ⚡ {f}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+            <h4 className="mb-3 text-xs font-black uppercase tracking-wider text-stone-700">Tech Stack & Top Folders</h4>
+            <div className="mb-3">
+              <p className="text-[11px] font-bold text-stone-400 uppercase mb-1.5">Languages / Libraries</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(report.stack || []).map((s) => (
+                  <span key={s} className="rounded-md bg-stone-900 px-2.5 py-0.5 text-xs font-bold text-amber-300">
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {report.folders?.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold text-stone-400 uppercase mb-1.5">Root Folders</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {report.folders.map((folder) => (
+                    <span key={folder} className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-700 font-mono">
+                      📁 {folder}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: Evidence & Architecture Notes */}
+        <div className="space-y-6">
+          {report.explanation && (
+            <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+              <h4 className="mb-3 text-xs font-black uppercase tracking-wider text-stone-700">Verification Evidence</h4>
+              <div className="space-y-2.5">
+                {report.explanation.evidence.map((ev) => (
+                  <div key={ev} className="flex items-start gap-2.5 rounded-lg bg-stone-50 p-2.5 border border-stone-200/80">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                    <span className="text-xs font-bold text-stone-700 leading-5">{ev}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+            <h4 className="mb-3 text-xs font-black uppercase tracking-wider text-stone-700">Architecture Notes</h4>
+            <div className="space-y-2">
+              {report.architecture.map((note) => (
+                <div key={note} className="flex items-start gap-2 text-xs font-semibold text-stone-700 leading-5">
+                  <span className="text-stone-400 mt-0.5">•</span>
+                  <span>{note}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 6. Recommended Improvements Roadmap */}
+      <div className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+        <h4 className="mb-3 text-base font-black text-stone-900">Recommended Improvements & Report Checklist</h4>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {report.improvements.map((imp, idx) => (
+            <div key={idx} className="flex items-start gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3.5">
+              <span className="grid h-5 w-5 place-items-center rounded-md bg-stone-950 text-[10px] font-black text-amber-400 shrink-0 mt-0.5">
+                {idx + 1}
+              </span>
+              <p className="text-xs font-semibold text-stone-700 leading-5">{imp}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 7. Save to Workspace Button */}
+      <button
+        onClick={onSave}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-black text-white hover:bg-emerald-700 shadow-md transition"
+      >
+        <Rocket className="h-4 w-4" /> Save Repo Analysis to Workspace Portfolio
       </button>
     </div>
   );
