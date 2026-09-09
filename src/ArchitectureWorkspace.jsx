@@ -16,14 +16,19 @@ import {
   FileText,
   Cpu,
   Globe,
+  Printer,
+  ShieldCheck,
+  Database,
+  Layers,
+  CheckCircle2,
   Info
 } from 'lucide-react';
 
 const ARCH_LOADING_STEPS = [
-  { title: 'Analyzing System Requirements...', desc: 'Parsing prompt, identifying actors, and mapping data flow boundaries.' },
-  { title: 'Designing Component Nodes & Security Layers...', desc: 'Establishing API gateway, context stores, guardrails, and DB schemas.' },
-  { title: 'Balancing Latency Budgets & Data Contracts...', desc: 'Verifying sub-second targets, streaming protocols, and failure modes.' },
-  { title: 'Finalizing Engineering Architecture & Blueprint...', desc: 'Structuring node connectors, tech stack, and viva defense points.' }
+  { title: 'Analyzing Domain & System Requirements...', desc: 'Parsing prompt, identifying actors, and mapping domain components.' },
+  { title: 'Designing Subsystems & Security Boundaries...', desc: 'Structuring custom nodes, data contracts, and component interfaces.' },
+  { title: 'Balancing Latency Targets & Protocols...', desc: 'Verifying end-to-end performance targets, streaming paths, and DB schemas.' },
+  { title: 'Finalizing Engineering Architecture & Blueprint...', desc: 'Generating node connectors, tech stack, and viva defense points.' }
 ];
 
 export function ArchitectureWorkspace({
@@ -53,8 +58,11 @@ export function ArchitectureWorkspace({
   const [prdLoading, setPrdLoading] = useState(false);
   const [prdMarkdown, setPrdMarkdown] = useState('');
   const [showPrdModal, setShowPrdModal] = useState(false);
-  const [prdTab, setPrdTab] = useState('preview'); // 'preview' | 'raw'
+  const [prdTab, setPrdTab] = useState('preview');
   const [copiedPrd, setCopiedPrd] = useState(false);
+
+  // Architecture PDF Export Modal
+  const [showPdfModal, setShowPdfModal] = useState(false);
 
   // Prompt guide helper state
   const [showPromptGuide, setShowPromptGuide] = useState(false);
@@ -84,136 +92,134 @@ export function ArchitectureWorkspace({
 
     try {
       const historyContext = isRefinement && chatHistory.length > 0
-        ? `\nPrevious Architecture Iterations & Feedback:\n` +
+        ? `\nPrevious Architecture Iterations & Student Feedback:\n` +
           chatHistory.map((c) => `${c.role === 'user' ? 'Student' : 'AI'}: ${c.text}`).join('\n')
         : '';
 
-      const systemPrompt = `You are a Principal Systems & Cloud Architect. Construct a production-grade, highly reliable system architecture JSON response based on the student's request.
+      const systemPrompt = `You are a Senior Systems & Cloud Architect. Construct a highly tailored, domain-exact system architecture JSON response based strictly on the student's request.
 
 ${historyContext}
 
-Student's Project Description / Refinement Request:
+Student's Project Prompt:
 "${promptToUse}"
 
-ENGINEERING RULES — follow strictly:
-1. Match storage to data type. Never suggest object storage (S3, blob storage) for numeric data, vectors, or scores — those belong in DB columns or vector databases (Pinecone, ChromaDB). Object storage is strictly for raw files (images, audio, PDFs).
-2. Ensure internal consistency across all components, latency budgets, and security parameters.
-3. Group nodes into logical architectural subsystems:
-   - "Security Perimeter & Ingestion" (API Gateway, Input Validators, Quarantine Stores)
-   - "Reliable Retrieval & Caching" (Sub-10ms Context Caches, Vector Search, Provenance Tagging)
-   - "Core Reasoning & Business Logic" (LLM/Model Nodes, Fallbacks, Orchestration)
-   - "Trust Control Plane & Guardrails" (Real-time Guardrails, Halt Signals, Trust Score Engine)
-   - "Persistence & Audit Data Tier" (SQL/NoSQL DB, Message Queues, Quarantine)
+STRICT DOMAIN MATCHING RULES — FOLLOW EXPLICITLY:
+1. Analyze the student's specific project domain. All subsystem titles, node titles, technologies, flow steps, endpoints, and database choices MUST be 100% custom and tailored to the student's exact prompt.
+   - Example 1: If prompt is about "Smart College Gate Pass", nodes MUST be "OpenCV Face Verification", "HOD Digital Sign-Off Queue", "Gate Guard QR Scanner", "TiDB Gate Pass Ledger".
+   - Example 2: If prompt is about "AI Healthcare / Telemedicine", nodes MUST be "WebRTC Video Engine", "Automated E-Prescription Generator", "Patient Record Encryption", "Drug Interaction Checker".
+   - Example 3: If prompt is about "Campus Placement Drive", nodes MUST be "PDF Resume Parsing Engine", "AI Skill Rating System", "Placement Officer Analytics", "Interview Room Allocator".
+   - Example 4: If prompt is about "Neural Nexus / AI Agent Reliability", nodes MUST be "Ingest Security Validator", "Moss Sub-10ms Context Store", "LangGraph Reasoning Orchestrator", "Moss Sub-50ms Halt Guardrails".
+2. DO NOT output hardcoded "Moss Store" or "FastAPI Gateway" unless the student explicitly asked for an AI agent reliability / Moss system! Generate 100% custom, domain-exact node titles and technology stacks matching the student's exact project domain.
+3. Match storage to data type. Object storage (S3) is strictly for raw files (images, PDFs, video). DB columns or Vector DBs (Pinecone, ChromaDB) are for vectors, scores, and relational data.
 
-Construct an end-to-end architecture diagram & specification. Return ONLY raw valid JSON (no markdown, no code blocks):
+Return ONLY raw valid JSON (no markdown, no backticks, no code blocks):
 {
-  "projectName": "Title derived from prompt",
-  "summary": "High-level 2-sentence architecture overview highlighting key reliability & security guarantees.",
-  "promptQualityScore": 92,
-  "promptFeedback": "Brief feedback for student on how well their prompt specified requirements and how to improve it.",
+  "projectName": "Exact title derived from student prompt",
+  "summary": "High-level 2-sentence architecture overview tailored specifically to this project domain.",
+  "promptQualityScore": 95,
+  "promptFeedback": "Specific, constructive feedback for the student on how well their prompt specified domain requirements and how to refine it.",
   "suggestedRefinements": [
-    "Suggested follow-up refinement 1",
-    "Suggested follow-up refinement 2",
-    "Suggested follow-up refinement 3"
+    "Domain-specific refinement idea 1",
+    "Domain-specific refinement idea 2",
+    "Domain-specific refinement idea 3"
   ],
   "subsystems": [
     {
       "id": "subsystem_1",
-      "title": "Security Perimeter & Ingestion",
-      "badge": "Sub-50ms Guard",
+      "title": "Exact Domain Subsystem Title 1 (e.g. Presentation & Gate Terminal / Ingestion & Screening)",
+      "badge": "Sub-50ms Target",
       "color": "blue",
       "nodes": [
         {
           "id": "node_1",
-          "title": "FastAPI Gateway & Ingest Validator",
-          "tech": "FastAPI / Rebuff",
+          "title": "Exact Domain Component Title 1",
+          "tech": "Specific Technology Stack",
           "latency": "<50ms",
           "protocol": "HTTPS / REST",
-          "purpose": "Screen incoming documents & requests for prompt injection & context poisoning.",
+          "purpose": "Detailed purpose of this specific component for this project.",
           "status": "Active"
         }
       ]
     },
     {
       "id": "subsystem_2",
-      "title": "Reliable Retrieval & Caching",
+      "title": "Exact Domain Subsystem Title 2",
       "badge": "Sub-10ms Cache",
       "color": "amber",
       "nodes": [
         {
           "id": "node_2",
-          "title": "Moss High-Speed Context Store",
-          "tech": "Moss Caching / ChromaDB",
+          "title": "Exact Domain Component Title 2",
+          "tech": "Specific Technology Choice",
           "latency": "<10ms",
           "protocol": "gRPC / In-Memory",
-          "purpose": "Sub-10ms context retrieval with provenance signatures (Source, Latency, Confidence).",
+          "purpose": "Detailed domain purpose.",
           "status": "Primary"
         }
       ]
     },
     {
       "id": "subsystem_3",
-      "title": "Core Reasoning & Business Logic",
-      "badge": "Corrective Loop",
+      "title": "Exact Domain Subsystem Title 3",
+      "badge": "Core Processing",
       "color": "purple",
       "nodes": [
         {
           "id": "node_3",
-          "title": "LangGraph Reasoning Orchestrator",
-          "tech": "LangGraph / DeepSeek-R1",
-          "latency": "<300ms",
-          "protocol": "Internal Agent State",
-          "purpose": "Executes document grading & corrective web search fallback (Tavily API) if confidence < 0.5.",
+          "title": "Exact Domain Component Title 3",
+          "tech": "Specific Processing Framework",
+          "latency": "<200ms",
+          "protocol": "Internal Service",
+          "purpose": "Detailed domain processing purpose.",
           "status": "Stateful"
         }
       ]
     },
     {
       "id": "subsystem_4",
-      "title": "Trust Control Plane",
-      "badge": "Sub-50ms Intercept",
+      "title": "Exact Domain Subsystem Title 4",
+      "badge": "Control & Security",
       "color": "emerald",
       "nodes": [
         {
           "id": "node_4",
-          "title": "Moss Real-time Guardrails & Halt Signal",
-          "tech": "Moss Tracing Engine",
+          "title": "Exact Domain Component Title 4",
+          "tech": "Security / Audit Engine",
           "latency": "<50ms",
-          "protocol": "WebSocket / Halt Signal",
-          "purpose": "Monitors chunk generation; emits sub-50ms Halt Signal on policy violation.",
+          "protocol": "WebSocket / Intercept",
+          "purpose": "Detailed domain control purpose.",
           "status": "Guardrail"
         }
       ]
     }
   ],
   "flowSteps": [
-    { "step": 1, "title": "Client Ingestion & Policy Screening", "actor": "Client UI / API", "target": "FastAPI Ingest Validator", "desc": "Validates payload, checks prompt injection signatures, and logs request context.", "type": "client" },
-    { "step": 2, "title": "Sub-10ms Provenance Context Retrieval", "actor": "Ingest Validator", "target": "Moss Context Store", "desc": "Fetches grounded context with metadata signatures (Source, Latency, Confidence).", "type": "api" },
-    { "step": 3, "title": "Stateful Reasoning & Corrective Loop", "actor": "Reasoning Engine", "target": "DeepSeek-R1 / Tavily", "desc": "Grades document relevance; triggers web search fallback if internal context fails.", "type": "service" },
-    { "step": 4, "title": "Real-time Guardrail Interception & Halt Engine", "actor": "Moss Guardrails", "target": "Output Stream", "desc": "Monitors generation stream; issues emergency halt if policy or exfiltration risk is detected.", "type": "response" }
+    { "step": 1, "title": "Exact Step Title 1", "actor": "Source Component", "target": "Target Component", "desc": "Step description", "type": "client" },
+    { "step": 2, "title": "Exact Step Title 2", "actor": "Source Component", "target": "Target Component", "desc": "Step description", "type": "api" },
+    { "step": 3, "title": "Exact Step Title 3", "actor": "Source Component", "target": "Target Component", "desc": "Step description", "type": "service" },
+    { "step": 4, "title": "Exact Step Title 4", "actor": "Source Component", "target": "Target Component", "desc": "Step description", "type": "response" }
   ],
   "layers": [
-    { "name": "Client & Gateway Layer", "subtitle": "Web Interfaces & Authentication", "color": "blue", "components": ["React Web Portal", "FastAPI Security Gateway", "OAuth2 / JWT Auth"] },
-    { "name": "AI & Reasoning Layer", "subtitle": "Models & Workflow Orchestration", "color": "purple", "components": ["LangGraph State Machine", "DeepSeek-R1 Grading", "Tavily Search Fallback"] },
-    { "name": "Control Plane & Guardrails", "subtitle": "Real-time Auditing & Halt Control", "color": "emerald", "components": ["Moss Guardrail Engine", "Trust Score Calculator", "Continuous Eval Loop"] },
-    { "name": "Persistence & Storage Layer", "subtitle": "Database & Vector Stores", "color": "amber", "components": ["TiDB Relational DB", "ChromaDB / Pinecone", "Quarantine Store (S3/PostgreSQL)"] }
+    { "name": "Presentation Tier", "subtitle": "User Interfaces", "color": "blue", "components": ["Domain UI Component 1", "Domain UI Component 2"] },
+    { "name": "Application & Business Services Tier", "subtitle": "Business & Processing Logic", "color": "purple", "components": ["Domain Engine 1", "Domain Engine 2"] },
+    { "name": "Control Plane & Security Tier", "subtitle": "Security & Real-time Verification", "color": "emerald", "components": ["Domain Security Node 1", "Audit Engine"] },
+    { "name": "Persistence & Storage Tier", "subtitle": "Database & File Stores", "color": "amber", "components": ["Relational DB", "Cache Store", "Object Storage"] }
   ],
   "recommendedStack": [
-    { "layer": "Frontend UI", "tech": "React 19 + Tailwind CSS + WebSockets", "reason": "Real-time trust score streaming & interactive architecture workspace" },
-    { "layer": "API Backend", "tech": "FastAPI (Python) / Node.js Express", "reason": "High-throughput asynchronous API gateway & stream interceptor" },
-    { "layer": "Orchestration", "tech": "LangGraph + DeepSeek-R1", "reason": "Stateful corrective loops with claim-by-claim groundedness grading" },
-    { "layer": "Database & Cache", "tech": "TiDB Cloud + Moss / ChromaDB", "reason": "Scalable SQL entity persistence + sub-10ms vector/context caching" }
+    { "layer": "Frontend UI", "tech": "React 19 + Tailwind CSS", "reason": "Specific reason for this project" },
+    { "layer": "Backend API", "tech": "Node.js Express / Python FastAPI", "reason": "Specific reason for this project" },
+    { "layer": "Processing & AI Engine", "tech": "Domain Processing Tech", "reason": "Specific reason for this project" },
+    { "layer": "Database Tier", "tech": "TiDB Cloud / PostgreSQL", "reason": "Specific reason for this project" }
   ],
   "endpoints": [
-    { "method": "POST", "path": "/v1/ingest", "purpose": "Validates, screens, and stores incoming documents" },
-    { "method": "POST", "path": "/v1/query", "purpose": "Initiates stateful reasoning & corrective loop" },
-    { "method": "GET", "path": "/v1/trust-stream", "purpose": "WebSocket endpoint for real-time trust score & token streaming" },
-    { "method": "POST", "path": "/v1/escalate/resolve", "purpose": "Human-in-the-loop verification endpoint" }
+    { "method": "POST", "path": "/api/v1/domain_route_1", "purpose": "Exact purpose for domain" },
+    { "method": "POST", "path": "/api/v1/domain_route_2", "purpose": "Exact purpose for domain" },
+    { "method": "GET", "path": "/api/v1/domain_route_3", "purpose": "Exact purpose for domain" }
   ],
   "vivaTalkingPoints": [
-    "Demonstrate how prompt-injection & context-poisoning attacks are neutralized before entering the database.",
-    "Explain the sub-10ms provenance retrieval mechanism and why confidence signatures matter.",
-    "Detail how the Moss Trust Control Plane issues sub-50ms mid-flight Halt Signals to protect sensitive data."
+    "Domain-specific technical talking point 1",
+    "Domain-specific technical talking point 2",
+    "Domain-specific technical talking point 3"
   ]
 }`;
 
@@ -228,7 +234,7 @@ Construct an end-to-end architecture diagram & specification. Return ONLY raw va
         { role: 'user', text: promptToUse, timestamp: new Date().toLocaleTimeString() },
         {
           role: 'assistant',
-          text: `Architected system for "${parsed.projectName || 'Project'}". Generated ${parsed.subsystems?.length || 4} subsystems and ${parsed.flowSteps?.length || 4} operational flow steps.`,
+          text: `Generated tailored architecture for "${parsed.projectName || 'Project'}". Built ${parsed.subsystems?.length || 4} custom subsystems and ${parsed.flowSteps?.length || 4} operational flow steps.`,
           timestamp: new Date().toLocaleTimeString(),
           resultSummary: parsed.summary
         }
@@ -267,10 +273,10 @@ Reference PRD Structure (FOLLOW EXACTLY WITH HIGH DETAIL):
 Provide a comprehensive 2-paragraph overview of the system, its core value proposition, enterprise reliability guarantees, and security features.
 
 ## 2. Problem Statement
-Explain 3 critical enterprise gaps this system solves (e.g. Unreliability & Hallucinations, Security & Prompt Injection Risks, Lack of Real-Time Trust Observability).
+Explain 3 critical enterprise gaps this system solves.
 
 ## 3. Goals & Objectives
-Bulletized list of quantitative performance targets (e.g. Sub-10ms context retrieval, Zero silent failures, <1s round-trip latency, sub-50ms guardrail halting).
+Bulletized list of quantitative performance targets.
 
 ## 4. Target Users / Stakeholders
 Detailed descriptions for Enterprise AI Architects, Security Officers, and Product Managers.
@@ -278,12 +284,12 @@ Detailed descriptions for Enterprise AI Architects, Security Officers, and Produ
 ## 5. Functional Requirements
 Broken down into technical subsystems based on the architecture:
 ### 5.1 Security Perimeter & Ingestion
-### 5.2 Reliable Retrieval Stack
-### 5.3 Corrective Reasoning Stack
-### 5.4 Trust Control Plane & Guardrails
+### 5.2 Reliable Retrieval & Caching Stack
+### 5.3 Core Processing & Business Logic
+### 5.4 Control Plane & Security Guardrails
 
 ## 6. Non-Functional Requirements
-Include exact Latency Budgets table, Scalability targets (WebSockets, Concurrency), and Reliability loop constraints.
+Include exact Latency Budgets table, Scalability targets, and Reliability constraints.
 
 ## 7. System Architecture Overview
 Detailed narrative explaining data flow across Presentation, API Gateway, Reasoning, Control Plane, and Persistence layers.
@@ -292,27 +298,27 @@ Detailed narrative explaining data flow across Presentation, API Gateway, Reason
 Formatted markdown table detailing Layer, Component, Technology Choice, and Engineering Rationale.
 
 ## 9. Data Requirements
-Data contracts (JSON schemas with fields like content, source_url, retrieval_latency_ms, confidence_score) and Quarantine/Audit logging rules.
+Data contracts (JSON schemas) and Quarantine/Audit logging rules.
 
 ## 10. API Specifications
-Formatted Markdown API endpoint reference table containing HTTP Method, Endpoint Path, Purpose, and Request/Response payload signatures.
+Formatted Markdown API endpoint reference table containing HTTP Method, Endpoint Path, Purpose, and Payload signatures.
 
 ## 11. Security Requirements
-Prompt injection protection, real-time token stream interception, and provenance enforcement rules.
+Security controls, authentication, token stream interception, and provenance enforcement rules.
 
 ## 12. Deployment & Infrastructure
 Containerization (Docker/K8s), Co-located low-latency nodes, and CI/CD automated golden dataset eval pipeline.
 
 ## 13. Success Metrics
-Quantitative metrics table (Hallucination rate <1%, Retrieval latency 99th percentile <15ms, Halt accuracy 100%).
+Quantitative metrics table (Latency, Accuracy, Recall, Throughput).
 
 ## 14. Timeline & Milestones
-Phase 1 (MVP), Phase 2 (Security Perimeter), Phase 3 (Reliability & Caching), Phase 4 (Control Plane & Trust Score Engine).
+Phase 1 (MVP), Phase 2 (Security Perimeter), Phase 3 (Reliability & Caching), Phase 4 (Control Plane & Trust Engine).
 
 ## 15. Open Questions & Risks
 Technical risks, human-in-the-loop latency trade-offs, policy drift, and cost management.
 
-Architecture Data to use for PRD generation:
+Architecture Data:
 Project Name: ${archResult.projectName}
 Summary: ${archResult.summary}
 Recommended Stack: ${JSON.stringify(archResult.recommendedStack)}
@@ -344,6 +350,11 @@ Generate the ENTIRE Markdown document in clear, professional markdown text. Do N
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  // Trigger Architecture Blueprint PDF Print
+  const handlePrintPdf = () => {
+    window.print();
   };
 
   // Copy PRD Markdown
@@ -383,11 +394,11 @@ Generate the ENTIRE Markdown document in clear, professional markdown text. Do N
               <div className="flex items-center gap-2">
                 <h3 className="text-xl font-black text-stone-900">AI Architecture & PRD Creator</h3>
                 <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 text-[11px] font-black text-emerald-900">
-                  Interactive Node Canvas + PRD Generator
+                  Interactive Node Canvas + PRD & PDF Exporter
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-stone-600">
-                Type your system prompt, refine components iteratively, inspect live architecture nodes, and export a complete 15-section PRD.
+                Type your system prompt, refine components iteratively, inspect live architecture nodes, and export clean PDF & PRD (.md) documents.
               </p>
             </div>
           </div>
@@ -562,6 +573,13 @@ Generate the ENTIRE Markdown document in clear, professional markdown text. Do N
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setShowPdfModal(true)}
+                    className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-black text-white shadow-md transition hover:bg-blue-500 hover:scale-[1.02]"
+                  >
+                    <Download className="h-4 w-4" /> Download Architecture PDF
+                  </button>
+
                   <button
                     onClick={generatePRD}
                     className="flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 font-black text-stone-950 shadow-md transition hover:bg-emerald-400 hover:scale-[1.02]"
@@ -795,31 +813,31 @@ Generate the ENTIRE Markdown document in clear, professional markdown text. Do N
               <p className="text-[11px] font-bold text-stone-400 mb-1.5 uppercase tracking-wider">Quick Architecture Enhancements:</p>
               <div className="flex flex-wrap gap-1.5">
                 <button
-                  onClick={() => generateArchitecture("Add sub-10ms Moss Context Caching layer with provenance metadata tagging", true)}
+                  onClick={() => generateArchitecture("Add high-speed in-memory caching layer with sub-10ms latency targets", true)}
                   className="rounded-full border border-stone-800 bg-stone-900 px-2.5 py-1 text-[11px] font-bold text-stone-300 hover:border-emerald-500 hover:text-emerald-300 transition"
                 >
-                  ⚡ Add Sub-10ms Context Cache
+                  ⚡ Add Sub-10ms Cache Layer
                 </button>
 
                 <button
-                  onClick={() => generateArchitecture("Add FastAPI Gateway with prompt injection screening and quarantine store", true)}
+                  onClick={() => generateArchitecture("Add API security gateway with input validation and rate limiting", true)}
                   className="rounded-full border border-stone-800 bg-stone-900 px-2.5 py-1 text-[11px] font-bold text-stone-300 hover:border-blue-500 hover:text-blue-300 transition"
                 >
-                  🛡️ Add Ingest Guardrails
+                  🛡️ Add Security Gateway
                 </button>
 
                 <button
-                  onClick={() => generateArchitecture("Add DeepSeek-R1 document grading with Tavily web search fallback", true)}
+                  onClick={() => generateArchitecture("Add corrective reasoning fallback and automated evaluation checks", true)}
                   className="rounded-full border border-stone-800 bg-stone-900 px-2.5 py-1 text-[11px] font-bold text-stone-300 hover:border-purple-500 hover:text-purple-300 transition"
                 >
-                  🧠 Add Corrective Reasoning
+                  🧠 Add Corrective Fallback
                 </button>
 
                 <button
-                  onClick={() => generateArchitecture("Add real-time Moss Guardrails with sub-50ms mid-flight Halt Signals", true)}
+                  onClick={() => generateArchitecture("Add real-time WebSocket event streaming and emergency halt guardrails", true)}
                   className="rounded-full border border-stone-800 bg-stone-900 px-2.5 py-1 text-[11px] font-bold text-stone-300 hover:border-emerald-500 hover:text-emerald-300 transition"
                 >
-                  🚨 Add Halt Control Plane
+                  🚨 Add Real-time Guardrails
                 </button>
               </div>
             </div>
@@ -880,13 +898,20 @@ Generate the ENTIRE Markdown document in clear, professional markdown text. Do N
               </p>
             </form>
 
-            {/* Generate PRD Button in Chat Panel */}
-            <div className="mt-3">
+            {/* Export Buttons in Chat Sidebar */}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setShowPdfModal(true)}
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-black text-white hover:bg-blue-500 transition shadow-md"
+              >
+                <Download className="h-3.5 w-3.5" /> Export PDF
+              </button>
+
               <button
                 onClick={generatePRD}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-xs font-black text-white hover:from-emerald-500 hover:to-teal-500 transition shadow-md"
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-black text-stone-950 hover:bg-emerald-400 transition shadow-md"
               >
-                <FileText className="h-4 w-4" /> Generate Full PRD File (.md)
+                <FileText className="h-3.5 w-3.5" /> Export PRD (.md)
               </button>
             </div>
           </div>
@@ -928,6 +953,180 @@ Generate the ENTIRE Markdown document in clear, professional markdown text. Do N
                   <span className="font-mono font-black text-blue-400 text-sm">{selectedNode.protocol || 'HTTP/gRPC'}</span>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FULL ARCHITECTURE BLUEPRINT PDF MODAL */}
+      {showPdfModal && archResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/85 backdrop-blur-md p-4">
+          <div className="flex h-[90vh] w-full max-w-4xl flex-col rounded-2xl border border-stone-800 bg-white text-stone-950 shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-stone-200 bg-stone-100 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-lg bg-stone-950 text-white">
+                  <Workflow className="h-5 w-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-stone-900">
+                    Printable Architecture PDF: {archResult.projectName}
+                  </h4>
+                  <p className="text-xs text-stone-600">Export high-resolution PDF document or print blueprint</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePrintPdf}
+                  className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-black text-white hover:bg-blue-500 shadow-sm transition"
+                >
+                  <Printer className="h-4 w-4" /> Save as PDF / Print
+                </button>
+
+                <button
+                  onClick={() => setShowPdfModal(false)}
+                  className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-bold text-stone-700 hover:bg-stone-100"
+                >
+                  Close ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Document Body */}
+            <div className="flex-1 overflow-y-auto p-8 bg-white space-y-6 text-stone-900 font-sans">
+              <div className="border-b-2 border-stone-950 pb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-emerald-700">
+                    Basaveshwar Engineering College • System Architecture Specification
+                  </span>
+                  <span className="text-xs font-mono font-bold text-stone-500">
+                    Generated: {new Date().toLocaleDateString()}
+                  </span>
+                </div>
+                <h1 className="text-3xl font-black tracking-tight text-stone-950">{archResult.projectName}</h1>
+                <p className="mt-2 text-sm leading-6 text-stone-700">{archResult.summary}</p>
+              </div>
+
+              {/* Subsystems Breakdown */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-black text-stone-950 border-b border-stone-300 pb-2">
+                  1. Subsystems & Component Nodes Breakdown
+                </h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {(archResult.subsystems || []).map((sub, idx) => (
+                    <div key={idx} className="rounded-xl border border-stone-300 bg-stone-50 p-4">
+                      <div className="flex items-center justify-between mb-2 pb-2 border-b border-stone-200">
+                        <h4 className="font-black text-stone-950 text-sm">{sub.title}</h4>
+                        <span className="rounded bg-stone-900 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                          {sub.badge}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {(sub.nodes || []).map((node, nIdx) => (
+                          <div key={nIdx} className="rounded bg-white border border-stone-200 p-2.5 text-xs">
+                            <div className="flex justify-between font-black text-stone-900 mb-0.5">
+                              <span>{node.title}</span>
+                              <span className="font-mono text-emerald-700">{node.latency}</span>
+                            </div>
+                            <p className="text-[11px] text-stone-600 leading-4 mb-1">{node.purpose}</p>
+                            <div className="flex justify-between text-[10px] text-stone-500 font-mono">
+                              <span>Tech: <strong>{node.tech}</strong></span>
+                              <span>Protocol: <strong>{node.protocol}</strong></span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sequential Flow Pipeline */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-black text-stone-950 border-b border-stone-300 pb-2">
+                  2. Sequential Workflow & Data Pipeline
+                </h3>
+                <div className="grid gap-2.5">
+                  {(archResult.flowSteps || []).map((step, idx) => (
+                    <div key={idx} className="flex gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3 text-xs">
+                      <span className="grid h-6 w-6 place-items-center rounded bg-stone-950 font-black text-white text-xs shrink-0">
+                        {step.step || idx + 1}
+                      </span>
+                      <div>
+                        <h5 className="font-black text-stone-900">{step.title}</h5>
+                        <p className="text-stone-600 mt-0.5">{step.desc}</p>
+                        <span className="mt-1 inline-block font-mono text-[10px] font-bold text-emerald-800">
+                          Data Flow: {step.actor} → {step.target}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recommended Tech Stack & Endpoints */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <h3 className="text-base font-black text-stone-950 mb-2 border-b border-stone-300 pb-1">
+                    3. Recommended Technology Stack
+                  </h3>
+                  <table className="w-full text-xs text-left border border-stone-300">
+                    <thead className="bg-stone-100 text-stone-900 border-b border-stone-300 font-black">
+                      <tr>
+                        <th className="p-2 border-r border-stone-300">Layer</th>
+                        <th className="p-2 border-r border-stone-300">Technology</th>
+                        <th className="p-2">Rationale</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-200">
+                      {(archResult.recommendedStack || []).map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="p-2 font-bold border-r border-stone-300">{item.layer}</td>
+                          <td className="p-2 font-mono font-black border-r border-stone-300">{item.tech}</td>
+                          <td className="p-2 text-[11px] text-stone-600">{item.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-black text-stone-950 mb-2 border-b border-stone-300 pb-1">
+                    4. REST API Endpoint Specs
+                  </h3>
+                  <table className="w-full text-xs text-left border border-stone-300">
+                    <thead className="bg-stone-100 text-stone-900 border-b border-stone-300 font-black">
+                      <tr>
+                        <th className="p-2 border-r border-stone-300">Method</th>
+                        <th className="p-2 border-r border-stone-300">Path</th>
+                        <th className="p-2">Purpose</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-200">
+                      {(archResult.endpoints || []).map((ep, idx) => (
+                        <tr key={idx}>
+                          <td className="p-2 font-mono font-black border-r border-stone-300 text-emerald-800">{ep.method}</td>
+                          <td className="p-2 font-mono font-bold border-r border-stone-300">{ep.path}</td>
+                          <td className="p-2 text-[11px] text-stone-600">{ep.purpose}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Viva Talking Points */}
+              {archResult.vivaTalkingPoints?.length > 0 && (
+                <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4">
+                  <h4 className="font-black text-emerald-950 text-sm mb-2">5. Viva Defense & Examination Talking Points</h4>
+                  <ul className="list-disc pl-5 text-xs text-emerald-900 space-y-1">
+                    {archResult.vivaTalkingPoints.map((point, idx) => (
+                      <li key={idx}>{point}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </div>
