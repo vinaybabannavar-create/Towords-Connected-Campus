@@ -1,7 +1,28 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
+
+// Automatically load .env.local or .env if present
+try {
+  if (typeof process.loadEnvFile === 'function') {
+    if (fs.existsSync('.env.local')) process.loadEnvFile('.env.local');
+    if (fs.existsSync('.env')) process.loadEnvFile('.env');
+  } else {
+    ['.env.local', '.env'].forEach((file) => {
+      if (fs.existsSync(file)) {
+        const content = fs.readFileSync(file, 'utf-8');
+        content.split('\n').forEach((line) => {
+          const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+          if (match && !process.env[match[1]]) {
+            process.env[match[1]] = (match[2] || '').trim().replace(/^['"]|['"]$/g, '');
+          }
+        });
+      }
+    });
+  }
+} catch (e) {}
 
 import statusRoutes from './routes/status.js';
 import authRoutes from './routes/auth.js';

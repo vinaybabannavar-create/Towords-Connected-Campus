@@ -1,14 +1,31 @@
 import express from 'express';
+import fs from 'fs';
 
 const router = express.Router();
 
+const getApiKey = () => {
+  let key = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  if (!key) {
+    try {
+      ['.env.local', '.env'].forEach((file) => {
+        if (!key && fs.existsSync(file)) {
+          const content = fs.readFileSync(file, 'utf-8');
+          const match = content.match(/GEMINI_API_KEY\s*=\s*(.*)/);
+          if (match) key = match[1].trim().replace(/^['"]|['"]$/g, '');
+        }
+      });
+    } catch (e) {}
+  }
+  return key;
+};
+
 // POST /api/ai
 router.post('/ai', async (req, res) => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = getApiKey();
   const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
 
   if (!apiKey) {
-    return res.status(500).json({ error: 'Gemini API key is missing in environment variables.' });
+    return res.status(500).json({ error: 'Gemini API key is missing. Please verify GEMINI_API_KEY in .env.local.' });
   }
 
   try {
@@ -60,7 +77,7 @@ router.post('/ai', async (req, res) => {
     geminiPayload.contents = contents;
     geminiPayload.generationConfig = {
       temperature: body.temperature ?? 0.3,
-      maxOutputTokens: body.maxOutputTokens ?? 600
+      maxOutputTokens: body.maxOutputTokens ?? 2500
     };
 
     const geminiResponse = await fetch(
