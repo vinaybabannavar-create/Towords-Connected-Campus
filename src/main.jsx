@@ -7,6 +7,7 @@ import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
 if (typeof window !== 'undefined' && pdfjsLib?.GlobalWorkerOptions) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '3.11.174'}/pdf.worker.min.js`;
 }
+import { ArchitectureWorkspace } from './ArchitectureWorkspace.jsx';
 import {
   ArrowDown,
   ArrowRight,
@@ -2056,113 +2057,45 @@ Keep it clear, specific, and avoid markdown tables.`,
         /* Full-Width Workspace Container */
         <div className="space-y-6">
           {activeTool === 'architecture' && (
-            <div className="space-y-6">
-              <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6 shadow-sm">
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-stone-950 text-white shrink-0">
-                    <Workflow className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-stone-900">AI Architecture & Flow Diagram Generator</h3>
-                    <p className="text-xs text-stone-600">Enter your project prompt/description to generate the complete system architecture flow diagram.</p>
-                  </div>
-                </div>
-
-                  <div className="mb-3.5">
-                    <p className="mb-1.5 text-[11px] font-bold text-stone-500 uppercase tracking-wider">Try Sample Prompts:</p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const text = "Smart College Gate Pass and Attendance System with Facial Recognition and HOD Approvals";
-                          setArchPrompt(text);
-                          generateArchitectureFlow(text);
-                        }}
-                        className="rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-stone-700 transition hover:bg-emerald-100 hover:text-emerald-900"
-                      >
-                        💡 Gate Pass & Face Recognition
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const text = "AI Healthcare Patient Portal with Doctor Video Consultation, Appointment Scheduling, and E-Prescription Generator";
-                          setArchPrompt(text);
-                          generateArchitectureFlow(text);
-                        }}
-                        className="rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-stone-700 transition hover:bg-emerald-100 hover:text-emerald-900"
-                      >
-                        💡 AI Healthcare & Telemedicine
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const text = "Campus Placement Drive Ledger with Student Resume Parsing, Skill Matching Engine, and Interview Scheduling";
-                          setArchPrompt(text);
-                          generateArchitectureFlow(text);
-                        }}
-                        className="rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-stone-700 transition hover:bg-emerald-100 hover:text-emerald-900"
-                      >
-                        💡 Campus Placement Ledger
-                      </button>
-                    </div>
-                  </div>
-
-                  <label className="mb-3.5 block">
-                    <span className="mb-1.5 block text-xs font-bold text-stone-700">Project Prompt / Requirements</span>
-                    <textarea
-                      className="input min-h-24 sm:min-h-28 text-sm"
-                      value={archPrompt}
-                      onChange={(e) => setArchPrompt(e.target.value)}
-                      placeholder="Describe your project idea in detail (e.g. An AI-based library management system with book recommendations, user auth, and fine calculation...)"
-                    />
-                  </label>
-
-                  {archError && <p className="mb-3.5 rounded-lg bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">{archError}</p>}
-
-                  <button
-                    disabled={archLoading}
-                    onClick={() => generateArchitectureFlow()}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-stone-950 px-4 py-2.5 text-sm font-black text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70 transition shadow-sm"
-                  >
-                    <Workflow className="h-4 w-4" /> {archLoading ? currentArchStep.title : 'Generate Architecture & Flow Diagram'}
-                  </button>
-                </div>
-
-                <ArchitectureFlowDisplay
-                  result={archResult}
-                  loading={archLoading}
-                  currentStep={currentArchStep}
-                  onSave={saveArchProject}
-                />
-
-                {!archResult && !archLoading && (
-                  <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5 shadow-sm">
-                    <div className="mb-3 flex items-center justify-between">
-                      <div>
-                        <h4 className="text-sm font-black text-stone-900">Standard Baseline Architecture Layers</h4>
-                        <p className="text-xs text-stone-500">Core structural foundation recommended for engineering projects</p>
-                      </div>
-                      <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-900 shrink-0">
-                        5 Tiers
-                      </span>
-                    </div>
-                    <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                      {architectureLayers.map((item, index) => (
-                        <div key={item.layer} className="rounded-lg border border-stone-200 bg-stone-50/80 p-3 transition hover:bg-stone-100/60">
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <span className="grid h-6 w-6 place-items-center rounded-md bg-stone-950 text-xs font-black text-amber-400">
-                              {index + 1}
-                            </span>
-                            <h5 className="text-xs font-black text-stone-900">{item.layer}</h5>
-                          </div>
-                          <p className="text-xs leading-5 text-stone-600 font-medium">{item.detail}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            <ArchitectureWorkspace
+              student={student}
+              callAI={callAI}
+              parseAIJSON={parseAIJSON}
+              apiFetch={apiFetch}
+              onSaveProject={(archData) => {
+                const newProject = {
+                  id: crypto.randomUUID(),
+                  bec: student.bec,
+                  title: archData.projectName || 'Project Architecture',
+                  guide: 'Guide not assigned',
+                  phase: 'Architecture Plan',
+                  progress: 85,
+                  problem: archData.summary || archData.archPrompt,
+                  stack: (archData.recommendedStack || []).map((s) => s.tech),
+                  repoUrl: '',
+                  folders: (archData.layers || []).map((l) => l.name),
+                  explanation: {
+                    projectType: archData.projectName,
+                    whatBuilt: archData.summary,
+                    userFlow: (archData.flowSteps || []).map((s) => `${s.step}. ${s.title}`).join(' → '),
+                    prdMarkdown: archData.prdMarkdown
+                  },
+                  aiReview: (archData.vivaTalkingPoints || []).join('\n• '),
+                  features: (archData.flowSteps || []).map((s) => s.title),
+                  special: archData.prdMarkdown ? 'PRD Document & AI Architecture Diagram Saved' : 'AI Architecture Diagram Saved',
+                  milestones: (archData.endpoints || []).map((e) => `${e.method} ${e.path} - ${e.purpose}`),
+                  createdAt: new Date().toLocaleDateString()
+                };
+                const nextProjects = [...projects, newProject];
+                setProjects(nextProjects);
+                setJSON(STORAGE_KEYS.projects, nextProjects);
+                apiFetch('/api/db/projects', {
+                  method: 'POST',
+                  body: JSON.stringify(newProject)
+                });
+              }}
+            />
+          )}
 
             {activeTool === 'repo' && (
               <div className="space-y-6">
