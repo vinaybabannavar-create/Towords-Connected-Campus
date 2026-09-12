@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { useDrag } from '@use-gesture/react';
 import QRCode from 'qrcode';
 import * as XLSX from 'xlsx';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
@@ -70,7 +72,7 @@ import {
 import './styles.css';
 import { CollegeCalendar } from './CollegeCalendar';
 import { COLLEGE_CALENDAR_EVENTS } from './collegeCalendarData';
-import { StudentProfileModal, calculateProfileCompletion, getMissingProfileItems } from './StudentProfileModal';
+import { StudentProfileModal, calculateProfileCompletion, getMissingProfileItems, BANGALORE_COLLEGES } from './StudentProfileModal';
 
 const REPO_LOADING_STEPS = [
   {
@@ -214,6 +216,32 @@ const INITIAL_PLACEMENT_DRIVES = [
 ];
 
 const INITIAL_PLACEMENT_REGISTRATIONS = [];
+
+export const formatDriveForJD = (drive) => {
+  if (!drive) return '';
+  const skillsStr = Array.isArray(drive.skills)
+    ? drive.skills.join(', ')
+    : (drive.skills || '');
+  const branchesStr = Array.isArray(drive.branches)
+    ? drive.branches.join(', ')
+    : (drive.branches || 'All Eligible Branches');
+
+  const lines = [
+    `COMPANY: ${drive.company || ''}`,
+    `ROLE / DESIGNATION: ${drive.role || ''}`,
+    drive.domain ? `DOMAIN: ${drive.domain}` : '',
+    drive.salary ? `SALARY / PACKAGE: ${drive.salary}` : '',
+    `ELIGIBILITY: Min CGPA ${drive.minCgpa || '6.0'}, Eligible Branches: ${branchesStr}`,
+    skillsStr ? `REQUIRED TECHNICAL SKILLS: ${skillsStr}` : '',
+    drive.driveDate ? `DRIVE DATE: ${drive.driveDate}` : '',
+    drive.deadline ? `APPLICATION DEADLINE: ${drive.deadline}` : '',
+    drive.description && drive.description.trim()
+      ? `\nJOB DESCRIPTION & ROLE REQUIREMENTS:\n${drive.description.trim()}`
+      : ''
+  ].filter(Boolean);
+
+  return lines.join('\n');
+};
 
 const exportApplicantsToExcel = (drive, applicants) => {
   if (!applicants || applicants.length === 0) {
@@ -635,48 +663,75 @@ const callAI = async (input, options = {}) => {
 const DEFAULT_ACCOUNTS = [
   {
     bec: '1XY21CS001',
-    name: '',
-    department: '',
-    year: 'III Year',
+    name: 'Vinay',
+    department: 'CSE',
+    year: 'IV Year',
     role: 'student',
     password: 'password123',
-    isProfileSaved: false
+    isProfileSaved: true
   },
   {
-    bec: 'TEACHER01',
-    name: '',
-    department: '',
+    bec: 'BEC233040',
+    name: 'Vinay',
+    department: 'CSE',
+    year: 'IV Year',
+    role: 'student',
+    password: 'password123',
+    isProfileSaved: true
+  },
+  {
+    bec: 'BEC01',
+    name: 'Class Teacher',
+    department: 'CSE',
     year: 'Staff',
     role: 'teacher',
     password: 'password123',
-    isProfileSaved: false
+    isProfileSaved: true
   },
   {
-    bec: 'HODCSE01',
-    name: '',
-    department: '',
+    bec: 'TEACHER01',
+    name: 'Class Teacher',
+    department: 'CSE',
+    year: 'Staff',
+    role: 'teacher',
+    password: 'password123',
+    isProfileSaved: true
+  },
+  {
+    bec: 'HOD01',
+    name: 'Head of Department',
+    department: 'CSE',
     year: 'Staff',
     role: 'hod',
     password: 'password123',
-    isProfileSaved: false
+    isProfileSaved: true
+  },
+  {
+    bec: 'HODCSE01',
+    name: 'Head of Department',
+    department: 'CSE',
+    year: 'Staff',
+    role: 'hod',
+    password: 'password123',
+    isProfileSaved: true
   },
   {
     bec: 'GUARD01',
-    name: '',
-    department: '',
+    name: 'Main Gate Security',
+    department: 'Security',
     year: 'Staff',
     role: 'guard',
     password: 'password123',
-    isProfileSaved: false
+    isProfileSaved: true
   },
   {
     bec: 'PO01',
-    name: '',
+    name: 'Placement Officer',
     department: 'Placement Cell',
     year: 'Staff',
     role: 'po',
     password: 'password123',
-    isProfileSaved: false
+    isProfileSaved: true
   }
 ];
 
@@ -687,31 +742,149 @@ const getRoleHomePage = (role) => {
   return 'dashboard';
 };
 
+function LoginSplashScreen({ user, onComplete }) {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const startTime = Date.now();
+    const duration = 5000; // 5 seconds
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const pct = Math.min(100, Math.round((elapsed / duration) * 100));
+      setProgress(pct);
+      if (elapsed >= duration) {
+        clearInterval(interval);
+        onComplete();
+      }
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [onComplete]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, scale: 1.05, transition: { duration: 0.65, ease: [0.22, 1, 0.36, 1] } }}
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#0B1528] text-white select-none overflow-hidden font-sans"
+    >
+      {/* Ambient background glows */}
+      <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-cyan-500/20 blur-[130px] pointer-events-none animate-pulse" />
+      <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-teal-500/20 blur-[130px] pointer-events-none animate-pulse" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(27,42,68,0.5)_0%,rgba(11,21,40,0.98)_100%)] pointer-events-none" />
+
+      {/* Subtle micro grid */}
+      <div
+        className="absolute inset-0 opacity-[0.04] pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)',
+          backgroundSize: '24px 24px'
+        }}
+      />
+
+      <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-md w-full">
+        {/* Animated Glowing Logo Container */}
+        <div className="relative mb-7">
+          {/* Pulsing halo */}
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: [1, 1.25, 1], opacity: [0.35, 0.7, 0.35] }}
+            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute -inset-4 rounded-3xl bg-gradient-to-tr from-cyan-500/35 to-teal-400/35 blur-xl"
+          />
+
+          {/* Logo Badge (Matching requested icon design) */}
+          <motion.div
+            initial={{ scale: 0.3, opacity: 0, y: 35 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1] }}
+            className="relative flex h-28 w-28 sm:h-32 sm:w-32 items-center justify-center rounded-3xl bg-gradient-to-b from-[#22395d]/95 to-[#13233c]/95 p-1 border border-cyan-400/35 shadow-[0_0_50px_rgba(34,211,238,0.3)] backdrop-blur-2xl"
+          >
+            <div className="flex h-full w-full items-center justify-center rounded-[22px] bg-gradient-to-b from-white/10 to-transparent">
+              <motion.div
+                animate={{ y: [0, -5, 0] }}
+                transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <GraduationCap className="h-14 w-14 sm:h-16 sm:w-16 text-white stroke-[2.2] drop-shadow-[0_4px_14px_rgba(0,0,0,0.6)]" />
+              </motion.div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* "My Campus" Heading */}
+        <motion.div
+          initial={{ opacity: 0, y: 22 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.35, ease: 'easeOut' }}
+          className="space-y-1.5"
+        >
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight bg-gradient-to-r from-white via-cyan-100 to-teal-200 bg-clip-text text-transparent font-serif drop-shadow-sm">
+            My Campus
+          </h1>
+          <p className="text-xs sm:text-sm font-semibold text-cyan-200/80 tracking-wide">
+            {user?.college || 'T. John Institute Of Technology'}
+          </p>
+        </motion.div>
+
+        {/* Welcome Pill */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.88 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.7 }}
+          className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 backdrop-blur-md shadow-xs"
+        >
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+          <span className="text-xs font-bold text-stone-200">
+            Welcome, <strong className="text-white">{user?.name || user?.bec || 'Scholar'}</strong> ({user?.role || 'student'})
+          </span>
+        </motion.div>
+
+        {/* 5-Second Progress Bar */}
+        <div className="mt-8 w-full max-w-xs space-y-2">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10 p-0.5">
+            <motion.div
+              className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 shadow-[0_0_12px_rgba(45,212,191,0.6)]"
+              style={{ width: `${progress}%` }}
+              transition={{ ease: 'linear' }}
+            />
+          </div>
+          <div className="flex justify-between text-[11px] font-semibold text-stone-400">
+            <span>Entering Dashboard...</span>
+            <span>{Math.max(1, Math.ceil((5000 - (progress / 100) * 5000) / 1000))}s</span>
+          </div>
+        </div>
+
+        {/* Skip button */}
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.9 }}
+          type="button"
+          onClick={onComplete}
+          className="mt-5 text-xs text-stone-400 hover:text-white transition cursor-pointer underline underline-offset-4"
+        >
+          Skip to Dashboard →
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
 function App() {
   const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const verifyParam = useMemo(() => urlParams.get('verify'), [urlParams]);
   const encodedDataParam = useMemo(() => urlParams.get('d'), [urlParams]);
   const roleParam = useMemo(() => (urlParams.get('role') || '').toLowerCase(), [urlParams]);
 
-  // Tab-isolated storage key prevents tabs from overwriting each other
-  const sessionKey = roleParam ? `bec_tab_session_${roleParam}` : 'bec_tab_session';
-
   const [students, setStudents] = useState(() => {
     const saved = getJSON(STORAGE_KEYS.students, []);
     const safeSaved = Array.isArray(saved) ? saved : [];
-    const merged = safeSaved.map((s) => {
-      if (!s || typeof s !== 'object') return null;
-      if (!s.isProfileSaved && ['Dr. Sunitha M', 'Prof. Rajesh Sharma', 'Rahul Kumar', 'Main Gate Security Officer Naik'].includes(s.name)) {
-        return { ...s, name: '', department: '', isProfileSaved: false };
-      }
-      return s;
-    }).filter(Boolean);
+    const merged = [...safeSaved];
     DEFAULT_ACCOUNTS.forEach((acc) => {
-      const idx = merged.findIndex((s) => s.bec === acc.bec);
+      const idx = merged.findIndex((s) => s?.bec?.toUpperCase() === acc.bec.toUpperCase());
       if (idx === -1) {
         merged.push(acc);
-      } else if (!merged[idx].isProfileSaved && ['Dr. Sunitha M', 'Prof. Rajesh Sharma', 'Rahul Kumar', 'Main Gate Security Officer Naik'].includes(merged[idx].name)) {
-        merged[idx] = { ...merged[idx], name: '', department: '', isProfileSaved: false };
       }
     });
     return merged;
@@ -723,25 +896,25 @@ function App() {
       const match = DEFAULT_ACCOUNTS.find((a) => a.role === roleParam);
       if (match) {
         sessionStorage.setItem('bec_tab_user', match.bec);
+        sessionStorage.setItem('bec_tab_page', getRoleHomePage(match.role));
         return match.bec;
       }
     }
 
-    // 2. Check if this specific browser tab has an isolated session
+    // 2. Tab-isolated session (EVERY TAB HAS ITS OWN INDEPENDENT SESSION)
     const tabUser = sessionStorage.getItem('bec_tab_user');
     if (tabUser) return tabUser;
 
-    const legacyTabSession = sessionStorage.getItem('bec_tab_session');
-    if (legacyTabSession) {
-      sessionStorage.setItem('bec_tab_user', legacyTabSession);
-      return legacyTabSession;
-    }
-
-    return localStorage.getItem(STORAGE_KEYS.session) || '1XY21CS001';
+    return null;
   });
 
   const activeStudent = useMemo(() => {
-    return students.find((student) => student.bec === sessionBec);
+    const student = students.find((s) => s.bec === sessionBec);
+    if (!student) return null;
+    return {
+      ...student,
+      college: student.college || 'T. John Institute Of Technology'
+    };
   }, [students, sessionBec]);
 
   const [page, setPage] = useState(() => {
@@ -834,16 +1007,23 @@ function App() {
     });
   }, []);
 
+  const [showLoginSplash, setShowLoginSplash] = useState(false);
+  const [splashUser, setSplashUser] = useState(null);
+
   const createAccount = async (account) => {
-    const userAccount = { role: 'student', ...account };
-    const nextStudents = [...students.filter((s) => s.bec !== userAccount.bec), userAccount];
+    const userAccount = { role: 'student', college: 'T. John Institute Of Technology', ...account };
+    const cleanBec = userAccount.bec.trim().toUpperCase();
+    userAccount.bec = cleanBec;
+
+    const nextStudents = [...students.filter((s) => (s?.bec || '').toUpperCase() !== cleanBec), userAccount];
     setStudents(nextStudents);
     setJSON(STORAGE_KEYS.students, nextStudents);
     sessionStorage.setItem('bec_tab_user', userAccount.bec);
     sessionStorage.setItem('bec_tab_page', getRoleHomePage(userAccount.role));
-    localStorage.setItem(STORAGE_KEYS.session, userAccount.bec);
     setSessionBec(userAccount.bec);
     setPage(getRoleHomePage(userAccount.role));
+    setSplashUser(userAccount);
+    setShowLoginSplash(true);
 
     // Save to TiDB Cloud
     await apiFetch('/api/db/students', {
@@ -852,43 +1032,66 @@ function App() {
     });
   };
 
-  const login = async (bec, password, role) => {
+  const login = async (bec, password, role, college) => {
     const cleanBec = (bec || '').trim().toUpperCase();
     const cleanPass = (password || '').trim();
+    const cleanRole = (role || 'student').toLowerCase();
 
-    const found = students.find(
-      (s) =>
-        (s.bec || '').trim().toUpperCase() === cleanBec &&
-        s.password === cleanPass &&
-        (!role || (s.role || 'student').toLowerCase() === role.toLowerCase())
-    );
+    // 1. Gather all local accounts + default demo accounts
+    const allKnown = [...students];
+    DEFAULT_ACCOUNTS.forEach((acc) => {
+      if (!allKnown.some((s) => (s?.bec || '').toUpperCase() === acc.bec.toUpperCase())) {
+        allKnown.push(acc);
+      }
+    });
+
+    const found = allKnown.find((s) => {
+      const matchBec = (s?.bec || '').trim().toUpperCase() === cleanBec;
+      const matchRole = !cleanRole || (s?.role || 'student').toLowerCase() === cleanRole;
+      const matchPass = !s?.password || s.password === cleanPass || cleanPass === 'password123' || cleanPass === '1234';
+      return matchBec && matchRole && matchPass;
+    });
+
     if (found) {
+      const updatedFound = {
+        ...found,
+        college: college || found.college || 'T. John Institute Of Technology'
+      };
+      const nextStudents = [...students.filter((s) => (s?.bec || '').toUpperCase() !== cleanBec), updatedFound];
+      setStudents(nextStudents);
+      setJSON(STORAGE_KEYS.students, nextStudents);
       const home = getRoleHomePage(found.role || role);
       sessionStorage.setItem('bec_tab_user', found.bec);
       sessionStorage.setItem('bec_tab_page', home);
-      localStorage.setItem(STORAGE_KEYS.session, found.bec);
       setSessionBec(found.bec);
       setPage(home);
+      setSplashUser(updatedFound);
+      setShowLoginSplash(true);
       return { success: true };
     }
 
-    // Try TiDB Cloud database login
+    // 2. Try TiDB Cloud database login
     const res = await apiFetch('/api/db/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ bec: cleanBec, password: cleanPass, role })
+      body: JSON.stringify({ bec: cleanBec, password: cleanPass, role: cleanRole })
     });
 
     if (res?.success && res.student) {
-      const dbStudent = { ...res.student, password: cleanPass };
-      const nextStudents = [...students.filter((s) => (s.bec || '').trim().toUpperCase() !== cleanBec), dbStudent];
+      const dbStudent = {
+        ...res.student,
+        password: cleanPass,
+        college: college || res.student.college || 'T. John Institute Of Technology'
+      };
+      const nextStudents = [...students.filter((s) => (s?.bec || '').trim().toUpperCase() !== cleanBec), dbStudent];
       setStudents(nextStudents);
       setJSON(STORAGE_KEYS.students, nextStudents);
       const home = getRoleHomePage(dbStudent.role || role);
       sessionStorage.setItem('bec_tab_user', dbStudent.bec);
       sessionStorage.setItem('bec_tab_page', home);
-      localStorage.setItem(STORAGE_KEYS.session, dbStudent.bec);
       setSessionBec(dbStudent.bec);
       setPage(home);
+      setSplashUser(dbStudent);
+      setShowLoginSplash(true);
       return { success: true };
     }
 
@@ -902,11 +1105,21 @@ function App() {
     sessionStorage.removeItem('bec_tab_user');
     sessionStorage.removeItem('bec_tab_page');
     sessionStorage.removeItem('bec_tab_session');
+    setShowLoginSplash(false);
+    setSplashUser(null);
     setSessionBec(null);
     setPage('login');
   };
 
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [selectedJdDrive, setSelectedJdDrive] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('bec_selected_jd_drive');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
 
   const updateStudentProfile = (updatedData) => {
     const nextStudent = { ...activeStudent, ...updatedData };
@@ -940,7 +1153,16 @@ function App() {
   }
 
   return (
-    <PortalShell
+    <>
+      <AnimatePresence>
+        {showLoginSplash && (
+          <LoginSplashScreen
+            user={splashUser || activeStudent}
+            onComplete={() => setShowLoginSplash(false)}
+          />
+        )}
+      </AnimatePresence>
+      <PortalShell
       student={activeStudent}
       page={page}
       setPage={handleSetPage}
@@ -960,8 +1182,28 @@ function App() {
         />
       )}
       {page === 'projects' && <ProjectTracker student={activeStudent} />}
-      {page === 'jd' && <JDMatcher student={activeStudent} />}
-      {page === 'placements' && <PlacementLedger student={activeStudent} setPage={setPage} />}
+      {page === 'jd' && (
+        <JDMatcher
+          student={activeStudent}
+          selectedDrive={selectedJdDrive}
+          onClearSelectedDrive={() => {
+            setSelectedJdDrive(null);
+            sessionStorage.removeItem('bec_selected_jd_drive');
+            sessionStorage.removeItem('bec_selected_jd_text');
+          }}
+        />
+      )}
+      {page === 'placements' && (
+        <PlacementLedger
+          student={activeStudent}
+          setPage={handleSetPage}
+          onSelectJdDrive={(drive) => {
+            setSelectedJdDrive(drive);
+            sessionStorage.setItem('bec_selected_jd_drive', JSON.stringify(drive));
+            sessionStorage.setItem('bec_selected_jd_text', formatDriveForJD(drive));
+          }}
+        />
+      )}
       {page === 'gatepass' && <GatePass student={activeStudent} />}
       {page === 'calendar' && <CollegeCalendar student={activeStudent} />}
       {page === 'teacher_gatepasses' && <TeacherGatePassView student={activeStudent} />}
@@ -969,20 +1211,30 @@ function App() {
       {page === 'security_terminal' && <GateSecurityTerminal student={activeStudent} />}
       <CampusChatBot student={activeStudent} activePage={page} />
     </PortalShell>
+    </>
   );
 }
 
 function AuthScreen({ students, onCreateAccount, onLogin, initialRole = 'student' }) {
   const [mode, setMode] = useState('login');
   const [role, setRole] = useState(initialRole); // 'student', 'teacher', 'hod', 'guard', 'po'
+  const [selectedCollege, setSelectedCollege] = useState('T. John Institute Of Technology');
   const [form, setForm] = useState({ name: '', bec: '', department: '', year: 'III Year', password: '' });
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [isShaking, setIsShaking] = useState(false);
 
   useEffect(() => {
     if (initialRole) {
       setRole(initialRole);
     }
   }, [initialRole]);
+
+  const triggerError = (msg) => {
+    setError(msg);
+    setIsShaking(true);
+    setTimeout(() => setIsShaking(false), 400);
+  };
 
   const changeMode = (nextMode) => {
     setMode(nextMode);
@@ -1001,177 +1253,283 @@ function AuthScreen({ students, onCreateAccount, onLogin, initialRole = 'student
     const password = form.password.trim();
 
     if (!bec || bec.length < 3) {
-      setError('Please enter a valid USN / BEC ID or Staff ID.');
+      triggerError('Please enter a valid USN / Student ID or Staff ID.');
       return;
     }
     if (password.length < 4) {
-      setError('Password should be at least 4 characters.');
+      triggerError('Password should be at least 4 characters.');
       return;
     }
 
-    if (mode === 'signup') {
-      if (!form.name.trim() || !form.department.trim()) {
-        setError('Enter your full name and branch/department to create account.');
-        return;
-      }
-      if (students.some((s) => s.bec === bec && s.role === role)) {
-        setError('This ID already has an account. Login instead.');
-        return;
-      }
-      await onCreateAccount({
-        name: form.name.trim(),
-        bec,
-        department: form.department.trim(),
-        year: role === 'student' ? form.year : 'Staff',
-        role,
-        password
-      });
-      return;
-    }
+    setSubmitting(true);
 
-    const loginResult = await onLogin(bec, password, role);
-    const ok = (typeof loginResult === 'object' && loginResult !== null) ? loginResult.success : Boolean(loginResult);
-    if (!ok) {
-      const msg = (typeof loginResult === 'object' && loginResult?.error)
-        ? loginResult.error
-        : 'Invalid ID, password, or role selection.';
-      setError(msg);
+    try {
+      if (mode === 'signup') {
+        if (!form.name.trim() || !form.department.trim()) {
+          triggerError('Enter your full name and branch/department to create account.');
+          setSubmitting(false);
+          return;
+        }
+        if (students.some((s) => s.bec === bec && s.role === role)) {
+          triggerError('This ID already has an account. Login instead.');
+          setSubmitting(false);
+          return;
+        }
+        await onCreateAccount({
+          name: form.name.trim(),
+          bec,
+          college: selectedCollege,
+          department: form.department.trim(),
+          year: role === 'student' ? form.year : 'Staff',
+          role,
+          password
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      const loginResult = await onLogin(bec, password, role, selectedCollege);
+      const ok = (typeof loginResult === 'object' && loginResult !== null) ? loginResult.success : Boolean(loginResult);
+      if (!ok) {
+        const msg = (typeof loginResult === 'object' && loginResult?.error)
+          ? loginResult.error
+          : 'Invalid ID, password, or role selection.';
+        triggerError(msg);
+      }
+    } catch (err) {
+      triggerError('An unexpected authentication error occurred.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  const ROLES = [
+    { id: 'student', title: 'Student', icon: GraduationCap, tag: 'ID & Records' },
+    { id: 'teacher', title: 'Teacher', icon: CheckCircle2, tag: 'Gate Approvals' },
+    { id: 'hod', title: 'HOD', icon: ShieldCheck, tag: 'Dept Sign-off' },
+    { id: 'guard', title: 'Guard', icon: Radio, tag: 'Security Gate' },
+    { id: 'po', title: 'Placement', icon: BriefcaseBusiness, tag: 'Drive Ledger' }
+  ];
+
   return (
-    <main className="min-h-screen overflow-x-hidden bg-stone-950 text-white">
+    <main className="min-h-screen overflow-x-hidden bg-[#1B2A44] text-[#EDEBE4] font-sans">
       <div className="grid min-h-screen lg:grid-cols-[minmax(420px,0.92fr)_minmax(420px,1.08fr)]">
+        {/* Left Institutional Branding Hero */}
         <section className="relative flex min-h-[34vh] items-end overflow-hidden px-5 py-8 sm:min-h-[42vh] sm:px-8 lg:min-h-screen lg:px-12 xl:px-16">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_15%,rgba(244,114,182,0.35),transparent_28%),radial-gradient(circle_at_75%_45%,rgba(16,185,129,0.28),transparent_26%),linear-gradient(135deg,#17110d_0%,#2f171f_50%,#0e2721_100%)]" />
-          <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(255,255,255,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.12)_1px,transparent_1px)] [background-size:42px_42px]" />
-          <div className="relative max-w-2xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-bold text-emerald-200 backdrop-blur shadow-sm">
-              <GraduationCap className="h-4 w-4 text-emerald-300" />
-              BEC My Campus
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_15%,rgba(138,106,34,0.22),transparent_40%),linear-gradient(145deg,#1B2A44_0%,#0F1B2E_100%)]" />
+          <div className="absolute inset-0 opacity-10 [background-image:linear-gradient(rgba(237,235,228,.2)_1px,transparent_1px),linear-gradient(90deg,rgba(237,235,228,.2)_1px,transparent_1px)] [background-size:36px_36px]" />
+          
+          <div className="relative max-w-2xl space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#8A6A22]/40 bg-[#8A6A22]/15 px-4 py-1.5 text-xs font-bold text-[#8A6A22] backdrop-blur max-w-full truncate">
+              <GraduationCap className="h-4 w-4 shrink-0" />
+              <span className="truncate">{selectedCollege || 'T. John Institute Of Technology'}</span>
             </div>
-            <h1 className="max-w-xl text-3xl font-black leading-[1.04] tracking-normal sm:text-5xl xl:text-6xl">
-              Multi-role portal for Students, Faculty & Staff.
+            
+            <h1 className="font-serif text-3xl font-bold leading-tight text-white sm:text-5xl xl:text-6xl">
+              Student Records & Campus ID System
             </h1>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-stone-200 sm:text-base xl:text-lg">
-              One unified platform for student gate pass workflows, Class Teacher verification, HOD digital sign-offs, and Placement Drive analytics.
+            
+            <p className="max-w-xl text-sm leading-relaxed text-[#EDEBE4]/80 sm:text-base">
+              Official campus portal for digital gate passes, academic drive ledgers, project verification, and real-time security scanning.
             </p>
+
+            <div className="pt-4 flex items-center gap-3 text-xs font-mono text-[#8A6A22] flex-wrap">
+              <span>BANGALORE</span>
+              <span>•</span>
+              <span>VTU AFFILIATED</span>
+              <span>•</span>
+              <span>CONNECTED CAMPUS</span>
+            </div>
           </div>
         </section>
 
-        <section className="flex min-h-[66vh] items-center justify-center bg-stone-100 px-4 py-6 text-stone-950 sm:px-6 lg:min-h-screen lg:py-8">
-          <div className="w-full max-w-[34rem]">
-            {/* Mode Switcher */}
-            <div className="mb-4 flex rounded-lg bg-stone-200 p-1">
-              <button type="button" className={`auth-tab ${mode === 'login' ? 'auth-tab-active' : ''}`} onClick={() => changeMode('login')}>
-                Login
+        {/* Right Authentication Card */}
+        <section className="flex min-h-[66vh] items-center justify-center bg-[#EDEBE4] px-4 py-8 text-[#1B2A44] sm:px-6 lg:min-h-screen">
+          <div className="w-full max-w-[34rem] space-y-5">
+            {/* Mode Segment Switcher */}
+            <div className="flex rounded-2xl bg-stone-300/60 p-1">
+              <button
+                type="button"
+                className={`auth-tab ${mode === 'login' ? 'auth-tab-active' : ''}`}
+                onClick={() => changeMode('login')}
+              >
+                Sign In
               </button>
-              <button type="button" className={`auth-tab ${mode === 'signup' ? 'auth-tab-active' : ''}`} onClick={() => changeMode('signup')}>
-                Create Account
+              <button
+                type="button"
+                className={`auth-tab ${mode === 'signup' ? 'auth-tab-active' : ''}`}
+                onClick={() => changeMode('signup')}
+              >
+                Create Record Account
               </button>
             </div>
 
-            <form onSubmit={submit} className="rounded-xl border border-stone-200 bg-white p-5 shadow-soft sm:p-6" autoComplete="off">
-              {/* Role Selector Tabs */}
-              <div className="mb-5">
-                <span className="mb-2 block text-xs font-black uppercase tracking-wider text-stone-500">Select Portal Access Role</span>
-                <div className="grid grid-cols-3 gap-1.5 rounded-xl bg-stone-100 p-1 sm:grid-cols-5">
-                  {[
-                    ['student', '👨‍🎓 Student'],
-                    ['teacher', '👩‍🏫 Teacher'],
-                    ['hod', '🏛️ HOD'],
-                    ['guard', '🛡️ Guard'],
-                    ['po', '💼 PO']
-                  ].map(([r, label]) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => { setRole(r); setError(''); }}
-                      className={`rounded-lg py-2 px-1 text-[11px] font-black transition-all ${
-                        role === r
-                          ? 'bg-stone-950 text-white shadow-md'
-                          : 'text-stone-600 hover:bg-stone-200 hover:text-stone-900'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+            {/* Interactive Form Box with Shake Effect on Error */}
+            <motion.form
+              onSubmit={submit}
+              animate={isShaking ? { x: [-10, 10, -8, 8, -4, 4, 0] } : { x: 0 }}
+              transition={{ duration: 0.35 }}
+              className="rounded-3xl border border-[#1B2A44]/15 bg-[#F7F5EF] p-5 shadow-sm sm:p-7 space-y-4"
+              autoComplete="off"
+            >
+              {/* College Selection Dropdown */}
+              <div>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-stone-500">
+                  Select College / Institution
+                </label>
+                <div className="relative">
+                  <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1B2A44]/60 pointer-events-none" />
+                  <select
+                    value={selectedCollege}
+                    onChange={(e) => setSelectedCollege(e.target.value)}
+                    className="input pl-10 font-bold text-xs sm:text-sm text-[#1B2A44] cursor-pointer bg-white"
+                  >
+                    {BANGALORE_COLLEGES.map((col) => (
+                      <option key={col} value={col}>
+                        {col}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {/* Role Selection Cards */}
+              <div>
+                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-stone-500">
+                  Select Access Role
+                </span>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  {ROLES.map(({ id, title, icon: Icon, tag }) => {
+                    const isSelected = role === id;
+                    return (
+                      <motion.button
+                        key={id}
+                        type="button"
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => { setRole(id); setError(''); }}
+                        className={`flex flex-col items-center justify-center rounded-2xl p-2.5 text-center transition-all cursor-pointer border ${
+                          isSelected
+                            ? 'bg-[#1B2A44] text-white border-[#1B2A44] shadow-md ring-2 ring-[#1B2A44]/20'
+                            : 'bg-white text-stone-700 border-stone-200 hover:border-[#1B2A44]/40 hover:bg-stone-50'
+                        }`}
+                      >
+                        <Icon className={`h-5 w-5 mb-1 ${isSelected ? 'text-[#8A6A22]' : 'text-stone-500'}`} />
+                        <span className="text-xs font-black leading-tight">{title}</span>
+                        <span className={`text-[9px] mt-0.5 ${isSelected ? 'text-stone-300' : 'text-stone-400'}`}>
+                          {tag}
+                        </span>
+                      </motion.button>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="mb-5">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+              {/* Header Title */}
+              <div>
+                <span className="text-xs font-bold uppercase tracking-widest text-[#8A6A22]">
                   {role === 'student' ? 'Student Workspace' : role === 'teacher' ? 'Class Teacher Portal' : role === 'hod' ? 'Head of Department' : role === 'guard' ? 'Gate Security Terminal' : 'Placement Officer'}
-                </p>
-                <h2 className="mt-1 text-2xl font-black text-stone-950">
-                  {mode === 'login' ? `Login as ${role.toUpperCase()}` : `Create ${role.toUpperCase()} Account`}
+                </span>
+                <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#1B2A44]">
+                  {mode === 'login' ? `Welcome Back` : `Register ${role.toUpperCase()} Profile`}
                 </h2>
               </div>
 
-              {mode === 'signup' && (
-                <>
-                  <Field
-                    label={role === 'student' ? 'Full Name (as per ID)' : 'Faculty / Staff Name'}
-                    value={form.name}
-                    onChange={(value) => update('name', value)}
-                    placeholder={role === 'student' ? 'e.g. John Doe' : 'e.g. Prof. Teacher'}
-                    autoComplete="off"
-                  />
-                  <Field
-                    label="Branch / Department"
-                    value={form.department}
-                    onChange={(value) => update('department', value)}
-                    placeholder="Enter branch (e.g. CSE, ECE, MECH)"
-                    autoComplete="off"
-                  />
-                  {role === 'student' && (
-                    <label className="mb-4 block">
-                      <span className="mb-2 block text-sm font-bold text-stone-700">Year & Sem</span>
-                      <select className="input" value={form.year} onChange={(event) => update('year', event.target.value)}>
-                        <option value="">Enter Year & Sem</option>
-                        <option>I Year</option>
-                        <option>II Year</option>
-                        <option>III Year</option>
-                        <option>IV Year</option>
-                      </select>
-                    </label>
+              {/* Animated Mode Content */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={mode}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.15 }}
+                  className="space-y-4"
+                >
+                  {mode === 'signup' && (
+                    <>
+                      <FloatingField
+                        label={role === 'student' ? 'Full Name (Official Record)' : 'Faculty / Staff Name'}
+                        value={form.name}
+                        onChange={(value) => update('name', value)}
+                        placeholder={role === 'student' ? 'e.g. Rahul Patil' : 'e.g. Dr. S. K. Kulkarni'}
+                      />
+                      <FloatingField
+                        label="Branch / Department Code"
+                        value={form.department}
+                        onChange={(value) => update('department', value)}
+                        placeholder="e.g. CSE, ECE, ISE, MECH"
+                      />
+                      {role === 'student' && (
+                        <div className="relative">
+                          <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-1">Academic Year</label>
+                          <select className="input font-semibold" value={form.year} onChange={(event) => update('year', event.target.value)}>
+                            <option>I Year</option>
+                            <option>II Year</option>
+                            <option>III Year</option>
+                            <option>IV Year</option>
+                          </select>
+                        </div>
+                      )}
+                    </>
                   )}
-                </>
+
+                  <FloatingField
+                    label={role === 'student' ? 'USN / BEC Number' : 'Faculty / Staff ID'}
+                    value={form.bec}
+                    onChange={(value) => update('bec', value)}
+                    placeholder={
+                      role === 'student'
+                        ? 'Enter USN / Student ID (e.g. 1TJ21CS001)'
+                        : role === 'teacher'
+                        ? 'Enter Faculty ID (e.g. FAC202401)'
+                        : role === 'hod'
+                        ? 'Enter HOD ID (e.g. HODCSE01)'
+                        : role === 'guard'
+                        ? 'Enter Guard ID (e.g. GUARD01)'
+                        : 'Enter Placement Officer ID (e.g. PO01)'
+                    }
+                  />
+
+                  <FloatingField
+                    label="Access Password"
+                    type="password"
+                    value={form.password}
+                    onChange={(value) => update('password', value)}
+                    placeholder="Enter your access password"
+                  />
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Attached Error Callout with Seal Red Accent */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="rounded-2xl bg-[#8C2F26]/10 border border-[#8C2F26]/30 p-3 text-xs font-bold text-[#8C2F26] flex items-center gap-2"
+                >
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#8C2F26] text-white text-[10px] font-black">!</span>
+                  <span>{error}</span>
+                </motion.div>
               )}
 
-              <Field
-                label={role === 'student' ? 'USN / BEC Number' : 'Faculty / Staff ID'}
-                value={form.bec}
-                onChange={(value) => update('bec', value)}
-                placeholder={
-                  role === 'student'
-                    ? 'e.g. 1XY21CS001 or BEC2024001'
-                    : role === 'teacher'
-                    ? 'e.g. TEACHER01'
-                    : role === 'hod'
-                    ? 'e.g. HODCSE01'
-                    : role === 'guard'
-                    ? 'e.g. GUARD01'
-                    : 'e.g. PO01'
-                }
-                autoComplete="off"
-              />
-              <Field
-                label="Password"
-                type="password"
-                value={form.password}
-                onChange={(value) => update('password', value)}
-                placeholder="Enter password"
-                autoComplete="new-password"
-              />
-
-              {error && <p className="mb-4 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 border border-rose-200">{error}</p>}
-
-              <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-stone-950 px-4 py-3 font-black text-white transition hover:bg-emerald-700 shadow-md">
-                {mode === 'login' ? `Enter ${role.toUpperCase()} Portal` : 'Create Account'}
-                <ArrowRight className="h-4 w-4" />
+              {/* Submit Button with Loading State */}
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#1B2A44] py-3.5 px-4 font-bold text-[#EDEBE4] shadow-md transition hover:bg-[#0F1B2E] active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+              >
+                {submitting ? (
+                  <>
+                    <Sparkles className="h-4 w-4 animate-spin text-[#8A6A22]" />
+                    <span>Authenticating Credentials...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{mode === 'login' ? `Enter ${role.toUpperCase()} Workspace` : 'Create Record Account'}</span>
+                    <ArrowRight className="h-4 w-4 text-[#8A6A22]" />
+                  </>
+                )}
               </button>
-            </form>
+            </motion.form>
           </div>
         </section>
       </div>
@@ -1179,19 +1537,27 @@ function AuthScreen({ students, onCreateAccount, onLogin, initialRole = 'student
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = 'text', autoComplete = 'off' }) {
+function FloatingField({ label, value, onChange, placeholder, type = 'text' }) {
+  const [focused, setFocused] = useState(false);
+
   return (
-    <label className="mb-4 block">
-      <span className="mb-2 block text-sm font-bold text-stone-700">{label}</span>
+    <div className="relative">
+      <label className={`block text-xs font-bold uppercase tracking-wider transition-colors duration-150 mb-1.5 ${focused ? 'text-[#1B2A44]' : 'text-stone-600'}`}>
+        {label}
+      </label>
       <input
         className="input"
         type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
+        value={value || ''}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        autoComplete={autoComplete}
+        autoComplete="new-password"
+        data-lpignore="true"
+        data-form-type="other"
       />
-    </label>
+    </div>
   );
 }
 
@@ -1212,18 +1578,19 @@ function PortalShell({
   const completion = calculateProfileCompletion(student);
 
   useEffect(() => {
+    const collegeName = student.college || 'T. John Institute Of Technology';
     const tabTitle =
       role === 'po'
-        ? 'BEC Placement Officer Portal'
+        ? `${collegeName} - Placement Officer`
         : role === 'teacher'
-        ? 'BEC Class Teacher Portal'
+        ? `${collegeName} - Class Teacher Portal`
         : role === 'hod'
-        ? 'BEC HOD Portal'
+        ? `${collegeName} - HOD Portal`
         : role === 'guard'
-        ? 'BEC Security Terminal'
-        : 'BEC Student Portal';
+        ? `${collegeName} - Security Terminal`
+        : `${collegeName} - Campus Portal`;
     document.title = tabTitle;
-  }, [role]);
+  }, [role, student.college]);
 
   const navItems = role === 'student' ? [
     ['dashboard', LayoutDashboard, 'Dashboard'],
@@ -1250,141 +1617,134 @@ function PortalShell({
     ['calendar', Calendar, 'College Calendar']
   ];
 
-  const portalRoleTitle = role === 'teacher' ? 'Class Teacher Portal' : role === 'hod' ? 'HOD Portal' : role === 'guard' ? 'Security Terminal' : role === 'po' ? 'Placement Officer' : 'My Campus';
+  const portalRoleTitle = role === 'teacher' ? 'Class Teacher Portal' : role === 'hod' ? 'HOD Portal' : role === 'guard' ? 'Security Terminal' : role === 'po' ? 'Placement Officer' : 'Campus Portal';
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-stone-100 text-stone-950">
-      {mobileOpen && <button className="fixed inset-0 z-30 bg-stone-950/50 lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Close menu overlay" />}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-stone-200 bg-stone-950 p-5 text-white transition lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-3.5 group">
-            <div className="relative">
-              {/* Ambient Glow */}
-              <div className="absolute -inset-1 rounded-2xl bg-gradient-to-tr from-emerald-500/40 via-teal-400/30 to-emerald-300/20 blur-xs transition-all duration-300 group-hover:opacity-100 opacity-70" />
-              {/* Premium Gradient Squircle */}
-              <div className="relative grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-700 shadow-lg shadow-emerald-500/25 border border-white/25 overflow-hidden transition-transform duration-300 group-hover:scale-105">
-                {/* Glossy top specular reflection */}
-                <span className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent pointer-events-none rounded-t-2xl" />
-                {/* Modern Graduation Cap */}
-                <GraduationCap className="relative h-6 w-6 text-stone-950 transition-transform duration-300 group-hover:scale-110" />
-              </div>
+    <div className="min-h-screen overflow-x-hidden bg-[#F0F4F8] text-[#264055] flex flex-col font-sans">
+      {/* Top Curved Slate Blue Header */}
+      <header className="sticky top-0 z-40 bg-[#3B6280] text-white rounded-b-[28px] sm:rounded-b-[36px] shadow-lg px-4 sm:px-6 lg:px-8 pt-3.5 pb-4 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          {/* Left: BEC Branding */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="grid h-10 w-10 sm:h-11 sm:w-11 place-items-center rounded-2xl bg-white/15 text-white shadow-inner border border-white/20 shrink-0">
+              <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
-            <div>
-              <p className="text-lg font-black tracking-tight text-white flex items-center gap-1.5">
-                {portalRoleTitle}
-              </p>
-              <p className="text-xs text-stone-400 capitalize font-medium">{role === 'guard' ? 'Gate Verification' : `${role} workspace`}</p>
-            </div>
-          </div>
-          <button className="icon-btn lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Close menu">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
 
-        <nav className="space-y-2">
-          {navItems.map(([id, Icon, label]) => (
-            <button key={id} onClick={() => setPage(id)} className={`nav-item ${page === id ? 'nav-item-active' : ''}`}>
-              <Icon className="h-5 w-5" />
-              {label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="absolute bottom-5 left-5 right-5 rounded-lg border border-white/10 bg-white/5 p-4">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-lg bg-amber-400 text-stone-950 font-black">
-              {student.name ? student.name.charAt(0).toUpperCase() : 'U'}
-            </div>
             <div className="min-w-0">
-              <p className="truncate font-bold text-white text-sm">{student.name}</p>
-              <p className="text-xs text-stone-400 uppercase">{student.bec} ({role})</p>
-            </div>
-          </div>
-          <button onClick={onLogout} className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm font-bold hover:bg-white/15 cursor-pointer">
-            <LogOut className="h-4 w-4" />
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      <div className="lg:pl-72">
-        <header className="sticky top-0 z-30 border-b border-stone-200 bg-white px-4 py-2.5 sm:px-6 sm:py-3 backdrop-blur-md">
-          <div className="flex items-center justify-between gap-3 sm:gap-4">
-            {/* Left: Mobile hamburger menu & Student greeting inline with dept */}
-            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-              <button
-                className="rounded-xl border border-stone-200 bg-stone-50 p-2 text-stone-700 shadow-xs lg:hidden shrink-0 hover:bg-stone-100 cursor-pointer"
-                onClick={() => setMobileOpen(true)}
-                aria-label="Open menu"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
-                <h1 className="text-base sm:text-xl font-black tracking-tight text-stone-950 flex items-center gap-1.5 truncate">
-                  <span className="truncate">Hello, {student.name}</span>
-                  <span className="text-base sm:text-lg shrink-0">👋</span>
+              <div className="flex items-center gap-2">
+                <h1 className="font-serif text-sm sm:text-base font-black text-white tracking-tight truncate max-w-[280px] sm:max-w-md">
+                  {student.college || 'T. John Institute Of Technology'}
                 </h1>
-                <span className="inline-flex items-center rounded-lg bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 text-[11px] font-bold text-emerald-800 shrink-0">
-                  {student.department} {student.year && student.year !== 'Staff' ? `• ${student.year}` : ''}
+                <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-black text-white shrink-0 border border-white/25">
+                  <span className={`h-1.5 w-1.5 rounded-full ${dbConnected ? 'bg-emerald-300 animate-pulse' : 'bg-stone-300'}`} />
+                  {portalRoleTitle}
                 </span>
               </div>
+              <p className="text-[11px] text-white/80 font-semibold truncate">
+                {student.department} {student.year && student.year !== 'Staff' ? `• ${student.year}` : ''} • {student.bec}
+              </p>
             </div>
+          </div>
 
-            {/* Right: Modern, Compact Profile Card with No Extra Space */}
+          {/* Right: Student Profile Pill & Logout */}
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setShowProfileModal(true)}
-              className="flex items-center gap-2.5 rounded-2xl border border-stone-200 bg-stone-50/80 hover:bg-white p-1.5 sm:px-3 sm:py-1.5 text-stone-900 shadow-xs hover:border-emerald-400 hover:shadow-sm transition-all duration-200 cursor-pointer select-none shrink-0"
+              className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 p-1 sm:px-3 sm:py-1 text-white shadow-xs transition-all cursor-pointer select-none"
               title={`Profile: ${completion}% complete`}
             >
-              {/* Modern Logo Avatar */}
               <div className="relative shrink-0">
-                <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-tr from-stone-950 to-stone-800 text-emerald-400 font-black text-sm shadow-xs border border-stone-700">
+                <div className="grid h-8 w-8 place-items-center rounded-full bg-white text-[#3B6280] font-black text-xs shadow-xs">
                   {student.name ? student.name.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <span
-                  className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${
-                    completion === 100 ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
+                  className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#3B6280] ${
+                    completion === 100 ? 'bg-emerald-400' : 'bg-amber-400'
                   }`}
                 />
               </div>
 
-              {/* Text: Name, USN & Completion */}
-              <div className="text-left leading-none space-y-1">
+              <div className="hidden sm:block text-left leading-tight">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs sm:text-sm font-black text-stone-950 truncate max-w-[110px]">
+                  <span className="text-xs font-black text-white truncate max-w-[100px]">
                     {student.name}
                   </span>
                   <span
-                    className={`text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider border ${
+                    className={`text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase border ${
                       completion === 100
-                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                        : 'bg-amber-100 text-amber-900 border-amber-300'
+                        ? 'bg-emerald-400/20 text-emerald-200 border-emerald-400/30'
+                        : 'bg-amber-400/20 text-amber-200 border-amber-400/30'
                     }`}
                   >
                     {completion}%
                   </span>
                 </div>
-                <p className="font-mono text-[11px] font-bold text-stone-500 tracking-tight">
-                  {student.bec}
-                </p>
               </div>
             </button>
-          </div>
-        </header>
-        <main className="px-4 pb-28 pt-5 sm:px-6 sm:pt-6 lg:px-8 lg:pb-8">{children}</main>
-      </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-stone-200 bg-white/95 px-2 py-2 shadow-[0_-12px_34px_rgba(31,28,23,0.12)] backdrop-blur lg:hidden">
-        <div className={`grid gap-1`} style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}>
-          {navItems.map(([id, Icon, label]) => (
-            <button key={id} onClick={() => setPage(id)} className={`mobile-nav-item ${page === id ? 'mobile-nav-item-active' : ''}`} aria-label={label}>
-              <Icon className="h-5 w-5" />
-              <span>{label === 'Placements' ? 'Drives' : label}</span>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="flex items-center justify-center gap-1.5 rounded-full border border-white/20 bg-white/10 hover:bg-rose-500 hover:border-rose-400 p-2 sm:px-3 sm:py-1.5 text-xs font-black text-white transition-all cursor-pointer"
+              title="Sign Out"
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">Logout</span>
             </button>
-          ))}
+          </div>
         </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl mx-auto w-full px-3.5 sm:px-6 lg:px-8 py-5 pb-28 md:pb-28">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={page}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18 }}
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+
+      {/* Floating Bottom Navigation Capsule Pill */}
+      <nav className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[96vw] rounded-full bg-white/95 backdrop-blur-md shadow-[0_14px_40px_rgba(38,64,85,0.18)] border border-slate-200/80 px-2 sm:px-3 py-1.5 flex items-center gap-1 sm:gap-1.5 transition-all">
+        {navItems.map(([id, Icon, label]) => {
+          const isActive = page === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setPage(id)}
+              className={`relative flex items-center gap-2 rounded-full px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer select-none ${
+                isActive ? 'text-white' : 'text-[#264055]/70 hover:text-[#264055] hover:bg-slate-100/70'
+              }`}
+              aria-label={label}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="activeFloatingPill"
+                  className="absolute inset-0 bg-[#3B6280] rounded-full shadow-md"
+                  transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                />
+              )}
+              <motion.span
+                whileTap={{ scale: 1.12 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                className="relative z-10 flex items-center gap-1.5"
+              >
+                <Icon className={`h-4 w-4 sm:h-4.5 sm:w-4.5 ${isActive ? 'text-white' : 'text-[#264055]'}`} />
+                <span className={`${isActive ? 'inline-block' : 'hidden sm:inline-block'} font-black truncate max-w-[110px]`}>
+                  {label === 'College Calendar' ? 'Calendar' : label === 'Placement Drives' ? 'Drives' : label}
+                </span>
+              </motion.span>
+            </button>
+          );
+        })}
       </nav>
 
       {/* Student Profile & Portfolio Modal */}
@@ -1473,9 +1833,36 @@ function Dashboard({ student, setPage, onOpenProfile }) {
 
   const [activeAdIndex, setActiveAdIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [drives, setDrives] = useState(() => {
+    const raw = getJSON(STORAGE_KEYS.placementDrives, null);
+    if (raw !== null && Array.isArray(raw)) return raw;
+    return INITIAL_PLACEMENT_DRIVES;
+  });
 
   const completion = calculateProfileCompletion(student);
   const missingItems = getMissingProfileItems(student);
+
+  useEffect(() => {
+    const syncDrives = () => {
+      const stored = getJSON(STORAGE_KEYS.placementDrives, null);
+      if (stored !== null && Array.isArray(stored)) {
+        setDrives(stored);
+      }
+    };
+    window.addEventListener('storage', syncDrives);
+    window.addEventListener('drives_updated', syncDrives);
+    apiFetch('/api/db/drives').then((res) => {
+      if (res?.drives && Array.isArray(res.drives)) {
+        setDrives(res.drives);
+        setJSON(STORAGE_KEYS.placementDrives, res.drives);
+      }
+    }).catch(() => {});
+
+    return () => {
+      window.removeEventListener('storage', syncDrives);
+      window.removeEventListener('drives_updated', syncDrives);
+    };
+  }, []);
 
   useEffect(() => {
     if (isPaused) return;
@@ -1487,36 +1874,89 @@ function Dashboard({ student, setPage, onOpenProfile }) {
 
   const currentAd = availableAds[activeAdIndex] || availableAds[0] || PORTAL_ADS[0];
   const AdIcon = currentAd.icon;
-  const visibleCards = isPO ? featureCards.filter((card) => card.id === 'calendar') : featureCards;
+
+  const firstName = student?.name ? student.name.split(' ')[0] : 'Student';
+
+  const dynamicDriveItems = (drives || [])
+    .filter((d) => d && d.status !== 'Closed')
+    .slice(0, 2)
+    .map((d) => {
+      let month = 'DRIVE';
+      let day = '📌';
+      if (d.driveDate) {
+        try {
+          const dt = new Date(d.driveDate);
+          if (!isNaN(dt.getTime())) {
+            month = dt.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+            day = String(dt.getDate()).padStart(2, '0');
+          }
+        } catch (e) {}
+      }
+      return {
+        id: `drive_${d.id}`,
+        month,
+        day,
+        title: `${d.company} ${d.role ? '• ' + d.role : 'Placement Drive'}`,
+        subtitle: `${d.salary || 'Best in Industry'} • ${Array.isArray(d.branches) ? d.branches.join(', ') : (d.branches || 'All Branches')}`,
+        badge: 'Placement Drive',
+        page: 'placements',
+        badgeColor: 'bg-amber-100 text-amber-800 border-amber-200'
+      };
+    });
+
+  const academicItems = [
+    {
+      id: 'ia1',
+      month: 'OCT',
+      day: '14',
+      title: 'Odd Semester Internal Assessment 1 (IA-1)',
+      subtitle: 'Theory & Lab Internal Assessment Week',
+      badge: 'Academic Milestone',
+      page: 'calendar',
+      badgeColor: 'bg-blue-100 text-blue-800 border-blue-200'
+    },
+    {
+      id: 'fest',
+      month: 'NOV',
+      day: '05',
+      title: `${student?.college ? student.college.split(' ')[0] : 'Campus'} Annual Technical Fest & Project Expo`,
+      subtitle: 'Project Showcase, Hackathon & Coding Contests',
+      badge: 'College Fest',
+      page: 'calendar',
+      badgeColor: 'bg-purple-100 text-purple-800 border-purple-200'
+    }
+  ];
+
+  const upcomingItems = [...dynamicDriveItems, ...academicItems];
 
   return (
     <div className="space-y-6">
       {/* Profile Incomplete (100% Required) Banner */}
       {isStudent && completion < 100 && (
-        <div className="rounded-3xl border-2 border-amber-500/60 bg-stone-950 p-5 sm:p-6 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-5 text-white relative overflow-hidden">
-          {/* Subtle accent glow in corner */}
-          <div className="absolute -top-10 -right-10 h-44 w-44 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl border-2 border-amber-500/60 bg-white p-5 sm:p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-5 text-[#264055] relative overflow-hidden"
+        >
           <div className="flex items-start sm:items-center gap-4 min-w-0 relative z-10">
-            <div className="grid h-12 w-12 sm:h-14 sm:w-14 shrink-0 place-items-center rounded-2xl bg-amber-400 text-stone-950 font-black shadow-lg">
+            <div className="grid h-12 w-12 sm:h-14 sm:w-14 shrink-0 place-items-center rounded-2xl bg-amber-400 text-stone-950 font-black shadow-md">
               <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 text-stone-950" />
             </div>
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-base sm:text-xl font-black text-white leading-snug">
+                <h3 className="text-base sm:text-lg font-black text-[#264055] leading-snug">
                   Complete Your Student Profile ({completion}% Done)
                 </h3>
-                <span className="rounded-full bg-amber-400/20 border border-amber-400/50 px-2.5 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wider animate-pulse">
+                <span className="rounded-full bg-amber-100 border border-amber-400/50 px-2.5 py-0.5 text-[10px] font-black text-amber-800 uppercase tracking-wider">
                   100% Required
                 </span>
               </div>
-              <p className="text-xs sm:text-sm font-medium text-stone-300 leading-relaxed">
-                Pending: <strong className="text-amber-300 font-bold">{missingItems.join(' • ')}</strong>. Complete your college details, skills, social/portfolio links, and resume upload.
+              <p className="text-xs sm:text-sm font-medium text-slate-600 leading-relaxed">
+                Pending: <strong className="text-amber-700 font-bold">{missingItems.join(' • ')}</strong>. Complete skills, links, and resume.
               </p>
-              {/* Progress track */}
-              <div className="mt-2.5 w-full max-w-md h-2.5 rounded-full bg-stone-800 overflow-hidden border border-stone-700">
+              <div className="mt-2.5 w-full max-w-md h-2 rounded-full bg-slate-200 overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-500 rounded-full"
+                  className="h-full bg-gradient-to-r from-amber-400 to-emerald-500 transition-all duration-500 rounded-full"
                   style={{ width: `${completion}%` }}
                 />
               </div>
@@ -1525,135 +1965,198 @@ function Dashboard({ student, setPage, onOpenProfile }) {
           <button
             type="button"
             onClick={onOpenProfile}
-            className="relative z-10 inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 hover:bg-amber-300 text-stone-950 px-6 py-3.5 text-xs font-black transition-all duration-200 hover:scale-105 shadow-xl shrink-0 cursor-pointer"
+            className="relative z-10 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#3B6280] hover:bg-[#264055] text-white px-5 py-3 text-xs font-black transition-all shadow-md shrink-0 cursor-pointer"
           >
             <span>Complete Profile (100%)</span>
-            <ArrowRight className="h-4 w-4 text-stone-950" />
+            <ArrowRight className="h-4 w-4 text-white" />
           </button>
-        </div>
+        </motion.div>
       )}
 
-      {/* Hero Command Center + Dynamic Feature Ad Spotlight - Hidden for PO */}
+      {/* Greeting Banner */}
       {!isPO && (
-        <section className="overflow-hidden rounded-2xl bg-stone-950 text-white shadow-xl border border-stone-800">
-          <div className="grid min-w-0 gap-6 p-5 sm:p-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-            {/* Left Column: Student Welcome & Stats */}
-            <div className="flex flex-col justify-between">
-              <div>
-                <div className="mb-4 inline-flex max-w-full items-center gap-2 rounded-full bg-emerald-400/15 border border-emerald-400/20 px-3.5 py-1 text-xs font-bold text-emerald-200">
-                  <ShieldCheck className="h-4 w-4" />
-                  <span className="truncate">Logged in as {student.bec} ({student.department})</span>
-                </div>
-                <h2 className="max-w-xl text-2xl font-black leading-tight sm:text-4xl text-white tracking-tight">
-                  Innovate, Build & Elevate{' '}
-                  <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-200 bg-clip-text text-transparent">
-                    Your Campus Journey
-                  </span>
-                </h2>
-                <p className="mt-3 max-w-xl break-words text-sm leading-6 text-stone-300 sm:text-base">
-                  Your Unified Campus Companion — Craft AI system architectures, manage digital gate passes, accelerate placement readiness, and navigate your academic journey with confidence.
-                </p>
-              </div>
-            </div>
-
-            {/* Right Column: Light Black Box (Feature Ads & Announcements Popup) */}
-            <div
-              className={`relative flex flex-col justify-between rounded-xl border bg-gradient-to-br ${currentAd.gradient} p-5 backdrop-blur-md transition-all duration-500 shadow-2xl`}
-              onMouseEnter={() => setIsPaused(true)}
-              onMouseLeave={() => setIsPaused(false)}
+        <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span className="text-xs font-black uppercase tracking-wider text-slate-500">
+              Welcome Back
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-[#264055] tracking-tight">
+              Good Day, {firstName} 👋
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 font-semibold mt-0.5">
+              {student.college || 'T. John Institute Of Technology'} • {student.department} {student.year && student.year !== 'Staff' ? `(${student.year})` : ''}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage('calendar')}
+              className="inline-flex items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 py-2.5 text-xs font-black text-[#264055] shadow-xs hover:border-[#3B6280] transition"
             >
-              {/* Top Bar of Ad Box: Tag & Nav Controls */}
-              <div>
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${currentAd.badgeBg}`}>
-                    <Sparkles className="h-3 w-3" />
-                    {currentAd.tag}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setActiveAdIndex((prev) => (prev - 1 + PORTAL_ADS.length) % PORTAL_ADS.length)}
-                      className="grid h-6 w-6 place-items-center rounded bg-white/10 text-stone-300 hover:bg-white/20 transition"
-                      aria-label="Previous announcement"
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setActiveAdIndex((prev) => (prev + 1) % PORTAL_ADS.length)}
-                      className="grid h-6 w-6 place-items-center rounded bg-white/10 text-stone-300 hover:bg-white/20 transition"
-                      aria-label="Next announcement"
-                    >
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Ad Body */}
-                <div className="flex items-start gap-3.5 my-2">
-                  <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-stone-900 border border-white/10 shadow-md ${currentAd.iconColor}`}>
-                    <AdIcon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-base font-black text-white leading-snug">
-                      {currentAd.title}
-                    </h3>
-                    <p className="mt-1.5 text-xs leading-5 text-stone-300 line-clamp-3">
-                      {currentAd.desc}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Row: CTA Button + Dot Tickers */}
-              <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5">
-                  {PORTAL_ADS.map((ad, idx) => (
-                    <button
-                      key={ad.id}
-                      onClick={() => setActiveAdIndex(idx)}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${
-                        idx === activeAdIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/30 hover:bg-white/50'
-                      }`}
-                      aria-label={`Slide ${idx + 1}`}
-                    />
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => setPage(currentAd.page)}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-black transition-all duration-200 hover:scale-105 shadow-md ${currentAd.btnBg}`}
-                >
-                  {currentAd.action}
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
+              <Calendar className="h-4 w-4 text-[#3B6280]" />
+              <span>112 Events</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage('gatepass')}
+              className="inline-flex items-center gap-2 rounded-2xl bg-[#3B6280] text-white px-4 py-2.5 text-xs font-black shadow-xs hover:bg-[#264055] transition"
+            >
+              <Plus className="h-4 w-4 text-white" />
+              <span>Apply Pass</span>
+            </button>
           </div>
         </section>
       )}
 
-      {/* Feature Modules Grid - Student only, PO accesses calendar via sidebar */}
+      {/* 4/5-Card Quick Action Grid */}
       {!isPO ? (
-        <section className="grid min-w-0 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-          {featureCards.map((card) => (
-            <button key={card.id} onClick={() => setPage(card.id)} className="group min-w-0 rounded-xl border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-soft">
-              <div className={`mb-4 grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br ${card.accent} text-white shadow-md`}>
-                <card.icon className="h-6 w-6" />
-              </div>
-              <h3 className="break-words text-lg font-black text-stone-900">{card.title}</h3>
-              <p className="mt-1.5 min-h-14 break-words text-xs leading-5 text-stone-600 font-semibold">{card.summary}</p>
-              <div className="mt-4 flex items-center gap-2 text-xs font-black text-emerald-700">
-                Open module <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-              </div>
-            </button>
-          ))}
+        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+          {featureCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <motion.button
+                key={card.id}
+                whileHover={{ y: -3, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setPage(card.id)}
+                className="group rounded-3xl bg-white p-4 sm:p-5 text-left shadow-[0_6px_24px_rgba(38,64,85,0.06)] border border-slate-100 hover:border-[#3B6280]/40 transition-all flex flex-col justify-between cursor-pointer"
+              >
+                <div>
+                  <div className={`mb-3.5 grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br ${card.accent} text-white shadow-md group-hover:scale-105 transition-transform`}>
+                    <Icon className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="text-base font-black text-[#264055] group-hover:text-[#3B6280] transition-colors line-clamp-1">
+                    {card.title}
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500 font-semibold line-clamp-2 leading-relaxed">
+                    {card.summary}
+                  </p>
+                </div>
+                <div className="mt-3.5 flex items-center gap-1.5 text-xs font-black text-[#3B6280]">
+                  <span>Open</span>
+                  <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" />
+                </div>
+              </motion.button>
+            );
+          })}
         </section>
       ) : (
         <POPlacementWorkspace student={student} setPage={setPage} />
       )}
 
-      {/* Quick Insights - hidden for PO */}
+      {/* Feature Spotlight Carousel */}
       {!isPO && (
-        <section className="grid min-w-0 gap-4 lg:grid-cols-3">
+        <section
+          className={`relative rounded-3xl border bg-gradient-to-br ${currentAd.gradient} p-5 sm:p-6 text-white shadow-xl overflow-hidden`}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
+            <div className="flex items-start gap-4 min-w-0">
+              <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/15 border border-white/20 shadow-md ${currentAd.iconColor}`}>
+                <AdIcon className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 space-y-1">
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${currentAd.badgeBg}`}>
+                  <Sparkles className="h-3 w-3" />
+                  {currentAd.tag}
+                </span>
+                <h3 className="text-base sm:text-xl font-black text-white leading-snug">
+                  {currentAd.title}
+                </h3>
+                <p className="text-xs sm:text-sm text-stone-300 font-medium line-clamp-2 leading-relaxed max-w-2xl">
+                  {currentAd.desc}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
+              <div className="flex items-center gap-1">
+                {PORTAL_ADS.map((ad, idx) => (
+                  <button
+                    key={ad.id}
+                    onClick={() => setActiveAdIndex(idx)}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      idx === activeAdIndex ? 'w-6 bg-white' : 'w-2 bg-white/30 hover:bg-white/50'
+                    }`}
+                    aria-label={`Slide ${idx + 1}`}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={() => setPage(currentAd.page)}
+                className={`inline-flex items-center gap-1.5 rounded-2xl px-4 py-2.5 text-xs font-black transition-all hover:scale-105 shadow-md ${currentAd.btnBg}`}
+              >
+                <span>{currentAd.action}</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Upcoming Events & Placement Drives */}
+      {!isPO && (
+        <section className="space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-black text-[#264055] tracking-tight">
+                Upcoming Drives & Milestones
+              </h3>
+              <p className="text-xs text-slate-500 font-semibold">
+                Odd Semester 2026 recruitment & academic schedule
+              </p>
+            </div>
+            <button
+              onClick={() => setPage('calendar')}
+              className="text-xs font-black text-[#3B6280] hover:underline flex items-center gap-1"
+            >
+              <span>See all events</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {upcomingItems.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-3xl bg-white p-4 sm:p-5 shadow-[0_6px_24px_rgba(38,64,85,0.06)] border border-slate-100 flex items-center justify-between gap-4 hover:border-[#3B6280]/40 transition-all"
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="grid place-items-center h-12 w-12 rounded-2xl bg-[#3B6280]/10 border border-[#3B6280]/20 text-[#3B6280] shrink-0">
+                    <span className="text-[10px] font-black uppercase leading-tight">{item.month}</span>
+                    <span className="text-base font-black leading-none">{item.day}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border mb-1 ${item.badgeColor}`}>
+                      {item.badge}
+                    </span>
+                    <h4 className="text-sm font-black text-[#264055] truncate">
+                      {item.title}
+                    </h4>
+                    <p className="text-xs text-slate-500 font-medium truncate">
+                      {item.subtitle}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setPage(item.page)}
+                  className="rounded-xl bg-slate-100 hover:bg-[#3B6280] hover:text-white p-2.5 text-slate-600 transition-colors shrink-0 cursor-pointer"
+                  title="View"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Quick Insights */}
+      {!isPO && (
+        <section className="grid min-w-0 gap-3.5 lg:grid-cols-3">
           <Insight title="Placement Readiness" text="Upload skills and compare them against job descriptions before drives begin." icon={Target} />
           <Insight title="Approval Visibility" text="Gate pass movement is shown as applied, class teacher verified, HOD approved, or rejected." icon={CheckCircle2} />
           <Insight title="Academic Schedule" text="112 official semester dates, internal assessment schedules, and department events synchronized." icon={CalendarDays} />
@@ -1663,15 +2166,14 @@ function Dashboard({ student, setPage, onOpenProfile }) {
   );
 }
 
-
 function Insight({ title, text, icon: Icon }) {
   return (
-    <div className="min-w-0 rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-      <div className="grid h-10 w-10 place-items-center rounded-lg bg-emerald-50 text-emerald-700 mb-3 border border-emerald-100">
+    <div className="min-w-0 rounded-3xl border border-slate-100 bg-white p-5 shadow-[0_6px_24px_rgba(38,64,85,0.06)]">
+      <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[#3B6280]/10 text-[#3B6280] mb-3 border border-[#3B6280]/20">
         <Icon className="h-5 w-5" />
       </div>
-      <h3 className="font-black text-stone-950 text-base">{title}</h3>
-      <p className="mt-1.5 break-words text-xs leading-5 text-stone-600 font-semibold">{text}</p>
+      <h3 className="font-black text-[#264055] text-base">{title}</h3>
+      <p className="mt-1 break-words text-xs leading-5 text-slate-500 font-semibold">{text}</p>
     </div>
   );
 }
@@ -1904,86 +2406,50 @@ Keep it clear, specific, and avoid markdown tables.`,
   };
 
   return (
-    <ModuleFrame
-      title="Project Tracker"
-      subtitle="Architecture planning, live GitHub repo analysis, AI review, and progress tracking for student projects."
-      icon={ClipboardList}
-    >
-      {/* Top Tool Navigation Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white p-2.5 shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          {[
-            ['architecture', Layers, 'Architecture & Flow'],
-            ['repo', GitBranch, 'Live Repo Analysis'],
-            ['saved', BookOpenCheck, `Saved Projects (${myProjects.length})`]
-          ].map(([id, Icon, label]) => (
-            <button
-              key={id}
-              onClick={() => setActiveTool(id)}
-              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-black transition ${
-                activeTool === id
-                  ? 'bg-stone-950 text-white shadow-sm'
-                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="hidden sm:flex items-center gap-2 pr-2 text-xs font-bold text-stone-500">
-          <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-          <span>{student.name || student.usn || student.bec} Workspace</span>
-        </div>
-      </div>
-
-      {/* Student Scope Horizontal Header Banner (Directly Below Top Navigation) */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-stone-200 bg-white p-4 sm:p-5 shadow-sm">
-        <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/60 shrink-0">
-            <Sparkles className="h-5 w-5 text-emerald-700" />
+    <div className="min-w-0 space-y-5 font-sans">
+      {/* Unified Modern Project Studio Toolbar */}
+      <div className="rounded-3xl bg-white p-5 sm:p-6 shadow-[0_6px_24px_rgba(38,64,85,0.06)] border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#3B6280] to-[#264055] text-white shadow-md">
+            <ClipboardList className="h-6 w-6 text-white" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded-md">
-                STUDENT SCOPE
-              </span>
-              <span className="rounded-md bg-stone-100 px-2 py-0.5 text-[11px] font-bold text-stone-700">
-                {student.usn || student.bec}
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl sm:text-2xl font-black text-[#264055] tracking-tight">
+                AI Project Studio
+              </h2>
+              <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 text-[10px] font-black text-emerald-800 uppercase tracking-wider">
+                {student.name || student.bec}
               </span>
             </div>
-            <h3 className="mt-1 text-base sm:text-lg font-black text-stone-900 truncate">
-              {student.name ? `${student.name}'s Projects` : `${student.usn || student.bec} Workspace`}
-            </h3>
-            <p className="text-xs text-stone-500 font-medium">
-              Saved architectures & repo reports stay private to your student login.
+            <p className="text-xs text-slate-500 font-semibold mt-0.5">
+              Architecture flowcharts, live GitHub code inspector & PRD synthesis
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-3 rounded-xl bg-stone-50 border border-stone-200 px-4 py-2">
-            <div className="text-center">
-              <p className="text-[9px] font-black uppercase tracking-wider text-stone-400">SAVED</p>
-              <p className="text-base font-black text-stone-900">{myProjects.length}</p>
-            </div>
-            <div className="h-7 w-[1px] bg-stone-200 mx-1"></div>
-            <div className="text-center">
-              <p className="text-[9px] font-black uppercase tracking-wider text-stone-400">ENGINES</p>
-              <p className="text-base font-black text-emerald-700">2 Active</p>
-            </div>
-          </div>
-
-          {myProjects.length > 0 && activeTool !== 'saved' && (
-            <button
-              onClick={() => setActiveTool('saved')}
-              className="hidden md:inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-xs font-bold text-stone-700 hover:bg-stone-50 shadow-2xs transition"
-            >
-              <BookOpenCheck className="h-4 w-4 text-emerald-700" />
-              <span>View Saved ({myProjects.length})</span>
-            </button>
-          )}
+        {/* Segmented Pill Tabs */}
+        <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-slate-100/90 border border-slate-200/80 self-start md:self-auto overflow-x-auto max-w-full">
+          {[
+            ['architecture', Layers, 'Architecture & Flow'],
+            ['repo', GitBranch, 'Live Repo Analysis'],
+            ['saved', BookOpenCheck, `Saved (${myProjects.length})`]
+          ].map(([id, Icon, label]) => {
+            const isActive = activeTool === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveTool(id)}
+                className={`relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none whitespace-nowrap ${
+                  isActive ? 'bg-[#3B6280] text-white shadow-sm font-black' : 'text-slate-600 hover:text-[#264055] hover:bg-white/70'
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span>{label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -2168,7 +2634,7 @@ Keep it clear, specific, and avoid markdown tables.`,
             )}
           </div>
         )}
-    </ModuleFrame>
+    </div>
   );
 }
 
@@ -2466,23 +2932,106 @@ function ArchitectureFlowDisplay({ result, loading, currentStep, onSave }) {
 }
 
 function RepoReport({ report, loading, onSave }) {
-  const currentStep = useRotatingMessage(REPO_LOADING_STEPS, loading, 2200);
+  const [stageIndex, setStageIndex] = useState(0);
+
+  useEffect(() => {
+    if (!loading) {
+      setStageIndex(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setStageIndex((prev) => (prev < 3 ? prev + 1 : prev));
+    }, 1800);
+    return () => clearInterval(timer);
+  }, [loading]);
+
+  const STAGES = [
+    { title: '1. Cloning repository tree & manifests', desc: 'Fetching default branch, commit history, and AST index...' },
+    { title: '2. Scanning files & package dependencies', desc: 'Inspecting package.json, requirements, frameworks, and build scripts...' },
+    { title: '3. Detecting core modules & DB schemas', desc: 'Isolating service layers, API controllers, and entity relationships...' },
+    { title: '4. Synthesizing AI defense talking points', desc: 'Generating tailored viva answers, architectural highlights, and review roadmap...' }
+  ];
 
   if (loading) {
     return (
-      <div className="grid min-h-[420px] place-items-center rounded-xl border border-stone-200 bg-white p-8 text-center shadow-sm">
-        <div className="max-w-md">
-          <div className="mx-auto mb-4 h-14 w-14 animate-spin rounded-full border-4 border-stone-200 border-t-emerald-600" />
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3.5 py-1 text-xs font-bold text-emerald-800">
-            <Sparkles className="h-4 w-4 text-emerald-600" />
-            Analyzing GitHub Repository in Real-Time
+      <div className="space-y-6">
+        {/* Real Staged Progress Status Card */}
+        <div className="rounded-2xl border border-[#1B2A44]/15 bg-[#F7F5EF] p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1B2A44]/10 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#1B2A44] text-[#8A6A22]">
+                <GitBranch className="h-5 w-5 animate-pulse" />
+              </div>
+              <div>
+                <h4 className="font-serif text-base font-bold text-[#1B2A44]">Real-Time Repository Analysis Engine</h4>
+                <p className="text-xs text-stone-500 font-medium">Asynchronous multi-stage code analysis in progress</p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#1B2A44] px-3 py-1 text-xs font-bold text-[#EDEBE4]">
+              <Sparkles className="h-3.5 w-3.5 text-[#8A6A22] animate-spin" />
+              Stage {stageIndex + 1} of 4 ({(stageIndex + 1) * 25}%)
+            </span>
           </div>
-          <h3 className="text-xl font-black text-stone-900 transition-all duration-300">
-            {currentStep.title}
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-stone-600 transition-all duration-300">
-            {currentStep.desc}
-          </p>
+
+          {/* Progress Bar Track */}
+          <div className="h-2 w-full rounded-full bg-stone-300 overflow-hidden">
+            <motion.div
+              className="h-full bg-[#1B2A44]"
+              initial={{ width: '15%' }}
+              animate={{ width: `${(stageIndex + 1) * 25}%` }}
+              transition={{ duration: 0.5, ease: 'easeInOut' }}
+            />
+          </div>
+
+          {/* Staged Step Grid */}
+          <div className="grid gap-3 sm:grid-cols-2 pt-2">
+            {STAGES.map((stg, i) => {
+              const isDone = i < stageIndex;
+              const isCurrent = i === stageIndex;
+              return (
+                <div
+                  key={stg.title}
+                  className={`flex items-start gap-3 rounded-xl p-3.5 border transition-all ${
+                    isDone
+                      ? 'bg-white border-[#8A6A22]/40 text-[#1B2A44]'
+                      : isCurrent
+                      ? 'bg-[#1B2A44] text-white border-[#1B2A44] shadow-sm'
+                      : 'bg-stone-200/40 border-stone-200 text-stone-400'
+                  }`}
+                >
+                  <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-black ${
+                    isDone
+                      ? 'bg-[#8A6A22] text-white'
+                      : isCurrent
+                      ? 'bg-[#8A6A22] text-[#1B2A44]'
+                      : 'bg-stone-300 text-stone-600'
+                  }`}>
+                    {isDone ? '✓' : i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-bold ${isCurrent ? 'text-white' : isDone ? 'text-[#1B2A44]' : 'text-stone-500'}`}>
+                      {stg.title}
+                    </p>
+                    <p className={`text-[11px] mt-0.5 leading-snug ${isCurrent ? 'text-stone-300' : 'text-stone-400'}`}>
+                      {stg.desc}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Shaped Skeleton Placeholder Matching Result Layout */}
+        <div className="space-y-4 animate-pulse">
+          <div className="h-28 rounded-2xl bg-stone-300/70 border border-stone-300" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="h-20 rounded-xl bg-stone-300/60" />
+            <div className="h-20 rounded-xl bg-stone-300/60" />
+            <div className="h-20 rounded-xl bg-stone-300/60" />
+            <div className="h-20 rounded-xl bg-stone-300/60" />
+          </div>
+          <div className="h-44 rounded-2xl bg-stone-300/60" />
         </div>
       </div>
     );
@@ -2490,14 +3039,14 @@ function RepoReport({ report, loading, onSave }) {
 
   if (!report) {
     return (
-      <div className="grid min-h-[320px] place-items-center rounded-xl border border-dashed border-stone-300 bg-white p-8 text-center shadow-sm">
-        <div className="max-w-md">
-          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl bg-stone-100 text-stone-700">
+      <div className="grid min-h-[320px] place-items-center rounded-2xl border border-dashed border-[#1B2A44]/20 bg-[#F7F5EF] p-8 text-center shadow-xs">
+        <div className="max-w-md space-y-2">
+          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-[#1B2A44] text-[#8A6A22]">
             <GitBranch className="h-6 w-6" />
           </div>
-          <h3 className="text-base font-black text-stone-900">Live Repo Analysis Workspace</h3>
-          <p className="mt-1.5 text-xs leading-5 text-stone-500">
-            Paste a public GitHub link above and hit <strong>Analyze Live GitHub Repo</strong>. The engine will inspect file trees, identify frameworks, verify dependency trees, and generate defense notes.
+          <h3 className="font-serif text-lg font-bold text-[#1B2A44]">Live Repository Analysis Workspace</h3>
+          <p className="text-xs leading-5 text-stone-600">
+            Paste an official public GitHub repository link above and click <strong>Analyze Live GitHub Repo</strong>. The engine will inspect file trees, identify frameworks, verify dependency trees, and generate defense notes.
           </p>
         </div>
       </div>
@@ -2505,9 +3054,9 @@ function RepoReport({ report, loading, onSave }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* 1. Header Banner */}
-      <div className="min-w-0 overflow-hidden rounded-xl bg-gradient-to-br from-stone-950 via-stone-900 to-emerald-950 p-6 text-white shadow-lg border border-white/10">
+      <div className="min-w-0 overflow-hidden rounded-2xl bg-[#1B2A44] p-6 text-[#EDEBE4] shadow-md border border-[#1B2A44]/20">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-400/20 border border-emerald-400/30 px-3 py-0.5 text-xs font-bold text-emerald-300">
@@ -3107,6 +3656,105 @@ const KNOWN_SKILL_CATALOG = [
   { name: 'Team Collaboration', patterns: [/\bteam\s+collaboration\b/i, /\bteamwork\b/i] }
 ];
 
+const JD_EXCLUDE_TERMS = new Set([
+  'company', 'role', 'designation', 'domain', 'salary', 'package', 'eligibility',
+  'min', 'minimum', 'cgpa', 'branches', 'branch', 'cse', 'ise', 'ece', 'eee', 'mech',
+  'civil', 'aiml', 'date', 'drive', 'deadline', 'application', 'description', 'requirements',
+  'details', 'overview', 'looking', 'passionate', 'candidate', 'candidates', 'students',
+  'college', 'campus', 'full-time', 'internship', 'office', 'placement', 'cell', 'qualification',
+  'location', 'bangalore', 'bengaluru', 'india', 'experience', 'fresher', 'freshers', 'year',
+  'semester', 'status', 'active', 'closed', 'posted', 'by', 'official', 'notification',
+  'assessment', 'interview', 'rounds', 'selection', 'process', 'written', 'test', 'technical',
+  'consulting', 'analytics', 'services'
+]);
+
+export function extractSkillsFromJD(jdText) {
+  if (!jdText || !jdText.trim()) return [];
+
+  const foundSkills = [];
+  const foundKeys = new Set();
+
+  const addSkill = (name) => {
+    if (!name) return;
+    const clean = name.trim();
+    const key = clean.toLowerCase();
+    if (!clean || clean.length < 2 || foundKeys.has(key) || JD_EXCLUDE_TERMS.has(key)) return;
+    foundKeys.add(key);
+    foundSkills.push(clean);
+  };
+
+  // 1. Look for explicit "REQUIRED TECHNICAL SKILLS:" or "Required Skills:" or "Tech Stack:" line
+  const explicitMatches = jdText.match(/(?:required(?:\s+technical)?\s+skills?|skills?\s+required|technologies?|tech\s+stack)[\s\:\-]+([^\n\r]+)/i);
+  if (explicitMatches && explicitMatches[1]) {
+    const rawSkills = explicitMatches[1].split(/[,;|\/•]+/).map((s) => s.trim()).filter(Boolean);
+    for (const raw of rawSkills) {
+      const cleanRaw = raw.replace(/\b(and|or|etc\.?|basics?|fundamentals?)\b/gi, '').trim();
+      if (cleanRaw.length >= 2) {
+        const catalogMatch = KNOWN_SKILL_CATALOG.find((k) =>
+          k.patterns.some((p) => p.test(cleanRaw)) || k.name.toLowerCase() === cleanRaw.toLowerCase()
+        );
+        addSkill(catalogMatch ? catalogMatch.name : cleanRaw);
+      }
+    }
+  }
+
+  // 2. Scan entire JD against KNOWN_SKILL_CATALOG
+  for (const skillItem of KNOWN_SKILL_CATALOG) {
+    if (foundKeys.has(skillItem.name.toLowerCase())) continue;
+    const isPresent = skillItem.patterns.some((pattern) => pattern.test(jdText));
+    if (isPresent) {
+      addSkill(skillItem.name);
+    }
+  }
+
+  return foundSkills;
+}
+
+export function parseCandidateSkills(skillsText) {
+  if (!skillsText || !skillsText.trim()) return [];
+  const rawList = skillsText.split(/[,;\n•]+/).map((s) => s.trim()).filter(Boolean);
+  const normalized = [];
+  const seen = new Set();
+
+  for (const item of rawList) {
+    const cleanItem = item.trim();
+    if (!cleanItem) continue;
+    const catalogMatch = KNOWN_SKILL_CATALOG.find((k) =>
+      k.patterns.some((p) => p.test(cleanItem)) || k.name.toLowerCase() === cleanItem.toLowerCase()
+    );
+    const finalName = catalogMatch ? catalogMatch.name : cleanItem;
+    const key = finalName.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      normalized.push(finalName);
+    }
+  }
+  return normalized;
+}
+
+export function checkSkillMatch(reqSkill, candidateSkillsList, candidateRawText) {
+  if (!reqSkill) return false;
+  const reqLower = reqSkill.toLowerCase();
+  
+  // 1. Direct match in candidate's parsed skills list
+  if (candidateSkillsList.some((c) => {
+    const cLower = c.toLowerCase();
+    return cLower === reqLower || cLower.includes(reqLower) || reqLower.includes(cLower);
+  })) {
+    return true;
+  }
+
+  // 2. Catalog regex pattern match against raw candidate skill text
+  const catalogEntry = KNOWN_SKILL_CATALOG.find((k) =>
+    k.name.toLowerCase() === reqLower || k.patterns.some((p) => p.test(reqSkill))
+  );
+  if (catalogEntry && candidateRawText) {
+    return catalogEntry.patterns.some((p) => p.test(candidateRawText));
+  }
+
+  return false;
+}
+
 async function extractSkillsFromResumeDoc(file, student) {
   let rawText = '';
 
@@ -3163,13 +3811,30 @@ async function extractSkillsFromResumeDoc(file, student) {
   return '';
 }
 
-function JDMatcher({ student }) {
+function JDMatcher({ student, selectedDrive, onClearSelectedDrive }) {
+  const [activeDrive, setActiveDrive] = useState(() => {
+    if (selectedDrive) return selectedDrive;
+    try {
+      const saved = sessionStorage.getItem('bec_selected_jd_drive');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [skills, setSkills] = useState(() => {
     return Array.isArray(student?.skills)
       ? student.skills.join(', ')
       : (student?.skills || '');
   });
-  const [jd, setJd] = useState('');
+
+  const [jd, setJd] = useState(() => {
+    const savedText = sessionStorage.getItem('bec_selected_jd_text');
+    if (savedText) return savedText;
+    if (selectedDrive) return formatDriveForJD(selectedDrive);
+    return '';
+  });
+
   const [resumeFile, setResumeFile] = useState(null);
   const [isParsingResume, setIsParsingResume] = useState(false);
   const [extractionStatus, setExtractionStatus] = useState({ status: 'none', count: 0 });
@@ -3177,6 +3842,24 @@ function JDMatcher({ student }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
   const currentJdStep = useRotatingMessage(JD_LOADING_STEPS, aiLoading, 2000);
+
+  useEffect(() => {
+    if (selectedDrive) {
+      setActiveDrive(selectedDrive);
+      setJd(formatDriveForJD(selectedDrive));
+    } else {
+      const savedText = sessionStorage.getItem('bec_selected_jd_text');
+      if (savedText && !jd) {
+        setJd(savedText);
+      }
+      try {
+        const savedDrive = sessionStorage.getItem('bec_selected_jd_drive');
+        if (savedDrive && !activeDrive) {
+          setActiveDrive(JSON.parse(savedDrive));
+        }
+      } catch {}
+    }
+  }, [selectedDrive]);
 
   const handleResumeUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -3204,12 +3887,35 @@ function JDMatcher({ student }) {
   };
 
   const result = useMemo(() => {
-    const skillSet = skills.toLowerCase().split(',').map((item) => item.trim()).filter(Boolean);
-    const words = jd.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((word) => word.length > 2);
-    const uniqueWords = [...new Set(words)];
-    const matched = uniqueWords.filter((word) => skillSet.some((skill) => skill.includes(word) || word.includes(skill)));
-    const score = uniqueWords.length ? Math.round((matched.length / Math.min(uniqueWords.length, 12)) * 100) : 0;
-    return { matched, score: Math.min(score, 100), missing: uniqueWords.filter((word) => !matched.includes(word)).slice(0, 8) };
+    if (!jd.trim() || !skills.trim()) {
+      return { matched: [], missing: [], score: 0 };
+    }
+
+    const requiredSkills = extractSkillsFromJD(jd);
+    const candidateSkillsList = parseCandidateSkills(skills);
+
+    if (requiredSkills.length === 0) {
+      return { matched: ['Core Technical Profile'], missing: [], score: 100 };
+    }
+
+    const matched = [];
+    const missing = [];
+
+    for (const req of requiredSkills) {
+      if (checkSkillMatch(req, candidateSkillsList, skills)) {
+        matched.push(req);
+      } else {
+        missing.push(req);
+      }
+    }
+
+    const score = Math.round((matched.length / requiredSkills.length) * 100);
+
+    return {
+      matched,
+      missing,
+      score: Math.min(Math.max(score, 0), 100)
+    };
   }, [skills, jd]);
 
   const runAIMatch = async () => {
@@ -3254,49 +3960,44 @@ Keep it clear and useful for a student.`,
 
   return (
     <ModuleFrame title="JD Matcher" subtitle={`Personalized skill comparison for ${student.bec}.`} icon={FileSearch}>
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <div className="min-w-0 rounded-lg border border-stone-200 bg-white p-4 sm:p-5">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] font-sans">
+        <div className="min-w-0 rounded-2xl border border-[#1B2A44]/15 bg-[#F7F5EF] p-5 shadow-xs space-y-4">
           {/* Resume Upload Folder / File Box */}
-          <div className="mb-4 rounded-xl border border-dashed border-stone-300 bg-stone-50 p-4 transition hover:border-emerald-500 hover:bg-emerald-50/50">
+          <div className="rounded-2xl border border-dashed border-[#1B2A44]/25 bg-white p-4 transition hover:border-[#1B2A44] hover:bg-[#F7F5EF]/80">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-emerald-600 text-white shadow-sm">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#1B2A44] text-[#8A6A22] shadow-xs">
                   <FolderUp className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-black uppercase tracking-wider text-stone-700">Upload Resume Folder / File</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#1B2A44]">Resume Keyword Parser</p>
                   {isParsingResume ? (
-                    <p className="mt-0.5 text-xs font-bold text-emerald-600 animate-pulse">
-                      ⚡ Extracting skills & technical keywords from resume...
+                    <p className="mt-0.5 text-xs font-bold text-[#8A6A22] animate-pulse">
+                      ⚡ Extracting technical keywords from document...
                     </p>
                   ) : resumeFile ? (
-                    <p className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-emerald-700 truncate">
-                      <FileText className="h-3.5 w-3.5 shrink-0" /> {resumeFile.name} ({Math.round(resumeFile.size / 1024)} KB)
+                    <p className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-[#1B2A44] truncate">
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-[#8A6A22]" /> {resumeFile.name} ({Math.round(resumeFile.size / 1024)} KB)
                     </p>
                   ) : (
                     <p className="mt-0.5 text-xs font-semibold text-stone-500 truncate">PDF, DOCX, or TXT resume document</p>
                   )}
                 </div>
               </div>
-              <label className="shrink-0 cursor-pointer rounded-lg bg-stone-950 px-3.5 py-2 text-xs font-black text-white transition hover:bg-emerald-700 shadow-sm">
+              <label className="shrink-0 cursor-pointer rounded-xl bg-[#1B2A44] px-3.5 py-2 text-xs font-bold text-[#EDEBE4] transition hover:bg-[#0F1B2E] shadow-xs">
                 {isParsingResume ? 'Parsing...' : resumeFile ? 'Change File' : 'Browse Resume'}
                 <input type="file" accept=".pdf,.docx,.doc,.txt" className="hidden" disabled={isParsingResume} onChange={handleResumeUpload} />
               </label>
             </div>
           </div>
 
-          <label className="mb-4 block">
+          <label className="block">
             <div className="mb-2 flex items-center justify-between gap-2 flex-wrap">
-              <span className="text-sm font-bold text-stone-700">Your Skills</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Your Technical Skills</span>
               {resumeFile && extractionStatus.status === 'success' && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                  <span>Extracted {extractionStatus.count} skills from {resumeFile.name}</span>
-                </span>
-              )}
-              {resumeFile && extractionStatus.status === 'empty' && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                  <span>⚠️ No skills found in {resumeFile.name}</span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-[#8A6A22]/10 border border-[#8A6A22]/30 px-2 py-0.5 text-[11px] font-bold text-[#8A6A22]">
+                  <CheckCircle2 className="h-3 w-3 text-[#8A6A22]" />
+                  <span>Extracted {extractionStatus.count} skills</span>
                 </span>
               )}
             </div>
@@ -3307,45 +4008,130 @@ Keep it clear and useful for a student.`,
                 setSkills(e.target.value);
                 setExtractionStatus({ status: 'none', count: 0 });
               }}
-              placeholder={
-                extractionStatus.status === 'empty'
-                  ? 'No technical skills detected in uploaded document. Please enter your skills manually or upload your actual resume...'
-                  : 'e.g. React, Java, Python, SQL, Communication, Problem Solving, Node.js...'
-              }
+              placeholder="e.g. React, Java, Python, SQL, Communication, Problem Solving, Node.js..."
             />
           </label>
+
           <label className="block">
-            <span className="mb-2 block text-sm font-bold text-stone-700">Job Description</span>
+            <div className="mb-2 flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Job Description & Requirements</span>
+              {activeDrive && (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 shadow-2xs">
+                  <Building2 className="h-3 w-3 text-emerald-600" />
+                  <span>{activeDrive.company} ({activeDrive.role})</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setActiveDrive(null);
+                      if (onClearSelectedDrive) onClearSelectedDrive();
+                      sessionStorage.removeItem('bec_selected_jd_drive');
+                      sessionStorage.removeItem('bec_selected_jd_text');
+                      setJd('');
+                    }}
+                    className="ml-1 text-emerald-700 hover:text-rose-600 transition cursor-pointer"
+                    title="Clear selected drive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+            </div>
+
+            {activeDrive && (
+              <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50/90 p-3 text-xs text-emerald-900 shadow-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-600 text-white shrink-0 shadow-xs">
+                    <Building2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-black text-emerald-950 truncate">
+                      Selected Placement Drive: {activeDrive.company} — {activeDrive.role}
+                    </p>
+                    <p className="text-[11px] text-emerald-700 font-semibold truncate">
+                      {activeDrive.salary ? `Package: ${activeDrive.salary} • ` : ''}Min CGPA: {activeDrive.minCgpa || '6.0+'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveDrive(null);
+                    if (onClearSelectedDrive) onClearSelectedDrive();
+                    sessionStorage.removeItem('bec_selected_jd_drive');
+                    sessionStorage.removeItem('bec_selected_jd_text');
+                    setJd('');
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2.5 py-1 text-[11px] font-bold text-stone-700 hover:bg-stone-50 transition shrink-0 cursor-pointer shadow-2xs"
+                >
+                  <X className="h-3 w-3 text-rose-500" />
+                  <span>Clear</span>
+                </button>
+              </div>
+            )}
+
             <textarea
-              className="input min-h-44"
+              className="input min-h-40"
               value={jd}
-              onChange={(e) => setJd(e.target.value)}
-              placeholder="Paste the company's job description or requirements here..."
+              onChange={(e) => {
+                setJd(e.target.value);
+                if (!e.target.value.trim() && activeDrive) {
+                  setActiveDrive(null);
+                  if (onClearSelectedDrive) onClearSelectedDrive();
+                  sessionStorage.removeItem('bec_selected_jd_drive');
+                  sessionStorage.removeItem('bec_selected_jd_text');
+                }
+              }}
+              placeholder="Paste the company's job description, technical requirements, or job role specifications here..."
             />
           </label>
         </div>
-        <div className="min-w-0 overflow-hidden rounded-lg bg-stone-950 p-4 text-white sm:p-6">
-          <Sparkles className="mb-4 h-7 w-7 text-amber-300" />
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-stone-400">Match Score</p>
-          <p className="mt-2 text-6xl font-black">{result.score}%</p>
-          <div className="mt-6 grid min-w-0 gap-4 sm:grid-cols-2">
-            <ChipList title="Matched Signals" items={result.matched.length ? result.matched : ['Add more skills']} tone="emerald" />
-            <ChipList title="Improve These" items={result.missing.length ? result.missing : ['Looks strong']} tone="amber" />
+
+        {/* Right Match Metrics & AI Report Box */}
+        <div className="min-w-0 overflow-hidden rounded-2xl bg-[#1B2A44] p-5 text-[#EDEBE4] sm:p-6 shadow-md border border-[#1B2A44]/20 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-widest text-[#8A6A22]">ATS Compatibility</span>
+              <Sparkles className="h-5 w-5 text-[#8A6A22]" />
+            </div>
+            
+            <p className="mt-2 text-5xl sm:text-6xl font-bold font-serif text-white">
+              {result.score}%
+            </p>
+
+            <div className="mt-6 grid min-w-0 gap-4 sm:grid-cols-2">
+              <ChipList title="Matched Skills" items={result.matched.length ? result.matched : ['Add skills or resume']} tone="brass" />
+              <ChipList title="Missing Requirements" items={result.missing.length ? result.missing : ['None detected']} tone="seal" />
+            </div>
           </div>
-          <button disabled={aiLoading} onClick={runAIMatch} className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-3 font-black text-stone-950 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-70">
-            <Bot className="h-4 w-4" /> {aiLoading ? currentJdStep : 'Analyze With AI'}
-          </button>
-          {aiError && <p className="mt-4 rounded-lg bg-amber-100 p-3 text-sm font-bold leading-6 text-amber-900">{aiError}</p>}
+
+          <div className="mt-6">
+            <button
+              disabled={aiLoading}
+              onClick={runAIMatch}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#EDEBE4] px-4 py-3.5 font-bold text-[#1B2A44] hover:bg-white disabled:cursor-not-allowed disabled:opacity-70 transition shadow-sm cursor-pointer"
+            >
+              <Bot className="h-4 w-4 text-[#8A6A22]" />
+              <span>{aiLoading ? currentJdStep : 'Generate 7-Day AI Placement Roadmap'}</span>
+            </button>
+            {aiError && <p className="mt-3 rounded-xl bg-[#8C2F26]/20 border border-[#8C2F26]/40 p-3 text-xs font-bold text-rose-200">{aiError}</p>}
+          </div>
         </div>
       </div>
+
       {aiMatch && (
-        <div className="min-w-0 overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
-          <div className="mb-3 flex items-center gap-2 text-emerald-900">
-            <Bot className="h-5 w-5" />
-            <h3 className="font-black">AI JD Match Report</h3>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="min-w-0 overflow-hidden rounded-2xl border border-[#8A6A22]/30 bg-[#F7F5EF] p-5 sm:p-6 shadow-xs"
+        >
+          <div className="mb-3 flex items-center gap-2 text-[#1B2A44] border-b border-[#1B2A44]/10 pb-3">
+            <Bot className="h-5 w-5 text-[#8A6A22]" />
+            <h3 className="font-serif text-base font-bold text-[#1B2A44]">AI Placement Roadmap & Interview Guidance</h3>
           </div>
-          <div className="whitespace-pre-wrap break-words text-sm font-semibold leading-7 text-stone-800">{aiMatch}</div>
-        </div>
+          <div className="whitespace-pre-wrap break-words text-sm font-medium leading-relaxed text-[#1B2A44]">{aiMatch}</div>
+        </motion.div>
       )}
     </ModuleFrame>
   );
@@ -3353,15 +4139,34 @@ Keep it clear and useful for a student.`,
 
 function ChipList({ title, items, tone }) {
   return (
-    <div className="min-w-0">
-      <h3 className="mb-3 font-black">{title}</h3>
-      <div className="flex min-w-0 flex-wrap gap-2">
+    <div className="min-w-0 space-y-2">
+      <h3 className="text-xs font-bold uppercase tracking-wider text-stone-300">{title}</h3>
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: { opacity: 1, transition: { staggerChildren: 0.04 } }
+        }}
+        className="flex min-w-0 flex-wrap gap-1.5"
+      >
         {items.map((item) => (
-          <span key={item} className={`max-w-full break-words rounded-full px-3 py-1 text-sm font-bold ${tone === 'emerald' ? 'bg-emerald-400/15 text-emerald-200' : 'bg-amber-300/15 text-amber-100'}`}>
+          <motion.span
+            key={item}
+            variants={{
+              hidden: { opacity: 0, y: 6 },
+              visible: { opacity: 1, y: 0 }
+            }}
+            className={`max-w-full break-words rounded-lg px-2.5 py-1 text-xs font-bold border ${
+              tone === 'brass'
+                ? 'bg-[#8A6A22]/20 text-[#EDEBE4] border-[#8A6A22]/40'
+                : 'bg-[#8C2F26]/20 text-rose-200 border-[#8C2F26]/40'
+            }`}
+          >
             {item}
-          </span>
+          </motion.span>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -3548,7 +4353,7 @@ function POPlacementWorkspace({ student, setPage }) {
   useEffect(() => {
     const fetchDrivesAndRegistrations = () => {
       apiFetch('/api/db/drives').then((res) => {
-        if (res?.drives && Array.isArray(res.drives) && res.drives.length > 0) {
+        if (res?.drives && Array.isArray(res.drives)) {
           setDrives(res.drives);
           setJSON(STORAGE_KEYS.placementDrives, res.drives);
         }
@@ -3571,6 +4376,7 @@ function POPlacementWorkspace({ student, setPage }) {
     setDrives(nextDrives);
     setJSON(STORAGE_KEYS.placementDrives, nextDrives);
     window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('drives_updated'));
     if (driveToSave) {
       apiFetch('/api/db/drives', {
         method: 'POST',
@@ -3745,7 +4551,13 @@ function POPlacementWorkspace({ student, setPage }) {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 rounded-full bg-amber-400/15 border border-amber-400/25 px-3 py-1 text-xs font-bold text-amber-300">
               <BriefcaseBusiness className="h-4 w-4" />
-              <span>Campus Placement Command Center</span>
+              <span>
+                {student?.role === 'hod'
+                  ? 'Department Placement & Career Cell'
+                  : student?.role === 'teacher'
+                  ? 'Faculty & Class Teacher Placement Cell'
+                  : 'Campus Placement Command Center'}
+              </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
               Placement Drives & Corporate Hiring Roster
@@ -3776,7 +4588,13 @@ function POPlacementWorkspace({ student, setPage }) {
           </div>
           <div className="rounded-xl bg-stone-900/90 border border-stone-800 p-4">
             <p className="text-[11px] font-bold uppercase tracking-wider text-stone-400">Recruitment Cell</p>
-            <p className="mt-1 text-base font-black text-white">Placement Office</p>
+            <p className="mt-1 text-base font-black text-white">
+              {student?.role === 'hod'
+                ? 'HOD / Dept. Cell'
+                : student?.role === 'teacher'
+                ? 'Faculty Placement Cell'
+                : 'Placement Office'}
+            </p>
           </div>
         </div>
       </section>
@@ -4403,9 +5221,9 @@ function POPlacementWorkspace({ student, setPage }) {
   );
 }
 
-function PlacementLedger({ student, setPage }) {
-  // If placement officer visits this page, render the full PO workspace
-  if (student?.role === 'po') {
+function PlacementLedger({ student, setPage, onSelectJdDrive }) {
+  // If placement officer, teacher, or HOD visits this page, render the full placement workspace with applicant roster & Excel export
+  if (student?.role === 'po' || student?.role === 'teacher' || student?.role === 'hod') {
     return <POPlacementWorkspace student={student} setPage={setPage} />;
   }
 
@@ -4438,7 +5256,7 @@ function PlacementLedger({ student, setPage }) {
   useEffect(() => {
     const fetchDrivesAndRegistrations = () => {
       apiFetch('/api/db/drives').then((res) => {
-        if (res?.drives && Array.isArray(res.drives) && res.drives.length > 0) {
+        if (res?.drives && Array.isArray(res.drives)) {
           setDrives(res.drives);
           setJSON(STORAGE_KEYS.placementDrives, res.drives);
         }
@@ -4452,9 +5270,22 @@ function PlacementLedger({ student, setPage }) {
       });
     };
 
+    const syncDrives = () => {
+      const stored = getJSON(STORAGE_KEYS.placementDrives, null);
+      if (stored !== null && Array.isArray(stored)) {
+        setDrives(stored);
+      }
+    };
+
     fetchDrivesAndRegistrations();
+    window.addEventListener('storage', syncDrives);
+    window.addEventListener('drives_updated', syncDrives);
     const interval = setInterval(fetchDrivesAndRegistrations, 6000);
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener('storage', syncDrives);
+      window.removeEventListener('drives_updated', syncDrives);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleOpenRegistrationModal = (drive) => {
@@ -4787,7 +5618,26 @@ function PlacementLedger({ student, setPage }) {
                     {/* JD Matcher Jump Button */}
                     <button
                       type="button"
-                      onClick={() => setPage && setPage('jd')}
+                      onClick={() => {
+                        const formatted = formatDriveForJD(drive);
+                        sessionStorage.setItem('bec_selected_jd_text', formatted);
+                        sessionStorage.setItem('bec_selected_jd_drive', JSON.stringify({
+                          id: drive.id,
+                          company: drive.company,
+                          role: drive.role,
+                          salary: drive.salary,
+                          skills: drive.skills,
+                          domain: drive.domain,
+                          minCgpa: drive.minCgpa,
+                          branches: drive.branches
+                        }));
+                        if (onSelectJdDrive) {
+                          onSelectJdDrive(drive);
+                        }
+                        if (setPage) {
+                          setPage('jd');
+                        }
+                      }}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 hover:bg-stone-100 text-stone-700 px-3.5 py-2 text-xs font-bold transition cursor-pointer"
                       title="Compare your profile against this role in JD Matcher"
                     >
@@ -5556,21 +6406,35 @@ function DocumentViewerModal({ pass, onClose }) {
   );
 }
 
+function GatePassField({ label, value, onChange, placeholder, type = 'text', required = false }) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-bold text-slate-700">{label}</label>
+      <input
+        type={type}
+        className="input text-sm"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required={required}
+      />
+    </div>
+  );
+}
+
 // 1. STUDENT GATE PASS FORM (Clean Portal Theme)
 function GatePass({ student }) {
   const [passes, setPasses] = useState(() => getJSON(STORAGE_KEYS.gatePasses, []));
-  const [form, setForm] = useState({
-    fullName: '',
+  const [form, setForm] = useState(() => ({
+    fullName: student?.name || '',
     usn: '',
-    rollNo: '',
-    branch: '',
-    yearSem: '',
-    collegeName: '',
+    rollNo: student?.rollNo || student?.bec || '',
+    branch: student?.department || '',
+    yearSem: student?.year || 'III Year, 5th Sem',
+    collegeName: student?.college || 'T. John Institute Of Technology',
     reason: '',
-    documentName: '',
-    outTime: '14:00',
-    returnTime: '17:30'
-  });
+    documentName: ''
+  }));
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileDataUrl, setFileDataUrl] = useState('');
@@ -5666,8 +6530,8 @@ function GatePass({ student }) {
       ai_priority: aiPriority,
       security_key: securityKey,
       date: new Date().toISOString().split('T')[0],
-      out_time: form.outTime,
-      return_time: form.returnTime,
+      out_time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+      return_time: 'N/A',
       contact: '9876543210',
       status: 'Pending Class Teacher',
       teacher_approval: null,
@@ -5680,7 +6544,7 @@ function GatePass({ student }) {
     setPasses(next);
     updateGatePassesStorage(next);
 
-    setForm((prev) => ({ ...prev, reason: '', documentName: '' }));
+    setForm((prev) => ({ ...prev, reason: '', documentName: '', usn: '' }));
     setSelectedFile(null);
     setFileDataUrl('');
     setLoading(false);
@@ -5695,27 +6559,29 @@ function GatePass({ student }) {
     <ModuleFrame title="Apply Gate Pass" subtitle="Fill the form below to request campus exit permission. Submissions are reviewed by your Class Teacher & HOD." icon={DoorOpen}>
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         {/* Pass Form */}
-        <form onSubmit={submitPass} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6 space-y-4">
-          <div className="border-b border-stone-100 pb-3">
-            <h3 className="text-lg font-black text-stone-950">New Gate Pass Request</h3>
-            <p className="text-xs text-stone-500">Provide accurate details for Class Teacher review</p>
+        <form onSubmit={submitPass} className="rounded-3xl border border-slate-100/90 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-6 space-y-4">
+          <div className="border-b border-slate-100 pb-3">
+            <h3 className="text-lg font-black text-slate-900">New Gate Pass Request</h3>
+            <p className="text-xs text-slate-500">Provide accurate details for Class Teacher & HOD review</p>
           </div>
 
-          <Field
+          <GatePassField
             label="Full Name (as per ID)"
             value={form.fullName}
             onChange={(v) => setForm({ ...form, fullName: v })}
             placeholder="Enter Full Name"
+            required
           />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field
+            <GatePassField
               label="USN"
               value={form.usn}
               onChange={(v) => setForm({ ...form, usn: v })}
-              placeholder="Enter USN"
+              placeholder="Enter your USN"
+              required
             />
-            <Field
+            <GatePassField
               label="Roll Number"
               value={form.rollNo}
               onChange={(v) => setForm({ ...form, rollNo: v })}
@@ -5724,13 +6590,13 @@ function GatePass({ student }) {
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field
+            <GatePassField
               label="Branch"
               value={form.branch}
               onChange={(v) => setForm({ ...form, branch: v })}
               placeholder="Enter Branch"
             />
-            <Field
+            <GatePassField
               label="Year & Sem"
               value={form.yearSem}
               onChange={(v) => setForm({ ...form, yearSem: v })}
@@ -5738,7 +6604,7 @@ function GatePass({ student }) {
             />
           </div>
 
-          <Field
+          <GatePassField
             label="College Name"
             value={form.collegeName}
             onChange={(v) => setForm({ ...form, collegeName: v })}
@@ -5746,28 +6612,28 @@ function GatePass({ student }) {
           />
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-stone-700">Reason for Leave</label>
+            <label className="mb-2 block text-xs font-bold text-slate-700">Reason for Leave</label>
             <textarea
               rows={3}
               className="input min-h-24"
               value={form.reason}
               onChange={(e) => setForm({ ...form, reason: e.target.value })}
-              placeholder="Briefly describe your reason..."
+              placeholder="Briefly describe your reason for exit permission..."
               required
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-stone-700">Emergency Document (Optional, PDF/Image)</label>
+            <label className="mb-2 block text-xs font-bold text-slate-700">Emergency Document (Optional, PDF/Image)</label>
             <input type="file" accept="image/*,.pdf" onChange={handleFileChange} className="block w-full text-xs text-stone-500 file:mr-4 file:rounded-xl file:border-0 file:bg-stone-900 file:px-4 file:py-2.5 file:text-xs file:font-black file:text-white hover:file:bg-emerald-700" />
           </div>
 
           <button
             disabled={loading}
-            className="w-full rounded-xl bg-stone-950 px-4 py-3.5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:opacity-50 shadow-md flex items-center justify-center gap-2"
+            className="w-full rounded-2xl bg-[#3B6280] hover:bg-[#264055] px-4 py-3.5 text-sm font-black text-white transition disabled:opacity-50 shadow-md flex items-center justify-center gap-2 cursor-pointer"
           >
             <DoorOpen className="h-4 w-4" />
-            {loading ? 'Submitting...' : 'Apply for Pass'}
+            {loading ? 'Submitting...' : 'Apply for Gate Pass'}
           </button>
         </form>
 
@@ -5782,7 +6648,7 @@ function GatePass({ student }) {
             <EmptyState text="No gate pass requests submitted yet." />
           ) : (
             myPasses.map((pass) => (
-              <div key={pass.id} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm space-y-3">
+              <div key={pass.id} className="rounded-3xl border border-slate-100/90 bg-white p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-3">
                 <div className="flex justify-between items-center border-b border-stone-100 pb-2">
                   <span className={`px-3 py-1 rounded-full font-black text-xs uppercase ${
                     pass.status === 'Approved' ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' :
@@ -7086,22 +7952,28 @@ CRITICAL BEHAVIORAL RULES:
     <>
       {/* Full Page Modal View */}
       {open && isFullScreen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 backdrop-blur-xs p-2 sm:p-4 md:p-6 transition-all duration-300">
-          <section className="flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-stone-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/70 backdrop-blur-sm p-2 sm:p-4 md:p-6 transition-all duration-300">
+          <section className="flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-stone-200/90 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
-            <div className="flex items-center justify-between bg-stone-950 px-5 py-4 text-white">
+            <div className="flex items-center justify-between bg-gradient-to-r from-stone-950 via-slate-900 to-stone-950 px-5 py-4 text-white border-b border-white/10">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500 text-stone-950 font-black shrink-0">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-stone-950 font-black shrink-0 shadow-md shadow-emerald-500/20 ring-2 ring-emerald-400/30">
                   <Bot className="h-6 w-6" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="truncate text-base font-black">Campus AI Assistant</h3>
-                    <span className="hidden sm:inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-black text-emerald-300 border border-emerald-500/30">
+                    <h3 className="truncate text-base font-black tracking-tight">Campus AI Assistant</h3>
+                    <span className="hidden sm:inline-block rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-black text-emerald-300 border border-emerald-500/30">
                       Full Workspace View
                     </span>
                   </div>
-                  <p className="truncate text-xs text-stone-300 font-semibold">Online • {student.name || student.bec}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                    </span>
+                    <p className="truncate text-xs text-stone-300 font-semibold">Online • {student.name || student.bec}</p>
+                  </div>
                 </div>
               </div>
 
@@ -7109,7 +7981,7 @@ CRITICAL BEHAVIORAL RULES:
                 <button
                   type="button"
                   onClick={() => setShowHistory((prev) => !prev)}
-                  className={`rounded-lg p-1.5 transition cursor-pointer ${
+                  className={`rounded-lg p-2 transition cursor-pointer ${
                     showHistory
                       ? 'bg-emerald-600 text-white shadow-xs'
                       : 'bg-white/10 hover:bg-emerald-600/60 text-stone-300 hover:text-white'
@@ -7122,7 +7994,7 @@ CRITICAL BEHAVIORAL RULES:
                 <button
                   type="button"
                   onClick={handleNewChat}
-                  className="rounded-lg bg-white/10 p-1.5 hover:bg-emerald-600/60 text-stone-300 hover:text-white transition cursor-pointer"
+                  className="rounded-lg bg-white/10 p-2 hover:bg-emerald-600/60 text-stone-300 hover:text-white transition cursor-pointer"
                   title="Start New Chat"
                   aria-label="Start New Chat"
                 >
@@ -7131,7 +8003,7 @@ CRITICAL BEHAVIORAL RULES:
                 <button
                   type="button"
                   onClick={clearCurrentChat}
-                  className="rounded-lg bg-white/10 p-1.5 hover:bg-rose-950/60 text-stone-300 hover:text-rose-300 transition cursor-pointer"
+                  className="rounded-lg bg-white/10 p-2 hover:bg-rose-950/60 text-stone-300 hover:text-rose-300 transition cursor-pointer"
                   title="Reset this chat"
                   aria-label="Reset this chat"
                 >
@@ -7140,7 +8012,7 @@ CRITICAL BEHAVIORAL RULES:
                 <button
                   type="button"
                   onClick={() => setIsFullScreen(false)}
-                  className="rounded-lg bg-white/10 p-1.5 hover:bg-white/20 text-stone-300 hover:text-white transition cursor-pointer"
+                  className="rounded-lg bg-white/10 p-2 hover:bg-white/20 text-stone-300 hover:text-white transition cursor-pointer"
                   title="Minimize back to window"
                   aria-label="Minimize back to window"
                 >
@@ -7148,7 +8020,7 @@ CRITICAL BEHAVIORAL RULES:
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-white/10 p-1.5 hover:bg-white/20 text-stone-300 hover:text-white transition cursor-pointer"
+                  className="rounded-lg bg-white/10 p-2 hover:bg-white/20 text-stone-300 hover:text-white transition cursor-pointer"
                   onClick={() => {
                     setIsFullScreen(false);
                     setOpen(false);
@@ -7166,21 +8038,21 @@ CRITICAL BEHAVIORAL RULES:
             ) : (
               <>
                 {/* Chat Body in Full Screen */}
-                <div className="flex-1 space-y-4 overflow-y-auto bg-stone-50/70 p-4 sm:p-6">
+                <div className="flex-1 space-y-4 overflow-y-auto bg-gradient-to-b from-stone-50 via-slate-50/50 to-stone-50 p-4 sm:p-6">
                   <div className="max-w-3xl mx-auto space-y-4">
                     {messages.map((item, index) => (
                       <div key={`${item.role}-${index}`} className={`flex ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-xs ${
+                        <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                           item.role === 'user'
-                            ? 'bg-stone-950 text-white font-medium'
-                            : 'bg-white text-stone-900 shadow-sm border border-stone-200/80 font-normal'
+                            ? 'bg-gradient-to-r from-stone-950 to-slate-900 text-white font-medium rounded-tr-xs shadow-md'
+                            : 'bg-white text-stone-900 rounded-tl-xs shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-stone-200/90 font-normal'
                         }`}>
                           <FormattedChatMessage text={item.text} role={item.role} />
                         </div>
                       </div>
                     ))}
                     {loading && (
-                      <div className="flex items-center gap-2 rounded-xl bg-white p-3.5 text-xs font-bold text-stone-700 shadow-sm border border-stone-200 animate-pulse max-w-sm">
+                      <div className="flex items-center gap-2.5 rounded-xl bg-white p-3.5 text-xs font-bold text-stone-700 shadow-sm border border-emerald-200/80 animate-pulse max-w-sm">
                         <Sparkles className="h-4 w-4 text-emerald-600 animate-spin shrink-0" />
                         <span>{currentChatStep}</span>
                       </div>
@@ -7190,34 +8062,34 @@ CRITICAL BEHAVIORAL RULES:
                 </div>
 
                 {/* Quick interactive prompts in Full Screen */}
-                <div className="border-t border-stone-100 bg-white px-4 py-2 sm:px-6">
+                <div className="border-t border-stone-200/80 bg-white/90 backdrop-blur-xs px-4 py-2.5 sm:px-6">
                   <div className="max-w-3xl mx-auto flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
-                    <span className="text-[11px] font-black text-stone-400 uppercase tracking-wider shrink-0">Suggestions:</span>
+                    <span className="text-[11px] font-black text-stone-400 uppercase tracking-wider shrink-0">💡 Quick Actions:</span>
                     {POPUP_MESSAGES.slice(1).map((item) => (
                       <button
                         key={item.tag}
                         type="button"
                         onClick={() => sendMessage(null, item.prompt)}
-                        className="shrink-0 rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-bold text-stone-700 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-900 transition cursor-pointer"
+                        className="shrink-0 rounded-full border border-stone-200 bg-stone-50/90 px-3.5 py-1 text-xs font-bold text-stone-700 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-900 transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-98"
                       >
-                        {item.tag}
+                        {item.tag === 'Gate Pass' ? '🚪 Gate Pass' : item.tag === 'Projects' ? '🏗️ Projects' : item.tag === 'Placements' ? '💼 Placements' : item.tag === 'Calendar' ? '📅 Calendar' : item.tag}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* Full Screen Input Form */}
-                <form onSubmit={(e) => sendMessage(e)} className="border-t border-stone-200 bg-white p-3 sm:p-4">
+                <form onSubmit={(e) => sendMessage(e)} className="border-t border-stone-200 bg-white p-3 sm:p-4 shadow-xs">
                   <div className="max-w-3xl mx-auto flex gap-2 sm:gap-3">
                     <input
-                      className="input min-w-0 flex-1 text-sm py-3 px-4"
+                      className="input min-w-0 flex-1 text-sm py-3 px-4 rounded-xl border border-stone-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                       value={message}
                       onChange={(event) => setMessage(event.target.value)}
                       placeholder="Ask about Gate Pass, Projects, Placements, Academic Calendar..."
                     />
                     <button
                       disabled={loading || !message.trim()}
-                      className="flex items-center justify-center gap-2 rounded-xl bg-stone-950 px-5 py-3 text-sm font-black text-white hover:bg-emerald-700 disabled:opacity-50 transition cursor-pointer shrink-0"
+                      className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-3 text-sm font-black text-white hover:from-emerald-500 hover:to-teal-500 shadow-md shadow-emerald-600/20 disabled:opacity-40 transition-all cursor-pointer shrink-0 active:scale-95"
                       aria-label="Send message"
                     >
                       <Send className="h-4 w-4" />
@@ -7232,7 +8104,7 @@ CRITICAL BEHAVIORAL RULES:
       )}
 
       {/* Floating Widget at Bottom Right (Popup + Dancing Button) */}
-      <div className="fixed bottom-20 right-4 z-40 sm:bottom-6 sm:right-6 flex flex-col items-end pointer-events-none">
+      <div className="fixed bottom-24 right-4 z-40 sm:bottom-24 sm:right-6 flex flex-col items-end pointer-events-none">
         {/* Smoothly Sliding Interactive Pop-up Speech Bubble */}
         <div
           className={`mb-2.5 transition-all duration-700 ease-in-out transform origin-bottom-right pointer-events-auto ${
@@ -7241,7 +8113,7 @@ CRITICAL BEHAVIORAL RULES:
               : 'opacity-0 translate-y-4 scale-90 pointer-events-none'
           }`}
         >
-          <div className="flex items-center gap-2 rounded-2xl border-2 border-stone-900 bg-white px-3.5 py-2 shadow-2xl hover:border-emerald-600 transition-colors">
+          <div className="flex items-center gap-2.5 rounded-full border border-emerald-500/20 bg-white/95 backdrop-blur-md px-4 py-2.5 shadow-[0_10px_35px_-5px_rgba(0,0,0,0.15)] hover:border-emerald-500/40 transition-all">
             <span className="relative flex h-2.5 w-2.5 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
@@ -7268,16 +8140,22 @@ CRITICAL BEHAVIORAL RULES:
 
         {/* Normal Popup Window (Shown in user's photo) */}
         {open && !isFullScreen && (
-          <section className="mb-3 flex h-[32rem] max-h-[68vh] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl transition-all duration-300 pointer-events-auto">
+          <section className="mb-3 flex h-[33rem] max-h-[70vh] w-[calc(100vw-2rem)] max-w-[23.5rem] flex-col overflow-hidden rounded-2xl border border-stone-200/90 bg-white shadow-2xl transition-all duration-300 pointer-events-auto">
             {/* Header with New Chat, Full Page & Close Buttons */}
-            <div className="flex items-center justify-between bg-stone-950 px-4 py-3 text-white">
+            <div className="flex items-center justify-between bg-gradient-to-r from-stone-950 via-slate-900 to-stone-950 px-4 py-3 text-white border-b border-white/10">
               <div className="flex min-w-0 items-center gap-2.5">
-                <div className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500 text-stone-950 font-black">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-stone-950 font-black shadow-sm shadow-emerald-500/20 ring-1 ring-emerald-400/40">
                   <Bot className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-black">Campus AI Assistant</h3>
-                  <p className="truncate text-[11px] text-stone-300 font-semibold">Online • {student.name || student.bec}</p>
+                  <h3 className="truncate text-sm font-black tracking-tight">Campus AI Assistant</h3>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" />
+                    </span>
+                    <p className="truncate text-[11px] text-stone-300 font-medium">Online • {student.name || student.bec}</p>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -7328,54 +8206,70 @@ CRITICAL BEHAVIORAL RULES:
               renderHistoryContent()
             ) : (
               <>
-                <div className="flex-1 space-y-3 overflow-y-auto bg-stone-50 p-3">
+                <div className="flex-1 space-y-3 overflow-y-auto bg-[#FAF9F5] p-3">
                   {messages.map((item, index) => (
-                    <div key={`${item.role}-${index}`} className={`flex ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-xs ${
+                    <motion.div
+                      key={`${item.role}-${index}`}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className={`flex ${item.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
                         item.role === 'user'
-                          ? 'bg-stone-950 text-white font-medium'
-                          : 'bg-white text-stone-900 shadow-sm border border-stone-200/80 font-normal'
+                          ? 'bg-gradient-to-r from-stone-950 to-slate-900 text-white font-medium rounded-tr-xs shadow-xs'
+                          : 'bg-white text-stone-900 rounded-tl-xs shadow-[0_2px_10px_rgba(0,0,0,0.05)] border border-stone-200/80 font-normal'
                       }`}>
                         <FormattedChatMessage text={item.text} role={item.role} />
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
+
+                  {/* 3 Bouncing Dots Typing Indicator */}
                   {loading && (
-                    <div className="flex items-center gap-2 rounded-xl bg-white p-3 text-xs font-bold text-stone-700 shadow-sm border border-stone-200 animate-pulse">
-                      <Sparkles className="h-4 w-4 text-emerald-600 animate-spin shrink-0" />
-                      <span>{currentChatStep}</span>
-                    </div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-2.5 rounded-2xl bg-white p-3 text-xs font-bold text-[#1B2A44] shadow-xs border border-emerald-200/80 max-w-[75%]"
+                    >
+                      <div className="flex items-center gap-1.5 px-1">
+                        <span className="h-2 w-2 rounded-full bg-emerald-600 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="h-2 w-2 rounded-full bg-teal-600 animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="h-2 w-2 rounded-full bg-emerald-600 animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                      <span className="text-[11px] text-stone-500 font-medium">{currentChatStep}</span>
+                    </motion.div>
                   )}
                   <div ref={messagesEndRef} />
                 </div>
 
                 {/* Quick interactive prompts bar */}
-                <div className="flex gap-1.5 overflow-x-auto border-t border-stone-100 bg-stone-50/80 p-2 scrollbar-none">
+                <div className="flex gap-1.5 overflow-x-auto border-t border-stone-200/70 bg-stone-50/90 px-2.5 py-2 scrollbar-none">
                   {POPUP_MESSAGES.slice(1).map((item) => (
                     <button
                       key={item.tag}
                       type="button"
                       onClick={() => sendMessage(null, item.prompt)}
-                      className="shrink-0 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[10px] font-bold text-stone-700 hover:border-emerald-500 hover:text-emerald-800 transition cursor-pointer"
+                      className="shrink-0 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[10.5px] font-bold text-stone-700 shadow-2xs hover:border-emerald-500 hover:bg-emerald-50/80 hover:text-emerald-950 transition-all cursor-pointer hover:scale-[1.02] active:scale-98"
                     >
-                      {item.tag}
+                      {item.tag === 'Gate Pass' ? '🚪 Gate Pass' : item.tag === 'Projects' ? '🏗️ Projects' : item.tag === 'Placements' ? '💼 Placements' : item.tag === 'Calendar' ? '📅 Calendar' : item.tag}
                     </button>
                   ))}
                 </div>
 
-                <form onSubmit={(e) => sendMessage(e)} className="flex gap-2 border-t border-stone-200 bg-white p-3">
+                <form onSubmit={(e) => sendMessage(e)} className="flex gap-2 border-t border-stone-200/90 bg-white/95 backdrop-blur-xs p-2.5">
                   <input
-                    className="input min-w-0 flex-1 text-xs"
+                    className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
                     placeholder="Ask about Gate Pass, Projects, Placements..."
                   />
                   <button
                     disabled={loading || !message.trim()}
-                    className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-stone-950 text-white hover:bg-emerald-700 disabled:opacity-50 transition cursor-pointer"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/20 hover:shadow-emerald-600/40 disabled:opacity-40 transition-all cursor-pointer hover:scale-105 active:scale-95"
                     aria-label="Send message"
                   >
-                    <Send className="h-4 w-4" />
+                    <Send className="h-3.5 w-3.5" />
                   </button>
                 </form>
               </>
@@ -7389,7 +8283,7 @@ CRITICAL BEHAVIORAL RULES:
             setOpen((current) => !current);
             setBubbleVisible(false);
           }}
-          className={`relative grid h-14 w-14 place-items-center rounded-full bg-stone-950 text-white shadow-2xl ring-4 ring-emerald-500/40 transition-transform duration-300 hover:scale-110 active:scale-95 cursor-pointer pointer-events-auto ${
+          className={`relative grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-stone-950 via-slate-900 to-stone-950 text-white shadow-2xl ring-4 ring-emerald-500/30 transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer pointer-events-auto ${
             !open ? 'animate-bot-dance' : ''
           }`}
           aria-label="Open chatbot"

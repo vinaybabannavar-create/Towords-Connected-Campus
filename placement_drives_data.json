@@ -1,0 +1,27 @@
+[
+  {
+    "id": "drive_1789232046663",
+    "company": "Google",
+    "domain": "IT Consulting & Analytics",
+    "role": "Python developer",
+    "salary": "7.5",
+    "type": "Full-Time",
+    "skills": "Java, python",
+    "minCgpa": "6.5",
+    "branches": [
+      "CSE",
+      "ISE",
+      "ECE",
+      "EEE"
+    ],
+    "registrationLink": "",
+    "driveDate": "2026-09-18",
+    "deadline": "2026-09-15",
+    "description": "Python developer",
+    "pdfUrl": "",
+    "pdfName": "",
+    "status": "Active",
+    "postedBy": "Placement Cell (PO)",
+    "createdAt": "2026-09-12"
+  }
+]

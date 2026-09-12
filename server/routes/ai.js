@@ -80,23 +80,58 @@ router.post('/ai', async (req, res) => {
       maxOutputTokens: body.maxOutputTokens ?? 2500
     };
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(geminiPayload)
-      }
-    );
+    let geminiResponse;
+    let lastError = null;
 
-    const data = await geminiResponse.json();
-    if (!geminiResponse.ok) {
-      return res.status(geminiResponse.status).json({ error: data.error?.message || 'Gemini AI request failed.' });
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 35000);
+
+        geminiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(geminiPayload),
+            signal: controller.signal
+          }
+        );
+        clearTimeout(timeoutId);
+
+        if (geminiResponse.ok) {
+          lastError = null;
+          break;
+        }
+
+        const errData = await geminiResponse.json().catch(() => ({}));
+        lastError = new Error(errData.error?.message || `Gemini API returned status ${geminiResponse.status}`);
+        
+        // If transient rate limit or gateway error, wait and retry
+        if (attempt < 3 && (geminiResponse.status === 429 || geminiResponse.status >= 500)) {
+          await new Promise((r) => setTimeout(r, 1200 * attempt));
+          continue;
+        }
+        break;
+      } catch (err) {
+        lastError = err;
+        if (attempt < 3) {
+          await new Promise((r) => setTimeout(r, 1000 * attempt));
+        }
+      }
     }
 
+    if (!geminiResponse || !geminiResponse.ok) {
+      const errMsg = lastError?.message || 'Gemini AI request failed.';
+      console.warn('⚠️ Gemini API error notice:', errMsg);
+      return res.status(geminiResponse?.status || 500).json({ error: errMsg });
+    }
+
+    const data = await geminiResponse.json();
     const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('\n').trim();
     res.json({ text: text || 'No response generated.' });
   } catch (error) {
+    console.error('❌ AI route error:', error);
     res.status(500).json({ error: error.message || 'AI server error.' });
   }
 });

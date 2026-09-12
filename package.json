@@ -10,9 +10,11 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@use-gesture/react": "^10.3.1",
     "@vitejs/plugin-react": "^5.0.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "framer-motion": "^13.2.0",
     "lucide-react": "^0.475.0",
     "mysql2": "^3.24.2",
     "pdfjs-dist": "^3.11.174",
@@ -26,6 +28,7 @@
   "devDependencies": {
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
+    "rollup-plugin-visualizer": "^6.0.11",
     "tailwindcss": "^3.4.17"
   }
 }

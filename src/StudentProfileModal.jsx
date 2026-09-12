@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   User,
   Building2,
@@ -22,6 +23,24 @@ import {
   Briefcase,
   BookOpenCheck
 } from 'lucide-react';
+
+export const BANGALORE_COLLEGES = [
+  'T. John Institute Of Technology',
+  'RV College of Engineering (RVCE)',
+  'BMS College of Engineering (BMSCE)',
+  'Ramaiah Institute of Technology (MSRIT)',
+  'PES University (PESIT)',
+  'Dayananda Sagar College of Engineering (DSCE)',
+  'Bangalore Institute of Technology (BIT)',
+  'Sir M. Visvesvaraya Institute of Technology (SMVIT)',
+  'New Horizon College of Engineering (NHCE)',
+  'Oxford College of Engineering',
+  'Nitte Meenakshi Institute of Technology (NMIT)',
+  'RNS Institute of Technology (RNSIT)',
+  'JSS Academy of Technical Education (JSSATE)',
+  'CMR Institute of Technology (CMRIT)',
+  'Basaveshwar Engineering College (BEC)'
+];
 
 export function calculateProfileCompletion(student) {
   if (!student) return 0;
@@ -135,8 +154,6 @@ export function StudentProfileModal({ student, isOpen, onClose, onSave }) {
     }
   }, [student, isOpen, isTeacher, isHod, isPo, isGuard]);
 
-  if (!isOpen || !student) return null;
-
   const completion = calculateProfileCompletion(formData);
   const missingItems = getMissingProfileItems(formData);
 
@@ -203,59 +220,93 @@ export function StudentProfileModal({ student, isOpen, onClose, onSave }) {
     }, 1200);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/80 p-3 sm:p-5 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-2xl rounded-3xl border border-stone-200 bg-white p-5 sm:p-7 shadow-2xl space-y-5 my-auto max-h-[92vh] flex flex-col">
-        {/* Header Bar */}
-        <div className="flex items-start justify-between gap-4 border-b border-stone-100 pb-4 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-tr from-stone-950 to-stone-800 text-emerald-400 font-black shadow-md border border-stone-700">
-              {isTeacher ? (
-                <BookOpenCheck className="h-6 w-6 text-teal-400" />
-              ) : isHod ? (
-                <Building2 className="h-6 w-6 text-cyan-400" />
-              ) : isPo ? (
-                <Briefcase className="h-6 w-6 text-amber-400" />
-              ) : isGuard ? (
-                <Shield className="h-6 w-6 text-rose-400" />
-              ) : (
-                <User className="h-6 w-6 text-emerald-400" />
-              )}
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-black text-stone-950 leading-tight">
-                {isTeacher
-                  ? 'Class Teacher Profile Setup'
-                  : isHod
-                  ? 'HOD Profile & Department Setup'
-                  : isPo
-                  ? 'Placement Officer Profile Setup'
-                  : isGuard
-                  ? 'Security Officer Setup'
-                  : 'Student Profile & Portfolio Setup'}
-              </h2>
-              <p className="text-xs font-semibold text-stone-500 mt-0.5">
-                {isTeacher
-                  ? 'Manage your staff ID, assigned class responsibilities, subjects & contact info'
-                  : isHod
-                  ? 'Manage department leadership details, cabin location & research specialization'
-                  : isPo
-                  ? 'Manage corporate relations division, placement cell contact & office hours'
-                  : isGuard
-                  ? 'Manage gate post assignment & shift details'
-                  : 'Manage your academic credentials, skills, portfolio links & resume'}
-              </p>
-            </div>
-          </div>
+  if (!isOpen) return null;
 
-          <button
-            onClick={onClose}
-            className="grid h-9 w-9 place-items-center rounded-xl bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-900 transition cursor-pointer"
-            aria-label="Close"
+  const headerTitle = isTeacher
+    ? 'Class Teacher Profile Setup'
+    : isHod
+    ? 'HOD Profile & Department Setup'
+    : isPo
+    ? 'Placement Officer Profile Setup'
+    : isGuard
+    ? 'Security Officer Setup'
+    : 'Student Profile & Portfolio Setup';
+
+  const headerSubtitle = isTeacher
+    ? 'Manage your staff ID, assigned class responsibilities, subjects & contact info'
+    : isHod
+    ? 'Manage department leadership details, cabin location & research specialization'
+    : isPo
+    ? 'Manage corporate relations division, placement cell contact & office hours'
+    : isGuard
+    ? 'Manage gate post assignment & shift details'
+    : 'Manage your academic credentials, skills, portfolio links & resume';
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 overflow-hidden font-sans">
+        {/* Backdrop Fade */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-[#1B2A44]/60 backdrop-blur-sm cursor-pointer"
+        />
+
+        {/* Responsive Sheet Container */}
+        <div className="fixed inset-x-0 bottom-0 top-auto z-50 md:inset-y-0 md:left-auto md:right-0 md:top-0 md:w-full md:max-w-xl pointer-events-none">
+          <motion.div
+            initial={{ y: '100%', opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '100%', opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            drag="y"
+            dragConstraints={{ top: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(e, info) => {
+              if (info.offset.y > 120) onClose();
+            }}
+            className="pointer-events-auto relative w-full h-[88vh] md:h-full rounded-t-3xl md:rounded-l-3xl md:rounded-tr-none border-t md:border-l border-[#1B2A44]/15 bg-[#F7F5EF] p-5 sm:p-7 shadow-2xl flex flex-col justify-between overflow-y-auto"
           >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+            {/* Mobile Sheet Drag Handle Pill */}
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-stone-300 md:hidden shrink-0" />
+
+            {/* Header Bar */}
+            <div className="flex items-start justify-between gap-4 border-b border-[#1B2A44]/10 pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#1B2A44] text-[#8A6A22] font-bold shadow-xs shrink-0">
+                  {isTeacher ? (
+                    <BookOpenCheck className="h-6 w-6 text-[#8A6A22]" />
+                  ) : isHod ? (
+                    <Building2 className="h-6 w-6 text-[#8A6A22]" />
+                  ) : isPo ? (
+                    <Briefcase className="h-6 w-6 text-[#8A6A22]" />
+                  ) : isGuard ? (
+                    <Shield className="h-6 w-6 text-[#8C2F26]" />
+                  ) : (
+                    <User className="h-6 w-6 text-[#8A6A22]" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="font-serif text-lg font-bold text-[#1B2A44] leading-tight">
+                    {headerTitle}
+                  </h2>
+                  <p className="text-xs font-medium text-stone-500 mt-0.5">
+                    {headerSubtitle}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="grid h-9 w-9 place-items-center rounded-xl bg-stone-200/60 text-stone-600 hover:bg-[#1B2A44] hover:text-white transition cursor-pointer shrink-0"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
         {/* Student Progress Bar (Only for Student Role) */}
         {isStudent && (
@@ -814,14 +865,20 @@ export function StudentProfileModal({ student, isOpen, onClose, onSave }) {
                   <input
                     type="text"
                     required
-                    placeholder="Enter your college / institute name"
+                    list="bangalore-colleges"
+                    placeholder="e.g. T. John Institute Of Technology"
                     value={formData.college}
                     onChange={(e) => handleInputChange('college', e.target.value)}
                     className="input pl-10 text-xs"
                   />
+                  <datalist id="bangalore-colleges">
+                    {BANGALORE_COLLEGES.map((col) => (
+                      <option key={col} value={col} />
+                    ))}
+                  </datalist>
                 </div>
                 <p className="text-[10px] text-stone-400 mt-1">
-                  This college name will be displayed across your profile, gate passes, and resume records.
+                  Select from Bangalore colleges or type your institution name.
                 </p>
               </div>
 
@@ -1158,7 +1215,9 @@ export function StudentProfileModal({ student, isOpen, onClose, onSave }) {
             </div>
           </div>
         </form>
+          </motion.div>
+        </div>
       </div>
-    </div>
+    </AnimatePresence>
   );
 }

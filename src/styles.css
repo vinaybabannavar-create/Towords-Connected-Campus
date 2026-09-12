@@ -10,7 +10,12 @@
   body {
     margin: 0;
     font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-    background: #f5f5f4;
+    background: #F0F4F8;
+    color: #264055;
+  }
+
+  .font-serif {
+    font-family: 'Source Serif 4', Georgia, serif;
   }
 
   * {
@@ -32,49 +37,66 @@
   button,
   textarea,
   input {
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 }
 
 @layer components {
   .input {
-    @apply w-full rounded-lg border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100;
+    @apply w-full rounded-2xl border border-slate-200 bg-[#F8FAFC] px-4 py-3 text-sm font-semibold text-[#264055] outline-none transition placeholder:text-slate-400 focus:border-[#3B6280] focus:bg-white focus:ring-2 focus:ring-[#3B6280]/20;
+  }
+
+  .card-app {
+    @apply rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100/90 transition-all duration-200;
   }
 
   .auth-tab {
-    @apply flex-1 rounded-md px-3 py-3 text-center text-sm font-black text-stone-600 transition;
+    @apply flex-1 rounded-xl px-3 py-2.5 text-center text-sm font-bold text-slate-500 transition;
   }
 
   .auth-tab-active {
-    @apply bg-white text-stone-950 shadow-sm;
+    @apply bg-white text-[#3B6280] shadow-sm font-black;
   }
 
   .nav-item {
-    @apply flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left font-bold text-stone-300 transition hover:bg-white/10 hover:text-white;
+    @apply flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left font-bold text-slate-300 transition hover:bg-white/10 hover:text-white;
   }
 
   .nav-item-active {
-    @apply bg-white text-stone-950 hover:bg-white hover:text-stone-950;
+    @apply bg-white text-[#3B6280] hover:bg-white hover:text-[#3B6280];
+  }
+
+  .app-nav-tab {
+    @apply relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs lg:text-sm font-bold text-slate-200 transition-colors duration-150 hover:text-white select-none cursor-pointer z-10;
+  }
+
+  .app-nav-tab-active {
+    @apply text-[#3B6280] font-black;
   }
 
   .icon-btn {
-    @apply rounded-lg bg-white/10 p-2 text-white transition hover:bg-white/15;
+    @apply rounded-2xl bg-white/10 p-2 text-white transition hover:bg-white/20;
   }
 
   .tool-tab {
-    @apply mb-2 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-black text-stone-600 transition hover:bg-stone-100;
+    @apply mb-2 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-black text-slate-600 transition hover:bg-slate-100;
   }
 
   .tool-tab-active {
-    @apply bg-stone-950 text-white hover:bg-stone-950 hover:text-white;
+    @apply bg-[#3B6280] text-white hover:bg-[#3B6280] hover:text-white;
   }
 
   .mobile-nav-item {
-    @apply flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-black leading-tight text-stone-500 transition hover:bg-stone-100;
+    @apply relative flex min-h-[46px] min-w-[46px] items-center justify-center rounded-full text-slate-500 transition-colors duration-150 active:scale-95 cursor-pointer z-10;
   }
 
   .mobile-nav-item-active {
-    @apply bg-stone-950 text-white hover:bg-stone-950 hover:text-white;
+    @apply text-[#3B6280] font-black;
+  }
+
+  .app-bottom-nav {
+    padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
   }
 }
 
@@ -109,4 +131,48 @@
 
 .animate-bot-dance {
   animation: botDance 3.5s ease-in-out infinite;
+}
+
+/* Printable PDF Document Styles */
+@media print {
+  /* Hide all app navigation, headers, sidebars, floating widgets, and background UI */
+  body > *:not(#print-root) {
+    background: #ffffff !important;
+  }
+
+  header, nav, footer, .no-print, [aria-label="Close chatbot"], [aria-label="Open chatbot"] {
+    display: none !important;
+  }
+
+  /* Unclip modal scrollbars for full-page PDF printing */
+  .fixed.inset-0 {
+    position: static !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  .max-h-\[80vh\], .h-\[90vh\], .overflow-y-auto {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #printable-architecture-blueprint {
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm;
+  }
 }

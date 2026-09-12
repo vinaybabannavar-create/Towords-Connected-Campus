@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/students', async (req, res) => {
   try {
     const [rows] = await executeQuery(
-      'SELECT bec, name, department, year, role, created_at FROM students ORDER BY created_at DESC'
+      'SELECT bec, name, department, year, role, password, created_at FROM students ORDER BY created_at DESC'
     );
     res.json({ students: rows });
   } catch (err) {
