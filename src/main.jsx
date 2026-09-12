@@ -743,23 +743,12 @@ const getRoleHomePage = (role) => {
 };
 
 function LoginSplashScreen({ user, onComplete }) {
-  const [progress, setProgress] = useState(0);
-
   useEffect(() => {
-    const startTime = Date.now();
-    const duration = 5000; // 5 seconds
+    const timer = setTimeout(() => {
+      onComplete();
+    }, 5000);
 
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const pct = Math.min(100, Math.round((elapsed / duration) * 100));
-      setProgress(pct);
-      if (elapsed >= duration) {
-        clearInterval(interval);
-        onComplete();
-      }
-    }, 50);
-
-    return () => clearInterval(interval);
+    return () => clearTimeout(timer);
   }, [onComplete]);
 
   return (
@@ -839,33 +828,6 @@ function LoginSplashScreen({ user, onComplete }) {
             Welcome, <strong className="text-white">{user?.name || user?.bec || 'Scholar'}</strong> ({user?.role || 'student'})
           </span>
         </motion.div>
-
-        {/* 5-Second Progress Bar */}
-        <div className="mt-8 w-full max-w-xs space-y-2">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10 p-0.5">
-            <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 shadow-[0_0_12px_rgba(45,212,191,0.6)]"
-              style={{ width: `${progress}%` }}
-              transition={{ ease: 'linear' }}
-            />
-          </div>
-          <div className="flex justify-between text-[11px] font-semibold text-stone-400">
-            <span>Entering Dashboard...</span>
-            <span>{Math.max(1, Math.ceil((5000 - (progress / 100) * 5000) / 1000))}s</span>
-          </div>
-        </div>
-
-        {/* Skip button */}
-        <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.9 }}
-          type="button"
-          onClick={onComplete}
-          className="mt-5 text-xs text-stone-400 hover:text-white transition cursor-pointer underline underline-offset-4"
-        >
-          Skip to Dashboard →
-        </motion.button>
       </div>
     </motion.div>
   );
