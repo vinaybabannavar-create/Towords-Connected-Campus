@@ -1,9 +1,9 @@
 import mysql from 'mysql2/promise';
 
-const tidbHost = process.env.TIDB_HOST || 'gateway01.us-east-1.prod.aws.tidbcloud.com';
+const tidbHost = process.env.TIDB_HOST;
 const tidbPort = Number(process.env.TIDB_PORT) || 4000;
-const tidbUser = process.env.TIDB_USER || 'ccdjxcTfxpVGx5J.root';
-const tidbPassword = process.env.TIDB_PASSWORD || 'FSU5fgIbgW7S0oyv';
+const tidbUser = process.env.TIDB_USER;
+const tidbPassword = process.env.TIDB_PASSWORD;
 const tidbDatabase = process.env.TIDB_DATABASE || 'bec_portal';
 
 let pool = null;
