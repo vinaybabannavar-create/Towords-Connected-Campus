@@ -1,22 +1,36 @@
 import mysql from 'mysql2/promise';
+import fs from 'fs';
 
-const tidbHost = process.env.TIDB_HOST;
-const tidbPort = Number(process.env.TIDB_PORT) || 4000;
-const tidbUser = process.env.TIDB_USER;
-const tidbPassword = process.env.TIDB_PASSWORD;
-const tidbDatabase = process.env.TIDB_DATABASE || 'bec_portal';
+const loadEnv = () => {
+  try {
+    ['.env.local', '.env'].forEach((file) => {
+      if (fs.existsSync(file)) {
+        const content = fs.readFileSync(file, 'utf-8');
+        content.split('\n').forEach((line) => {
+          const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+          if (match && !process.env[match[1]]) {
+            process.env[match[1]] = (match[2] || '').trim().replace(/^['"]|['"]$/g, '');
+          }
+        });
+      }
+    });
+  } catch (e) {}
+};
+
+loadEnv();
 
 let pool = null;
 let initDone = false;
 
 export const getDbPool = async () => {
+  loadEnv();
   if (!pool) {
     pool = mysql.createPool({
-      host: tidbHost,
-      port: tidbPort,
-      user: tidbUser,
-      password: tidbPassword,
-      database: tidbDatabase,
+      host: process.env.TIDB_HOST,
+      port: Number(process.env.TIDB_PORT) || 4000,
+      user: process.env.TIDB_USER,
+      password: process.env.TIDB_PASSWORD,
+      database: process.env.TIDB_DATABASE || 'bec_portal',
       waitForConnections: true,
       connectionLimit: 15,
       maxIdle: 10,
