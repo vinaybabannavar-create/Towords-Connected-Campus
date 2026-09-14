@@ -7447,114 +7447,31 @@ function FormattedChatMessage({ text, role }) {
 // CAMPUS CONNECT & SOCIAL MESSENGER MODULE
 // ==========================================
 
-const INITIAL_DEMO_CONNECTIONS = [
-  {
-    id: 'conn_1',
-    user1_bec: 'BEC233040',
-    user2_bec: 'TEACHER01',
-    user1_name: 'Vinay',
-    user2_name: 'Dr. Sharma (Class Teacher)',
-    user1_role: 'student',
-    user2_role: 'teacher',
-    user1_dept: 'CSE',
-    user2_dept: 'CSE',
-    status: 'accepted',
-    requestedBy: 'BEC233040'
-  },
-  {
-    id: 'conn_2',
-    user1_bec: 'BEC233040',
-    user2_bec: '1XY21CS001',
-    user1_name: 'Vinay',
-    user2_name: 'Rahul Patil',
-    user1_role: 'student',
-    user2_role: 'student',
-    user1_dept: 'CSE',
-    user2_dept: 'CSE',
-    status: 'accepted',
-    requestedBy: '1XY21CS001'
-  }
-];
-
-const INITIAL_DEMO_GROUPS = [
-  {
-    id: 'group_cse_project',
-    name: 'CSE Final Year Major Project 2026',
-    description: 'Project discussions, architecture design drafts & review meetings',
-    createdBy: 'BEC233040',
-    members: ['BEC233040', '1XY21CS001', 'TEACHER01'],
-    createdAt: '2026-09-01'
-  },
-  {
-    id: 'group_placement_prep',
-    name: 'Campus Placements & Coding Club',
-    description: 'DSA practice, interview talking points, and drive question banks',
-    createdBy: 'TEACHER01',
-    members: ['BEC233040', '1XY21CS001', 'TEACHER01', 'HOD01'],
-    createdAt: '2026-09-05'
-  }
-];
-
-const INITIAL_DEMO_MESSAGES = [
-  {
-    id: 'msg_1',
-    conversationId: 'TEACHER01',
-    senderBec: 'TEACHER01',
-    senderName: 'Dr. Sharma (Class Teacher)',
-    senderRole: 'teacher',
-    text: 'Hello Vinay! Please make sure to submit your major project synopsis before Friday.',
-    timestamp: '10:15 AM'
-  },
-  {
-    id: 'msg_2',
-    conversationId: 'TEACHER01',
-    senderBec: 'BEC233040',
-    senderName: 'Vinay',
-    senderRole: 'student',
-    text: 'Good morning Sir, synopsis draft is ready. Attaching the architecture overview document for your review.',
-    timestamp: '10:22 AM'
-  },
-  {
-    id: 'msg_3',
-    conversationId: '1XY21CS001',
-    senderBec: '1XY21CS001',
-    senderName: 'Rahul Patil',
-    senderRole: 'student',
-    text: 'Hey bro, did you check the Google Python developer drive on the placement ledger?',
-    timestamp: '02:40 PM'
-  },
-  {
-    id: 'msg_4',
-    conversationId: 'group_cse_project',
-    senderBec: 'TEACHER01',
-    senderName: 'Dr. Sharma',
-    senderRole: 'teacher',
-    text: 'Welcome team. Let us review the sprint 1 milestones here. All code should be pushed to GitHub repository regularly.',
-    timestamp: 'Yesterday'
-  }
-];
+// ==========================================
+// CAMPUS CONNECT & SOCIAL MESSENGER MODULE
+// ==========================================
 
 function CampusConnect({ student, setPage }) {
   const currentBec = (student?.bec || '').toUpperCase();
   const currentRole = student?.role || 'student';
 
   const [activeTab, setActiveTab] = useState('chats'); // 'chats', 'groups', 'requests', 'discover'
-  const [activeChatId, setActiveChatId] = useState('TEACHER01');
+  const [activeChatId, setActiveChatId] = useState(null);
   const [chatType, setChatType] = useState('direct'); // 'direct', 'group'
 
   const [connections, setConnections] = useState(() => {
-    const raw = getJSON(STORAGE_KEYS.chatConnections, INITIAL_DEMO_CONNECTIONS);
-    return Array.isArray(raw) ? raw : INITIAL_DEMO_CONNECTIONS;
+    const raw = getJSON(STORAGE_KEYS.chatConnections, []);
+    return Array.isArray(raw) ? raw : [];
   });
 
   const [groups, setGroups] = useState(() => {
-    const raw = getJSON(STORAGE_KEYS.chatGroups, INITIAL_DEMO_GROUPS);
-    return Array.isArray(raw) ? raw : INITIAL_DEMO_GROUPS;
+    const raw = getJSON(STORAGE_KEYS.chatGroups, []);
+    return Array.isArray(raw) ? raw : [];
   });
 
   const [messages, setMessages] = useState(() => {
-    const raw = getJSON(STORAGE_KEYS.chatMessages, INITIAL_DEMO_MESSAGES);
-    return Array.isArray(raw) ? raw : INITIAL_DEMO_MESSAGES;
+    const raw = getJSON(STORAGE_KEYS.chatMessages, []);
+    return Array.isArray(raw) ? raw : [];
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -7567,46 +7484,74 @@ function CampusConnect({ student, setPage }) {
   const [newGroupDesc, setNewGroupDesc] = useState('');
   const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
 
-  // All known users in directory
+  // Directory of real registered/logged-in users (excluding current user)
   const allDirectoryUsers = useMemo(() => {
     const saved = getJSON(STORAGE_KEYS.students, []);
     const safeSaved = Array.isArray(saved) ? saved : [];
-    const merged = [...safeSaved];
-    DEFAULT_ACCOUNTS.forEach((acc) => {
-      if (!merged.some((s) => s?.bec?.toUpperCase() === acc.bec?.toUpperCase())) {
-        merged.push(acc);
-      }
-    });
-    return merged.filter((u) => u?.bec?.toUpperCase() !== currentBec);
+    return safeSaved.filter((u) => u?.bec?.toUpperCase() !== currentBec);
   }, [currentBec]);
 
   // Accepted friends
   const acceptedFriends = useMemo(() => {
-    return connections.filter((c) => {
-      if (c.status !== 'accepted') return false;
-      return (
-        c.user1_bec.toUpperCase() === currentBec ||
-        c.user2_bec.toUpperCase() === currentBec
-      );
-    }).map((c) => {
-      const isUser1 = c.user1_bec.toUpperCase() === currentBec;
-      return {
-        connectionId: c.id,
-        bec: isUser1 ? c.user2_bec : c.user1_bec,
-        name: isUser1 ? c.user2_name : c.user1_name,
-        role: isUser1 ? c.user2_role : c.user1_role,
-        department: isUser1 ? c.user2_dept : c.user1_dept,
-        status: c.status
-      };
-    });
+    return connections
+      .filter((c) => {
+        if (c.status !== 'accepted') return false;
+        return (
+          c.user1_bec?.toUpperCase() === currentBec ||
+          c.user2_bec?.toUpperCase() === currentBec
+        );
+      })
+      .map((c) => {
+        const isUser1 = c.user1_bec?.toUpperCase() === currentBec;
+        return {
+          connectionId: c.id,
+          bec: isUser1 ? c.user2_bec : c.user1_bec,
+          name: isUser1 ? c.user2_name : c.user1_name,
+          role: isUser1 ? c.user2_role : c.user1_role,
+          department: isUser1 ? c.user2_dept : c.user1_dept,
+          status: c.status
+        };
+      });
   }, [connections, currentBec]);
+
+  // Active chat partners (friends + anyone with message history)
+  const activeChatPartners = useMemo(() => {
+    const map = new Map();
+
+    acceptedFriends.forEach((f) => {
+      map.set(f.bec.toUpperCase(), {
+        bec: f.bec,
+        name: f.name,
+        role: f.role || 'student',
+        department: f.department || 'Campus',
+        connectionId: f.connectionId
+      });
+    });
+
+    messages.forEach((m) => {
+      if (m.conversationId && m.conversationId !== currentBec && !m.conversationId.startsWith('group_')) {
+        const targetBec = (m.senderBec?.toUpperCase() === currentBec ? m.conversationId : m.senderBec)?.toUpperCase();
+        if (targetBec && targetBec !== currentBec && !map.has(targetBec)) {
+          const matched = allDirectoryUsers.find((u) => u.bec?.toUpperCase() === targetBec);
+          map.set(targetBec, {
+            bec: targetBec,
+            name: matched?.name || m.senderName || targetBec,
+            role: matched?.role || m.senderRole || 'student',
+            department: matched?.department || 'Campus'
+          });
+        }
+      }
+    });
+
+    return Array.from(map.values());
+  }, [acceptedFriends, messages, allDirectoryUsers, currentBec]);
 
   // Pending incoming requests
   const pendingRequests = useMemo(() => {
     return connections.filter((c) => {
       return (
         c.status === 'pending' &&
-        c.user2_bec.toUpperCase() === currentBec &&
+        c.user2_bec?.toUpperCase() === currentBec &&
         c.requestedBy?.toUpperCase() !== currentBec
       );
     });
@@ -7622,6 +7567,19 @@ function CampusConnect({ student, setPage }) {
     });
   }, [groups, currentBec]);
 
+  // Auto select initial chat if activeChatId is null
+  useEffect(() => {
+    if (!activeChatId) {
+      if (activeChatPartners.length > 0) {
+        setActiveChatId(activeChatPartners[0].bec);
+        setChatType('direct');
+      } else if (myGroups.length > 0) {
+        setActiveChatId(myGroups[0].id);
+        setChatType('group');
+      }
+    }
+  }, [activeChatPartners, myGroups, activeChatId]);
+
   // Sync to localStorage
   useEffect(() => {
     setJSON(STORAGE_KEYS.chatConnections, connections);
@@ -7635,13 +7593,61 @@ function CampusConnect({ student, setPage }) {
     setJSON(STORAGE_KEYS.chatMessages, messages);
   }, [messages]);
 
+  // Delete conversation
+  const handleDeleteConversation = (targetBec, targetName, e) => {
+    if (e) e.stopPropagation();
+    if (!confirm(`Are you sure you want to delete chat history with ${targetName || targetBec}?`)) return;
+
+    setMessages((prev) =>
+      prev.filter((m) => {
+        const match1 = m.conversationId?.toUpperCase() === targetBec.toUpperCase() && m.senderBec?.toUpperCase() === currentBec;
+        const match2 = m.conversationId?.toUpperCase() === currentBec && m.senderBec?.toUpperCase() === targetBec.toUpperCase();
+        const match3 = m.conversationId?.toUpperCase() === targetBec.toUpperCase();
+        return !(match1 || match2 || match3);
+      })
+    );
+
+    setConnections((prev) =>
+      prev.filter((c) => {
+        const isMatch =
+          (c.user1_bec?.toUpperCase() === currentBec && c.user2_bec?.toUpperCase() === targetBec.toUpperCase()) ||
+          (c.user2_bec?.toUpperCase() === currentBec && c.user1_bec?.toUpperCase() === targetBec.toUpperCase());
+        return !isMatch;
+      })
+    );
+
+    if (activeChatId?.toUpperCase() === targetBec.toUpperCase()) {
+      setActiveChatId(null);
+    }
+  };
+
+  // Delete group
+  const handleDeleteGroup = (groupId, groupName, e) => {
+    if (e) e.stopPropagation();
+    if (!confirm(`Are you sure you want to delete group "${groupName}"?`)) return;
+
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
+    setMessages((prev) => prev.filter((m) => m.conversationId !== groupId));
+
+    if (activeChatId === groupId) {
+      setActiveChatId(null);
+    }
+  };
+
+  // Delete / cancel connection request
+  const handleDeleteConnection = (connId, e) => {
+    if (e) e.stopPropagation();
+    if (!confirm('Are you sure you want to remove this connection/request?')) return;
+    setConnections((prev) => prev.filter((c) => c.id !== connId));
+  };
+
   // Send friend request
   const handleSendRequest = (targetUser) => {
     const targetBec = targetUser.bec.toUpperCase();
     const existing = connections.find(
       (c) =>
-        (c.user1_bec.toUpperCase() === currentBec && c.user2_bec.toUpperCase() === targetBec) ||
-        (c.user2_bec.toUpperCase() === currentBec && c.user1_bec.toUpperCase() === targetBec)
+        (c.user1_bec?.toUpperCase() === currentBec && c.user2_bec?.toUpperCase() === targetBec) ||
+        (c.user2_bec?.toUpperCase() === currentBec && c.user1_bec?.toUpperCase() === targetBec)
     );
 
     if (existing) {
@@ -7679,7 +7685,8 @@ function CampusConnect({ student, setPage }) {
   };
 
   // Decline request
-  const handleDeclineRequest = (connId) => {
+  const handleDeclineRequest = (connId, e) => {
+    if (e) e.stopPropagation();
     setConnections((prev) => prev.filter((c) => c.id !== connId));
   };
 
@@ -7735,6 +7742,10 @@ function CampusConnect({ student, setPage }) {
   // Send Message
   const handleSendMessage = (e) => {
     if (e) e.preventDefault();
+    if (!activeChatId) {
+      alert('Please select a conversation or group to message.');
+      return;
+    }
     if (!inputText.trim() && !attachedFile) return;
 
     const newMsg = {
@@ -7755,6 +7766,7 @@ function CampusConnect({ student, setPage }) {
 
   // Active chat metadata
   const activeChatInfo = useMemo(() => {
+    if (!activeChatId) return null;
     if (chatType === 'group') {
       const grp = groups.find((g) => g.id === activeChatId);
       return {
@@ -7765,16 +7777,16 @@ function CampusConnect({ student, setPage }) {
       };
     }
 
-    const friend = acceptedFriends.find((f) => f.bec.toUpperCase() === activeChatId?.toUpperCase()) ||
+    const friend = activeChatPartners.find((f) => f.bec.toUpperCase() === activeChatId?.toUpperCase()) ||
       allDirectoryUsers.find((u) => u.bec.toUpperCase() === activeChatId?.toUpperCase());
 
     return {
       title: friend?.name || activeChatId,
-      subtitle: `${friend?.bec || ''} • ${friend?.department || 'CSE'} ${friend?.role ? `(${friend.role})` : ''}`,
+      subtitle: `${friend?.bec || activeChatId} • ${friend?.department || 'Campus'} ${friend?.role ? `(${friend.role})` : ''}`,
       role: friend?.role || 'student',
       isGroup: false
     };
-  }, [chatType, activeChatId, groups, acceptedFriends, allDirectoryUsers]);
+  }, [chatType, activeChatId, groups, activeChatPartners, allDirectoryUsers]);
 
   // Messages in active conversation
   const currentConversationMessages = useMemo(() => {
@@ -7793,7 +7805,7 @@ function CampusConnect({ student, setPage }) {
   return (
     <ModuleFrame
       title="Campus Connect & Social Network"
-      subtitle={`Verified BEC network for ${student.name} (${student.bec}). Connect with peers, chat live & collaborate with mentors.`}
+      subtitle={`Verified campus network for ${student.name} (${student.bec}). Live 1-on-1 chats, study groups & document sharing with registered users.`}
       icon={MessageCircle}
     >
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] font-sans h-[750px] max-h-[85vh]">
@@ -7867,7 +7879,7 @@ function CampusConnect({ student, setPage }) {
               <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-stone-400" />
               <input
                 type="text"
-                placeholder="Search BEC ID, Name, Department..."
+                placeholder="Search ID, Name, Department..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full rounded-xl border border-stone-200 bg-white pl-8 pr-3 py-1.5 text-xs font-medium focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
@@ -7880,87 +7892,83 @@ function CampusConnect({ student, setPage }) {
             {/* 1. DIRECT CHATS TAB */}
             {activeTab === 'chats' && (
               <>
-                {/* Official Faculty & Mentors Section */}
-                <div className="px-2 pt-1 pb-1">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-stone-400">Official Mentors & Faculty</p>
+                <div className="px-2 pt-1 pb-1 flex items-center justify-between">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-stone-400">Active Conversations ({activeChatPartners.length})</p>
                 </div>
-                {allDirectoryUsers
-                  .filter((u) => u.role === 'teacher' || u.role === 'hod')
-                  .map((mentor) => {
-                    const isSelected = chatType === 'direct' && activeChatId === mentor.bec;
-                    return (
-                      <div
-                        key={mentor.bec}
-                        onClick={() => {
-                          setActiveChatId(mentor.bec);
-                          setChatType('direct');
-                        }}
-                        className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition ${
-                          isSelected ? 'bg-emerald-50 border border-emerald-200' : 'hover:bg-stone-50'
-                        }`}
-                      >
-                        <div className="relative">
-                          <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-600 text-white font-black text-xs shadow-xs">
-                            {mentor.name?.slice(0, 2).toUpperCase() || 'TR'}
-                          </div>
-                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-black text-stone-900 truncate">{mentor.name}</p>
-                            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black text-emerald-800">
-                              {mentor.role === 'hod' ? 'HOD' : 'Faculty'}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-stone-500 truncate">{mentor.bec} • {mentor.department}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                {/* Connected Friends Section */}
-                <div className="px-2 pt-3 pb-1">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-stone-400">Connected Friends ({acceptedFriends.length})</p>
-                </div>
-                {acceptedFriends.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-stone-500 bg-stone-50 rounded-xl">
-                    <p className="font-semibold text-stone-700">No peers connected yet.</p>
-                    <p className="mt-1 text-[11px]">Click "Discover" tab to search classmates & send friend requests.</p>
+                {activeChatPartners.length === 0 ? (
+                  <div className="p-5 text-center text-xs text-stone-500 bg-stone-50 rounded-xl space-y-1">
+                    <p className="font-bold text-stone-700">No active chats yet</p>
+                    <p className="text-[11px] text-stone-400">
+                      Go to "Discover" tab to connect with registered classmates & teachers.
+                    </p>
                   </div>
                 ) : (
-                  acceptedFriends
+                  activeChatPartners
                     .filter(
-                      (f) =>
+                      (p) =>
                         !searchQuery ||
-                        f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        f.bec.toLowerCase().includes(searchQuery.toLowerCase())
+                        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        p.bec.toLowerCase().includes(searchQuery.toLowerCase())
                     )
-                    .map((friend) => {
-                      const isSelected = chatType === 'direct' && activeChatId === friend.bec;
+                    .map((partner) => {
+                      const isSelected = chatType === 'direct' && activeChatId?.toUpperCase() === partner.bec.toUpperCase();
+                      const isFaculty = partner.role === 'teacher' || partner.role === 'hod';
                       return (
                         <div
-                          key={friend.bec}
+                          key={partner.bec}
                           onClick={() => {
-                            setActiveChatId(friend.bec);
+                            setActiveChatId(partner.bec);
                             setChatType('direct');
                           }}
-                          className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition ${
-                            isSelected ? 'bg-pink-50 border border-pink-200' : 'hover:bg-stone-50'
+                          className={`group flex items-center justify-between gap-2 p-2.5 rounded-xl cursor-pointer transition ${
+                            isSelected
+                              ? isFaculty
+                                ? 'bg-emerald-50 border border-emerald-200'
+                                : 'bg-pink-50 border border-pink-200'
+                              : 'hover:bg-stone-50 border border-transparent'
                           }`}
                         >
-                          <div className="relative">
-                            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-tr from-pink-500 to-rose-500 text-white font-black text-xs shadow-xs">
-                              {friend.name?.slice(0, 2).toUpperCase() || 'ST'}
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="relative shrink-0">
+                              <div
+                                className={`grid h-10 w-10 place-items-center rounded-xl font-black text-xs shadow-xs text-white ${
+                                  isFaculty
+                                    ? 'bg-emerald-600'
+                                    : 'bg-gradient-to-tr from-pink-500 to-rose-500'
+                                }`}
+                              >
+                                {partner.name?.slice(0, 2).toUpperCase() || 'US'}
+                              </div>
+                              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
                             </div>
-                            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs font-black text-stone-900 truncate">{friend.name}</p>
-                              <span className="text-[10px] text-stone-400">Connected</span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-1">
+                                <p className="text-xs font-black text-stone-900 truncate">{partner.name}</p>
+                                <span
+                                  className={`rounded px-1.5 py-0.5 text-[9px] font-black shrink-0 ${
+                                    partner.role === 'hod'
+                                      ? 'bg-purple-100 text-purple-800'
+                                      : partner.role === 'teacher'
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-stone-100 text-stone-600'
+                                  }`}
+                                >
+                                  {partner.role === 'hod' ? 'HOD' : partner.role === 'teacher' ? 'Faculty' : 'Peer'}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-stone-500 truncate">{partner.bec} • {partner.department}</p>
                             </div>
-                            <p className="text-[11px] text-stone-500 truncate">{friend.bec} • {friend.department}</p>
                           </div>
+
+                          {/* Inline Delete Button on Every Line */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteConversation(partner.bec, partner.name, e)}
+                            className="p-1.5 rounded-lg opacity-80 group-hover:opacity-100 hover:bg-rose-100 text-stone-400 hover:text-rose-600 transition cursor-pointer shrink-0"
+                            title="Delete conversation & connection"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       );
                     })
@@ -7970,60 +7978,95 @@ function CampusConnect({ student, setPage }) {
 
             {/* 2. GROUPS TAB */}
             {activeTab === 'groups' && (
-              <div className="space-y-1.5">
-                {myGroups.map((grp) => {
-                  const isSelected = chatType === 'group' && activeChatId === grp.id;
-                  return (
-                    <div
-                      key={grp.id}
-                      onClick={() => {
-                        setActiveChatId(grp.id);
-                        setChatType('group');
-                      }}
-                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition ${
-                        isSelected ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-stone-50'
-                      }`}
-                    >
-                      <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-white font-black text-xs shrink-0 shadow-xs">
-                        <Users className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-black text-stone-900 truncate">{grp.name}</p>
-                          <span className="rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-[10px] font-bold">
-                            {grp.members?.length || 0} members
-                          </span>
+              <div className="space-y-1">
+                <div className="px-2 pt-1 pb-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-stone-400">My Study & Project Groups ({myGroups.length})</p>
+                </div>
+                {myGroups.length === 0 ? (
+                  <div className="p-5 text-center text-xs text-stone-500 bg-stone-50 rounded-xl space-y-1">
+                    <p className="font-bold text-stone-700">No groups joined yet</p>
+                    <p className="text-[11px] text-stone-400">Click "+ New Group" above to create a project team or study circle.</p>
+                  </div>
+                ) : (
+                  myGroups.map((grp) => {
+                    const isSelected = chatType === 'group' && activeChatId === grp.id;
+                    return (
+                      <div
+                        key={grp.id}
+                        onClick={() => {
+                          setActiveChatId(grp.id);
+                          setChatType('group');
+                        }}
+                        className={`group flex items-center justify-between gap-2 p-3 rounded-xl cursor-pointer transition ${
+                          isSelected ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-stone-50 border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-white font-black text-xs shrink-0 shadow-xs">
+                            <Users className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className="text-xs font-black text-stone-900 truncate">{grp.name}</p>
+                              <span className="rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-[10px] font-bold shrink-0">
+                                {grp.members?.length || 0} members
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-stone-500 truncate">{grp.description}</p>
+                          </div>
                         </div>
-                        <p className="text-[11px] text-stone-500 truncate">{grp.description}</p>
+
+                        {/* Inline Delete Button on Every Line */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteGroup(grp.id, grp.name, e)}
+                          className="p-1.5 rounded-lg opacity-80 group-hover:opacity-100 hover:bg-rose-100 text-stone-400 hover:text-rose-600 transition cursor-pointer shrink-0"
+                          title="Delete group"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             )}
 
             {/* 3. REQUESTS TAB */}
             {activeTab === 'requests' && (
               <div className="space-y-2 p-1">
-                <p className="text-xs font-black uppercase tracking-wider text-stone-500">Incoming Connect Requests</p>
+                <p className="text-xs font-black uppercase tracking-wider text-stone-500">Incoming Connect Requests ({pendingRequests.length})</p>
                 {pendingRequests.length === 0 ? (
                   <div className="p-6 text-center text-xs text-stone-500 bg-stone-50 rounded-xl">
                     <UserCheck className="h-6 w-6 text-stone-400 mx-auto mb-2" />
                     <p className="font-semibold text-stone-700">No pending requests</p>
-                    <p className="text-[11px] text-stone-400 mt-0.5">When classmates request to connect with you, they will appear here.</p>
+                    <p className="text-[11px] text-stone-400 mt-0.5">When registered users request to connect with you, they will appear here.</p>
                   </div>
                 ) : (
                   pendingRequests.map((req) => (
-                    <div key={req.id} className="rounded-xl border border-stone-200 bg-white p-3 shadow-xs space-y-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="grid h-9 w-9 place-items-center rounded-lg bg-stone-900 text-white font-black text-xs">
-                          {req.user1_name?.slice(0, 2).toUpperCase()}
+                    <div key={req.id} className="group rounded-xl border border-stone-200 bg-white p-3 shadow-xs space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="grid h-9 w-9 place-items-center rounded-lg bg-stone-900 text-white font-black text-xs shrink-0">
+                            {req.user1_name?.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-black text-stone-900 truncate">{req.user1_name}</p>
+                            <p className="text-[11px] text-stone-500 truncate">{req.user1_bec} • {req.user1_dept}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-black text-stone-900 truncate">{req.user1_name}</p>
-                          <p className="text-[11px] text-stone-500 truncate">{req.user1_bec} • {req.user1_dept}</p>
-                        </div>
+
+                        {/* Inline Delete Button on Request */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteConnection(req.id, e)}
+                          className="p-1 rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                          title="Dismiss request"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
+
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -8034,8 +8077,8 @@ function CampusConnect({ student, setPage }) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeclineRequest(req.id)}
-                          className="flex-1 rounded-lg border border-stone-200 bg-stone-100 hover:bg-stone-200 text-stone-700 py-1.5 text-xs font-bold transition cursor-pointer"
+                          onClick={(e) => handleDeclineRequest(req.id, e)}
+                          className="flex-1 rounded-lg border border-stone-200 bg-stone-100 hover:bg-rose-100 hover:text-rose-700 text-stone-700 py-1.5 text-xs font-bold transition cursor-pointer"
                         >
                           Decline
                         </button>
@@ -8049,65 +8092,107 @@ function CampusConnect({ student, setPage }) {
             {/* 4. DISCOVER PEERS TAB */}
             {activeTab === 'discover' && (
               <div className="space-y-2 p-1">
-                <p className="text-xs font-black uppercase tracking-wider text-stone-500">Search College Directory</p>
-                {allDirectoryUsers
-                  .filter(
-                    (u) =>
-                      !searchQuery ||
-                      u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      u.bec?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      u.department?.toLowerCase().includes(searchQuery.toLowerCase())
-                  )
-                  .map((dirUser) => {
-                    const isFriend = acceptedFriends.some((f) => f.bec.toUpperCase() === dirUser.bec.toUpperCase());
-                    const isPending = connections.some(
-                      (c) =>
-                        c.status === 'pending' &&
-                        ((c.user1_bec.toUpperCase() === currentBec && c.user2_bec.toUpperCase() === dirUser.bec.toUpperCase()) ||
-                          (c.user2_bec.toUpperCase() === currentBec && c.user1_bec.toUpperCase() === dirUser.bec.toUpperCase()))
-                    );
+                <p className="text-xs font-black uppercase tracking-wider text-stone-500">Registered Users Directory ({allDirectoryUsers.length})</p>
+                {allDirectoryUsers.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-stone-500 bg-stone-50 rounded-xl space-y-1">
+                    <p className="font-bold text-stone-700">No other users registered yet</p>
+                    <p className="text-[11px] text-stone-400">
+                      As soon as classmates or teachers create accounts or log in, they will appear here automatically.
+                    </p>
+                  </div>
+                ) : (
+                  allDirectoryUsers
+                    .filter(
+                      (u) =>
+                        !searchQuery ||
+                        u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        u.bec?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        u.department?.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .map((dirUser) => {
+                      const friendConn = connections.find(
+                        (c) =>
+                          (c.user1_bec?.toUpperCase() === currentBec && c.user2_bec?.toUpperCase() === dirUser.bec?.toUpperCase()) ||
+                          (c.user2_bec?.toUpperCase() === currentBec && c.user1_bec?.toUpperCase() === dirUser.bec?.toUpperCase())
+                      );
+                      const isFriend = friendConn?.status === 'accepted';
+                      const isPending = friendConn?.status === 'pending';
 
-                    return (
-                      <div key={dirUser.bec} className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-stone-100 bg-stone-50/80 hover:bg-white transition">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="grid h-9 w-9 place-items-center rounded-lg bg-stone-900 text-white font-black text-xs shrink-0">
-                            {dirUser.name?.slice(0, 2).toUpperCase() || 'ST'}
+                      return (
+                        <div key={dirUser.bec} className="group flex items-center justify-between gap-2 p-2.5 rounded-xl border border-stone-100 bg-stone-50/80 hover:bg-white transition">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="grid h-9 w-9 place-items-center rounded-lg bg-stone-900 text-white font-black text-xs shrink-0">
+                              {dirUser.name?.slice(0, 2).toUpperCase() || 'ST'}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-black text-stone-900 truncate">{dirUser.name}</p>
+                                <span
+                                  className={`rounded px-1 py-0.2 text-[8px] font-black uppercase ${
+                                    dirUser.role === 'teacher' || dirUser.role === 'hod'
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-stone-200 text-stone-700'
+                                  }`}
+                                >
+                                  {dirUser.role || 'student'}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-stone-500 truncate">{dirUser.bec} • {dirUser.department || 'Campus'}</p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-black text-stone-900 truncate">{dirUser.name}</p>
-                            <p className="text-[10px] text-stone-500 truncate">{dirUser.bec} • {dirUser.department}</p>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isFriend ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveChatId(dirUser.bec);
+                                    setChatType('direct');
+                                    setActiveTab('chats');
+                                  }}
+                                  className="rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 text-[11px] font-bold hover:bg-emerald-200 transition cursor-pointer"
+                                >
+                                  Chat 💬
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeleteConnection(friendConn.id, e)}
+                                  className="p-1 rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                  title="Unfriend / Remove Connection"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </>
+                            ) : isPending ? (
+                              <>
+                                <span className="rounded-lg bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 text-[11px] font-bold">
+                                  Requested ⏳
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeleteConnection(friendConn.id, e)}
+                                  className="p-1 rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                  title="Cancel Request"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSendRequest(dirUser)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-stone-900 hover:bg-rose-600 text-white px-3 py-1 text-[11px] font-black transition shadow-xs cursor-pointer"
+                              >
+                                <UserPlus className="h-3 w-3" />
+                                <span>Connect</span>
+                              </button>
+                            )}
                           </div>
                         </div>
-
-                        {isFriend ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveChatId(dirUser.bec);
-                              setChatType('direct');
-                              setActiveTab('chats');
-                            }}
-                            className="shrink-0 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 text-[11px] font-bold hover:bg-emerald-200 transition cursor-pointer"
-                          >
-                            Chat 💬
-                          </button>
-                        ) : isPending ? (
-                          <span className="shrink-0 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 text-[11px] font-bold">
-                            Requested ⏳
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleSendRequest(dirUser)}
-                            className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-stone-900 hover:bg-rose-600 text-white px-3 py-1 text-[11px] font-black transition shadow-xs cursor-pointer"
-                          >
-                            <UserPlus className="h-3 w-3" />
-                            <span>Connect</span>
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                )}
               </div>
             )}
           </div>
@@ -8115,152 +8200,166 @@ function CampusConnect({ student, setPage }) {
 
         {/* ================= RIGHT CHAT WORKSPACE ================= */}
         <div className="flex flex-col rounded-2xl border border-stone-200 bg-white shadow-xs overflow-hidden">
-          {/* Chat Header */}
-          <div className="p-4 border-b border-stone-100 bg-white flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-tr from-[#1B2A44] to-[#2E456E] text-white font-black text-sm shadow-xs shrink-0">
-                {activeChatInfo.isGroup ? <Users className="h-5 w-5 text-cyan-300" /> : activeChatInfo.title.slice(0, 2).toUpperCase()}
+          {!activeChatId || !activeChatInfo ? (
+            <div className="h-full flex flex-col items-center justify-center text-center p-8 text-stone-400 bg-stone-50/50">
+              <div className="grid h-16 w-16 place-items-center rounded-2xl bg-stone-100 mb-3 text-stone-400 shadow-inner">
+                <MessageCircle className="h-8 w-8 text-pink-500" />
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-black text-stone-900 truncate">{activeChatInfo.title}</h4>
-                  <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.2 text-[10px] font-black text-emerald-800">
-                    Verified BEC
-                  </span>
-                </div>
-                <p className="text-[11px] text-stone-500 font-medium truncate">{activeChatInfo.subtitle}</p>
-              </div>
+              <p className="text-base font-black text-stone-800">Campus Chat & Collaboration Workspace</p>
+              <p className="text-xs text-stone-500 mt-1.5 max-w-sm leading-relaxed">
+                Select a conversation, study group, or registered user from the left menu to start messaging or sharing document files.
+              </p>
             </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  if (confirm('Clear messages in this conversation for your view?')) {
-                    setMessages((prev) => prev.filter((m) => m.conversationId !== activeChatId));
-                  }
-                }}
-                className="rounded-lg border border-stone-200 hover:bg-stone-100 text-stone-600 px-2.5 py-1 text-xs font-semibold transition cursor-pointer"
-                title="Clear chat"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-
-          {/* Messages Feed */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-stone-50/50">
-            {currentConversationMessages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-8 text-stone-400">
-                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-stone-100 mb-3 text-stone-400 shadow-inner">
-                  <MessageCircle className="h-7 w-7" />
-                </div>
-                <p className="text-sm font-bold text-stone-700">No messages yet</p>
-                <p className="text-xs text-stone-500 mt-1 max-w-sm">
-                  Say hello, share project documents, or ask academic doubts. All messages are securely tied to your institutional BEC profile.
-                </p>
-              </div>
-            ) : (
-              currentConversationMessages.map((msg) => {
-                const isMe = msg.senderBec?.toUpperCase() === currentBec;
-                return (
-                  <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                    <div className="flex items-center gap-1.5 mb-1 px-1">
-                      <span className="text-[11px] font-black text-stone-700">{msg.senderName}</span>
-                      <span className="rounded bg-stone-200 px-1 py-0.2 text-[9px] font-bold text-stone-600 uppercase">
-                        {msg.senderRole}
+          ) : (
+            <>
+              {/* Chat Header */}
+              <div className="p-4 border-b border-stone-100 bg-white flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-tr from-[#1B2A44] to-[#2E456E] text-white font-black text-sm shadow-xs shrink-0">
+                    {activeChatInfo.isGroup ? <Users className="h-5 w-5 text-cyan-300" /> : activeChatInfo.title.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-black text-stone-900 truncate">{activeChatInfo.title}</h4>
+                      <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.2 text-[10px] font-black text-emerald-800">
+                        Verified BEC
                       </span>
-                      <span className="text-[10px] text-stone-400">{msg.timestamp}</span>
                     </div>
+                    <p className="text-[11px] text-stone-500 font-medium truncate">{activeChatInfo.subtitle}</p>
+                  </div>
+                </div>
 
-                    <div
-                      className={`max-w-[85%] sm:max-w-md rounded-2xl px-4 py-2.5 shadow-2xs space-y-2 ${
-                        isMe
-                          ? 'bg-gradient-to-r from-stone-900 to-stone-800 text-white rounded-tr-none'
-                          : 'bg-white border border-stone-200 text-stone-900 rounded-tl-none'
-                      }`}
-                    >
-                      {msg.text && <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm('Clear messages in this conversation for your view?')) {
+                        setMessages((prev) => prev.filter((m) => m.conversationId !== activeChatId));
+                      }
+                    }}
+                    className="rounded-lg border border-stone-200 hover:bg-stone-100 text-stone-600 px-2.5 py-1 text-xs font-semibold transition cursor-pointer"
+                    title="Clear chat messages"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
 
-                      {/* File attachment preview */}
-                      {msg.attachment && (
+              {/* Messages Feed */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-stone-50/50">
+                {currentConversationMessages.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8 text-stone-400">
+                    <div className="grid h-14 w-14 place-items-center rounded-2xl bg-stone-100 mb-3 text-stone-400 shadow-inner">
+                      <MessageCircle className="h-7 w-7" />
+                    </div>
+                    <p className="text-sm font-bold text-stone-700">No messages yet</p>
+                    <p className="text-xs text-stone-500 mt-1 max-w-sm">
+                      Say hello, share project documents, or ask academic doubts. All messages are securely tied to your institutional BEC profile.
+                    </p>
+                  </div>
+                ) : (
+                  currentConversationMessages.map((msg) => {
+                    const isMe = msg.senderBec?.toUpperCase() === currentBec;
+                    return (
+                      <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                        <div className="flex items-center gap-1.5 mb-1 px-1">
+                          <span className="text-[11px] font-black text-stone-700">{msg.senderName}</span>
+                          <span className="rounded bg-stone-200 px-1 py-0.2 text-[9px] font-bold text-stone-600 uppercase">
+                            {msg.senderRole}
+                          </span>
+                          <span className="text-[10px] text-stone-400">{msg.timestamp}</span>
+                        </div>
+
                         <div
-                          className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border ${
+                          className={`max-w-[85%] sm:max-w-md rounded-2xl px-4 py-2.5 shadow-2xs space-y-2 ${
                             isMe
-                              ? 'bg-stone-800/90 border-stone-700 text-white'
-                              : 'bg-stone-50 border-stone-200 text-stone-900'
+                              ? 'bg-gradient-to-r from-stone-900 to-stone-800 text-white rounded-tr-none'
+                              : 'bg-white border border-stone-200 text-stone-900 rounded-tl-none'
                           }`}
                         >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="grid h-8 w-8 place-items-center rounded-lg bg-rose-500/20 text-rose-400 shrink-0">
-                              <FileText className="h-4 w-4" />
+                          {msg.text && <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>}
+
+                          {/* File attachment preview */}
+                          {msg.attachment && (
+                            <div
+                              className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border ${
+                                isMe
+                                  ? 'bg-stone-800/90 border-stone-700 text-white'
+                                  : 'bg-stone-50 border-stone-200 text-stone-900'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="grid h-8 w-8 place-items-center rounded-lg bg-rose-500/20 text-rose-400 shrink-0">
+                                  <FileText className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold truncate">{msg.attachment.name}</p>
+                                  <p className="text-[10px] opacity-70">{msg.attachment.size}</p>
+                                </div>
+                              </div>
+                              <a
+                                href={msg.attachment.dataUrl}
+                                download={msg.attachment.name}
+                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 text-[11px] font-bold transition shrink-0 shadow-2xs"
+                              >
+                                <Download className="h-3 w-3" />
+                                <span>Download</span>
+                              </a>
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold truncate">{msg.attachment.name}</p>
-                              <p className="text-[10px] opacity-70">{msg.attachment.size}</p>
-                            </div>
-                          </div>
-                          <a
-                            href={msg.attachment.dataUrl}
-                            download={msg.attachment.name}
-                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 text-[11px] font-bold transition shrink-0 shadow-2xs"
-                          >
-                            <Download className="h-3 w-3" />
-                            <span>Download</span>
-                          </a>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Attached File Preview before sending */}
-          {attachedFile && (
-            <div className="px-4 py-2 bg-emerald-50 border-t border-emerald-200 flex items-center justify-between text-xs text-emerald-900">
-              <div className="flex items-center gap-2 min-w-0">
-                <Paperclip className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span className="font-bold truncate">Attached: {attachedFile.name} ({attachedFile.size})</span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => setAttachedFile(null)}
-                className="text-stone-400 hover:text-rose-600 p-1 rounded-md"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
+
+              {/* Attached File Preview before sending */}
+              {attachedFile && (
+                <div className="px-4 py-2 bg-emerald-50 border-t border-emerald-200 flex items-center justify-between text-xs text-emerald-900">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Paperclip className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span className="font-bold truncate">Attached: {attachedFile.name} ({attachedFile.size})</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAttachedFile(null)}
+                    className="text-stone-400 hover:text-rose-600 p-1 rounded-md"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Chat Input Box */}
+              <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-stone-200 flex items-center gap-2 shrink-0">
+                {/* Attachment Button */}
+                <label className="grid h-10 w-10 place-items-center rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-600 transition cursor-pointer shrink-0" title="Attach document / PDF / image">
+                  <Paperclip className="h-4 w-4" />
+                  <input type="file" onChange={handleFileUpload} className="hidden" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.zip" />
+                </label>
+
+                {/* Text Input */}
+                <input
+                  type="text"
+                  placeholder={`Message ${activeChatInfo.title}...`}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  className="flex-1 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-xs sm:text-sm font-medium focus:bg-white focus:border-stone-900 focus:outline-none"
+                />
+
+                {/* Send Button */}
+                <button
+                  type="submit"
+                  disabled={!inputText.trim() && !attachedFile}
+                  className="grid h-10 w-10 place-items-center rounded-xl bg-stone-900 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-stone-900 text-white transition shadow-sm cursor-pointer shrink-0"
+                  title="Send message"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </form>
+            </>
           )}
-
-          {/* Chat Input Box */}
-          <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-stone-200 flex items-center gap-2 shrink-0">
-            {/* Attachment Button */}
-            <label className="grid h-10 w-10 place-items-center rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-600 transition cursor-pointer shrink-0" title="Attach document / PDF / image">
-              <Paperclip className="h-4 w-4" />
-              <input type="file" onChange={handleFileUpload} className="hidden" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.zip" />
-            </label>
-
-            {/* Text Input */}
-            <input
-              type="text"
-              placeholder={`Message ${activeChatInfo.title}...`}
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              className="flex-1 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-xs sm:text-sm font-medium focus:bg-white focus:border-stone-900 focus:outline-none"
-            />
-
-            {/* Send Button */}
-            <button
-              type="submit"
-              disabled={!inputText.trim() && !attachedFile}
-              className="grid h-10 w-10 place-items-center rounded-xl bg-stone-900 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-stone-900 text-white transition shadow-sm cursor-pointer shrink-0"
-              title="Send message"
-            >
-              <Send className="h-4 w-4" />
-            </button>
-          </form>
         </div>
       </div>
 
