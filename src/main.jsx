@@ -48,6 +48,7 @@ import {
   MessageCircle,
   Menu,
   Minimize2,
+  Paperclip,
   Plus,
   Printer,
   QrCode,
@@ -63,6 +64,7 @@ import {
   Trash2,
   Upload,
   UserCheck,
+  UserPlus,
   UserRound,
   Users,
   Workflow,
@@ -150,7 +152,10 @@ const STORAGE_KEYS = {
   projects: 'bec_portal_projects',
   gatePasses: 'bec_portal_gate_passes',
   placementDrives: 'bec_portal_placement_drives',
-  placementRegistrations: 'bec_portal_placement_registrations'
+  placementRegistrations: 'bec_portal_placement_registrations',
+  chatConnections: 'bec_portal_chat_connections',
+  chatMessages: 'bec_portal_chat_messages',
+  chatGroups: 'bec_portal_chat_groups'
 };
 
 const featureCards = [
@@ -158,7 +163,8 @@ const featureCards = [
   { id: 'jd', title: 'JD Matcher', summary: 'Compare your profile with placement job descriptions and skill gaps.', icon: FileSearch, accent: 'from-fuchsia-500 to-rose-500' },
   { id: 'placements', title: 'Placement Drives Ledger', summary: 'A future-ready ledger for placement office company updates.', icon: BriefcaseBusiness, accent: 'from-amber-500 to-orange-500' },
   { id: 'gatepass', title: 'Student Gate Pass', summary: 'Apply, track class teacher verification, and HOD approval.', icon: DoorOpen, accent: 'from-violet-500 to-indigo-500' },
-  { id: 'calendar', title: 'College Calendar', summary: 'Explore 112 academic events, IA schedules, fests, and holidays.', icon: Calendar, accent: 'from-cyan-500 to-blue-600' }
+  { id: 'calendar', title: 'College Calendar', summary: 'Explore 112 academic events, IA schedules, fests, and holidays.', icon: Calendar, accent: 'from-cyan-500 to-blue-600' },
+  { id: 'connect', title: 'Campus Connect', summary: 'Verified BEC friend requests, live 1-on-1 chats, study groups & document sharing.', icon: MessageCircle, accent: 'from-pink-500 to-rose-500' }
 ];
 
 const INITIAL_PLACEMENT_DRIVES = [
@@ -932,11 +938,11 @@ function App() {
     if (!activeStudent || !activeStudent.role) return;
     const role = activeStudent.role;
     const validPagesForRole = {
-      student: ['dashboard', 'projects', 'jd', 'placements', 'gatepass', 'calendar'],
-      teacher: ['teacher_gatepasses', 'placements', 'calendar'],
-      hod: ['hod_gatepasses', 'placements', 'calendar'],
+      student: ['dashboard', 'projects', 'jd', 'placements', 'gatepass', 'calendar', 'connect'],
+      teacher: ['teacher_gatepasses', 'placements', 'calendar', 'connect'],
+      hod: ['hod_gatepasses', 'placements', 'calendar', 'connect'],
       guard: ['security_terminal'],
-      po: ['dashboard', 'calendar']
+      po: ['dashboard', 'calendar', 'connect']
     };
 
     const validList = validPagesForRole[role] || ['dashboard', 'calendar'];
@@ -1168,6 +1174,7 @@ function App() {
       )}
       {page === 'gatepass' && <GatePass student={activeStudent} />}
       {page === 'calendar' && <CollegeCalendar student={activeStudent} />}
+      {page === 'connect' && <CampusConnect student={activeStudent} setPage={handleSetPage} />}
       {page === 'teacher_gatepasses' && <TeacherGatePassView student={activeStudent} />}
       {page === 'hod_gatepasses' && <HODGatePassView student={activeStudent} />}
       {page === 'security_terminal' && <GateSecurityTerminal student={activeStudent} />}
@@ -1560,23 +1567,28 @@ function PortalShell({
     ['jd', FileSearch, 'JD Matcher'],
     ['placements', BriefcaseBusiness, 'Placements'],
     ['gatepass', DoorOpen, 'Gate Pass'],
-    ['calendar', Calendar, 'College Calendar']
+    ['calendar', Calendar, 'College Calendar'],
+    ['connect', MessageCircle, 'Campus Connect']
   ] : role === 'teacher' ? [
     ['teacher_gatepasses', CheckCircle2, 'Gate Pass Approval'],
     ['placements', BriefcaseBusiness, 'Placement Drives'],
-    ['calendar', Calendar, 'College Calendar']
+    ['calendar', Calendar, 'College Calendar'],
+    ['connect', MessageCircle, 'Campus Connect']
   ] : role === 'hod' ? [
     ['hod_gatepasses', ShieldCheck, 'Gate Pass Approval'],
     ['placements', BriefcaseBusiness, 'Placement Drives'],
-    ['calendar', Calendar, 'College Calendar']
+    ['calendar', Calendar, 'College Calendar'],
+    ['connect', MessageCircle, 'Campus Connect']
   ] : role === 'guard' ? [
     ['security_terminal', Radio, 'Security Terminal Scanner']
   ] : role === 'po' ? [
     ['dashboard', LayoutDashboard, 'Drives Management'],
-    ['calendar', Calendar, 'College Calendar']
+    ['calendar', Calendar, 'College Calendar'],
+    ['connect', MessageCircle, 'Campus Connect']
   ] : [
     ['dashboard', LayoutDashboard, 'Dashboard'],
-    ['calendar', Calendar, 'College Calendar']
+    ['calendar', Calendar, 'College Calendar'],
+    ['connect', MessageCircle, 'Campus Connect']
   ];
 
   const portalRoleTitle = role === 'teacher' ? 'Class Teacher Portal' : role === 'hod' ? 'HOD Portal' : role === 'guard' ? 'Security Terminal' : role === 'po' ? 'Placement Officer' : 'Campus Portal';
@@ -7428,6 +7440,936 @@ function FormattedChatMessage({ text, role }) {
         return <p key={idx} className="break-words">{parseInline(line)}</p>;
       })}
     </div>
+  );
+}
+
+// ==========================================
+// CAMPUS CONNECT & SOCIAL MESSENGER MODULE
+// ==========================================
+
+const INITIAL_DEMO_CONNECTIONS = [
+  {
+    id: 'conn_1',
+    user1_bec: 'BEC233040',
+    user2_bec: 'TEACHER01',
+    user1_name: 'Vinay',
+    user2_name: 'Dr. Sharma (Class Teacher)',
+    user1_role: 'student',
+    user2_role: 'teacher',
+    user1_dept: 'CSE',
+    user2_dept: 'CSE',
+    status: 'accepted',
+    requestedBy: 'BEC233040'
+  },
+  {
+    id: 'conn_2',
+    user1_bec: 'BEC233040',
+    user2_bec: '1XY21CS001',
+    user1_name: 'Vinay',
+    user2_name: 'Rahul Patil',
+    user1_role: 'student',
+    user2_role: 'student',
+    user1_dept: 'CSE',
+    user2_dept: 'CSE',
+    status: 'accepted',
+    requestedBy: '1XY21CS001'
+  }
+];
+
+const INITIAL_DEMO_GROUPS = [
+  {
+    id: 'group_cse_project',
+    name: 'CSE Final Year Major Project 2026',
+    description: 'Project discussions, architecture design drafts & review meetings',
+    createdBy: 'BEC233040',
+    members: ['BEC233040', '1XY21CS001', 'TEACHER01'],
+    createdAt: '2026-09-01'
+  },
+  {
+    id: 'group_placement_prep',
+    name: 'Campus Placements & Coding Club',
+    description: 'DSA practice, interview talking points, and drive question banks',
+    createdBy: 'TEACHER01',
+    members: ['BEC233040', '1XY21CS001', 'TEACHER01', 'HOD01'],
+    createdAt: '2026-09-05'
+  }
+];
+
+const INITIAL_DEMO_MESSAGES = [
+  {
+    id: 'msg_1',
+    conversationId: 'TEACHER01',
+    senderBec: 'TEACHER01',
+    senderName: 'Dr. Sharma (Class Teacher)',
+    senderRole: 'teacher',
+    text: 'Hello Vinay! Please make sure to submit your major project synopsis before Friday.',
+    timestamp: '10:15 AM'
+  },
+  {
+    id: 'msg_2',
+    conversationId: 'TEACHER01',
+    senderBec: 'BEC233040',
+    senderName: 'Vinay',
+    senderRole: 'student',
+    text: 'Good morning Sir, synopsis draft is ready. Attaching the architecture overview document for your review.',
+    timestamp: '10:22 AM'
+  },
+  {
+    id: 'msg_3',
+    conversationId: '1XY21CS001',
+    senderBec: '1XY21CS001',
+    senderName: 'Rahul Patil',
+    senderRole: 'student',
+    text: 'Hey bro, did you check the Google Python developer drive on the placement ledger?',
+    timestamp: '02:40 PM'
+  },
+  {
+    id: 'msg_4',
+    conversationId: 'group_cse_project',
+    senderBec: 'TEACHER01',
+    senderName: 'Dr. Sharma',
+    senderRole: 'teacher',
+    text: 'Welcome team. Let us review the sprint 1 milestones here. All code should be pushed to GitHub repository regularly.',
+    timestamp: 'Yesterday'
+  }
+];
+
+function CampusConnect({ student, setPage }) {
+  const currentBec = (student?.bec || '').toUpperCase();
+  const currentRole = student?.role || 'student';
+
+  const [activeTab, setActiveTab] = useState('chats'); // 'chats', 'groups', 'requests', 'discover'
+  const [activeChatId, setActiveChatId] = useState('TEACHER01');
+  const [chatType, setChatType] = useState('direct'); // 'direct', 'group'
+
+  const [connections, setConnections] = useState(() => {
+    const raw = getJSON(STORAGE_KEYS.chatConnections, INITIAL_DEMO_CONNECTIONS);
+    return Array.isArray(raw) ? raw : INITIAL_DEMO_CONNECTIONS;
+  });
+
+  const [groups, setGroups] = useState(() => {
+    const raw = getJSON(STORAGE_KEYS.chatGroups, INITIAL_DEMO_GROUPS);
+    return Array.isArray(raw) ? raw : INITIAL_DEMO_GROUPS;
+  });
+
+  const [messages, setMessages] = useState(() => {
+    const raw = getJSON(STORAGE_KEYS.chatMessages, INITIAL_DEMO_MESSAGES);
+    return Array.isArray(raw) ? raw : INITIAL_DEMO_MESSAGES;
+  });
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [inputText, setInputText] = useState('');
+  const [attachedFile, setAttachedFile] = useState(null);
+
+  // Modal for new group
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupDesc, setNewGroupDesc] = useState('');
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
+
+  // All known users in directory
+  const allDirectoryUsers = useMemo(() => {
+    const saved = getJSON(STORAGE_KEYS.students, []);
+    const safeSaved = Array.isArray(saved) ? saved : [];
+    const merged = [...safeSaved];
+    DEFAULT_ACCOUNTS.forEach((acc) => {
+      if (!merged.some((s) => s?.bec?.toUpperCase() === acc.bec?.toUpperCase())) {
+        merged.push(acc);
+      }
+    });
+    return merged.filter((u) => u?.bec?.toUpperCase() !== currentBec);
+  }, [currentBec]);
+
+  // Accepted friends
+  const acceptedFriends = useMemo(() => {
+    return connections.filter((c) => {
+      if (c.status !== 'accepted') return false;
+      return (
+        c.user1_bec.toUpperCase() === currentBec ||
+        c.user2_bec.toUpperCase() === currentBec
+      );
+    }).map((c) => {
+      const isUser1 = c.user1_bec.toUpperCase() === currentBec;
+      return {
+        connectionId: c.id,
+        bec: isUser1 ? c.user2_bec : c.user1_bec,
+        name: isUser1 ? c.user2_name : c.user1_name,
+        role: isUser1 ? c.user2_role : c.user1_role,
+        department: isUser1 ? c.user2_dept : c.user1_dept,
+        status: c.status
+      };
+    });
+  }, [connections, currentBec]);
+
+  // Pending incoming requests
+  const pendingRequests = useMemo(() => {
+    return connections.filter((c) => {
+      return (
+        c.status === 'pending' &&
+        c.user2_bec.toUpperCase() === currentBec &&
+        c.requestedBy?.toUpperCase() !== currentBec
+      );
+    });
+  }, [connections, currentBec]);
+
+  // My groups
+  const myGroups = useMemo(() => {
+    return groups.filter((g) => {
+      return (
+        g.createdBy?.toUpperCase() === currentBec ||
+        (Array.isArray(g.members) && g.members.map((m) => m.toUpperCase()).includes(currentBec))
+      );
+    });
+  }, [groups, currentBec]);
+
+  // Sync to localStorage
+  useEffect(() => {
+    setJSON(STORAGE_KEYS.chatConnections, connections);
+  }, [connections]);
+
+  useEffect(() => {
+    setJSON(STORAGE_KEYS.chatGroups, groups);
+  }, [groups]);
+
+  useEffect(() => {
+    setJSON(STORAGE_KEYS.chatMessages, messages);
+  }, [messages]);
+
+  // Send friend request
+  const handleSendRequest = (targetUser) => {
+    const targetBec = targetUser.bec.toUpperCase();
+    const existing = connections.find(
+      (c) =>
+        (c.user1_bec.toUpperCase() === currentBec && c.user2_bec.toUpperCase() === targetBec) ||
+        (c.user2_bec.toUpperCase() === currentBec && c.user1_bec.toUpperCase() === targetBec)
+    );
+
+    if (existing) {
+      if (existing.status === 'accepted') {
+        alert(`You are already connected with ${targetUser.name} (${targetUser.bec})`);
+        return;
+      }
+      alert(`A connect request is already pending between you and ${targetUser.name}`);
+      return;
+    }
+
+    const newConn = {
+      id: `conn_${Date.now()}`,
+      user1_bec: currentBec,
+      user2_bec: targetBec,
+      user1_name: student.name || currentBec,
+      user2_name: targetUser.name || targetBec,
+      user1_role: currentRole,
+      user2_role: targetUser.role || 'student',
+      user1_dept: student.department || 'Campus',
+      user2_dept: targetUser.department || 'Campus',
+      status: 'pending',
+      requestedBy: currentBec
+    };
+
+    setConnections((prev) => [newConn, ...prev]);
+    alert(`Connect request sent to ${targetUser.name} (${targetUser.bec})!`);
+  };
+
+  // Accept request
+  const handleAcceptRequest = (connId) => {
+    setConnections((prev) =>
+      prev.map((c) => (c.id === connId ? { ...c, status: 'accepted' } : c))
+    );
+  };
+
+  // Decline request
+  const handleDeclineRequest = (connId) => {
+    setConnections((prev) => prev.filter((c) => c.id !== connId));
+  };
+
+  // Create Group
+  const handleCreateGroup = (e) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) {
+      alert('Please enter a group name.');
+      return;
+    }
+
+    const newGroup = {
+      id: `group_${Date.now()}`,
+      name: newGroupName.trim(),
+      description: newGroupDesc.trim() || 'Campus Study & Project Group',
+      createdBy: currentBec,
+      members: [currentBec, ...selectedGroupMembers],
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    setGroups((prev) => [newGroup, ...prev]);
+    setNewGroupName('');
+    setNewGroupDesc('');
+    setSelectedGroupMembers([]);
+    setShowGroupModal(false);
+    setActiveTab('groups');
+    setActiveChatId(newGroup.id);
+    setChatType('group');
+  };
+
+  // File Upload Handler
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert('File is too large. Maximum size is 15MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachedFile({
+        name: file.name,
+        size: `${Math.round(file.size / 1024)} KB`,
+        dataUrl: reader.result,
+        type: file.type
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Send Message
+  const handleSendMessage = (e) => {
+    if (e) e.preventDefault();
+    if (!inputText.trim() && !attachedFile) return;
+
+    const newMsg = {
+      id: `msg_${Date.now()}`,
+      conversationId: activeChatId,
+      senderBec: currentBec,
+      senderName: student.name || currentBec,
+      senderRole: currentRole,
+      text: inputText.trim(),
+      attachment: attachedFile,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setMessages((prev) => [...prev, newMsg]);
+    setInputText('');
+    setAttachedFile(null);
+  };
+
+  // Active chat metadata
+  const activeChatInfo = useMemo(() => {
+    if (chatType === 'group') {
+      const grp = groups.find((g) => g.id === activeChatId);
+      return {
+        title: grp?.name || 'Group Chat',
+        subtitle: `${grp?.members?.length || 0} Members • ${grp?.description || ''}`,
+        role: 'group',
+        isGroup: true
+      };
+    }
+
+    const friend = acceptedFriends.find((f) => f.bec.toUpperCase() === activeChatId?.toUpperCase()) ||
+      allDirectoryUsers.find((u) => u.bec.toUpperCase() === activeChatId?.toUpperCase());
+
+    return {
+      title: friend?.name || activeChatId,
+      subtitle: `${friend?.bec || ''} • ${friend?.department || 'CSE'} ${friend?.role ? `(${friend.role})` : ''}`,
+      role: friend?.role || 'student',
+      isGroup: false
+    };
+  }, [chatType, activeChatId, groups, acceptedFriends, allDirectoryUsers]);
+
+  // Messages in active conversation
+  const currentConversationMessages = useMemo(() => {
+    if (!activeChatId) return [];
+    if (chatType === 'group') {
+      return messages.filter((m) => m.conversationId === activeChatId);
+    }
+    return messages.filter((m) => {
+      const match1 = m.conversationId?.toUpperCase() === activeChatId?.toUpperCase() && m.senderBec?.toUpperCase() === currentBec;
+      const match2 = m.conversationId?.toUpperCase() === currentBec && m.senderBec?.toUpperCase() === activeChatId?.toUpperCase();
+      const match3 = m.conversationId?.toUpperCase() === activeChatId?.toUpperCase();
+      return match1 || match2 || match3;
+    });
+  }, [messages, activeChatId, chatType, currentBec]);
+
+  return (
+    <ModuleFrame
+      title="Campus Connect & Social Network"
+      subtitle={`Verified BEC network for ${student.name} (${student.bec}). Connect with peers, chat live & collaborate with mentors.`}
+      icon={MessageCircle}
+    >
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] font-sans h-[750px] max-h-[85vh]">
+        {/* ================= LEFT SIDEBAR ================= */}
+        <div className="flex flex-col rounded-2xl border border-stone-200 bg-white shadow-xs overflow-hidden">
+          {/* Header & Tabs */}
+          <div className="p-4 border-b border-stone-100 bg-stone-50/70 space-y-3 shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-tr from-pink-500 to-rose-500 text-white shadow-xs">
+                  <MessageCircle className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-black text-stone-900 tracking-tight">Campus Messenger</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGroupModal(true)}
+                className="inline-flex items-center gap-1 rounded-lg bg-stone-900 hover:bg-stone-800 text-white px-2.5 py-1 text-[11px] font-bold transition shadow-2xs cursor-pointer"
+                title="Create a new study or project group"
+              >
+                <Plus className="h-3.5 w-3.5 text-pink-400" />
+                <span>New Group</span>
+              </button>
+            </div>
+
+            {/* Navigation Tab Pills */}
+            <div className="grid grid-cols-4 gap-1 p-1 bg-stone-200/60 rounded-xl text-xs font-bold text-stone-600">
+              <button
+                type="button"
+                onClick={() => setActiveTab('chats')}
+                className={`py-1.5 rounded-lg transition text-center cursor-pointer ${
+                  activeTab === 'chats' ? 'bg-white text-stone-950 shadow-xs' : 'hover:text-stone-900'
+                }`}
+              >
+                Chats
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('groups')}
+                className={`py-1.5 rounded-lg transition text-center cursor-pointer ${
+                  activeTab === 'groups' ? 'bg-white text-stone-950 shadow-xs' : 'hover:text-stone-900'
+                }`}
+              >
+                Groups
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('requests')}
+                className={`py-1.5 rounded-lg transition text-center relative cursor-pointer ${
+                  activeTab === 'requests' ? 'bg-white text-stone-950 shadow-xs' : 'hover:text-stone-900'
+                }`}
+              >
+                <span>Requests</span>
+                {pendingRequests.length > 0 && (
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white animate-pulse" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('discover')}
+                className={`py-1.5 rounded-lg transition text-center cursor-pointer ${
+                  activeTab === 'discover' ? 'bg-white text-stone-950 shadow-xs' : 'hover:text-stone-900'
+                }`}
+              >
+                Discover
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-stone-400" />
+              <input
+                type="text"
+                placeholder="Search BEC ID, Name, Department..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-xl border border-stone-200 bg-white pl-8 pr-3 py-1.5 text-xs font-medium focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
+              />
+            </div>
+          </div>
+
+          {/* Tab Content List */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {/* 1. DIRECT CHATS TAB */}
+            {activeTab === 'chats' && (
+              <>
+                {/* Official Faculty & Mentors Section */}
+                <div className="px-2 pt-1 pb-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-stone-400">Official Mentors & Faculty</p>
+                </div>
+                {allDirectoryUsers
+                  .filter((u) => u.role === 'teacher' || u.role === 'hod')
+                  .map((mentor) => {
+                    const isSelected = chatType === 'direct' && activeChatId === mentor.bec;
+                    return (
+                      <div
+                        key={mentor.bec}
+                        onClick={() => {
+                          setActiveChatId(mentor.bec);
+                          setChatType('direct');
+                        }}
+                        className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition ${
+                          isSelected ? 'bg-emerald-50 border border-emerald-200' : 'hover:bg-stone-50'
+                        }`}
+                      >
+                        <div className="relative">
+                          <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-600 text-white font-black text-xs shadow-xs">
+                            {mentor.name?.slice(0, 2).toUpperCase() || 'TR'}
+                          </div>
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-black text-stone-900 truncate">{mentor.name}</p>
+                            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black text-emerald-800">
+                              {mentor.role === 'hod' ? 'HOD' : 'Faculty'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-stone-500 truncate">{mentor.bec} • {mentor.department}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                {/* Connected Friends Section */}
+                <div className="px-2 pt-3 pb-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-stone-400">Connected Friends ({acceptedFriends.length})</p>
+                </div>
+                {acceptedFriends.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-stone-500 bg-stone-50 rounded-xl">
+                    <p className="font-semibold text-stone-700">No peers connected yet.</p>
+                    <p className="mt-1 text-[11px]">Click "Discover" tab to search classmates & send friend requests.</p>
+                  </div>
+                ) : (
+                  acceptedFriends
+                    .filter(
+                      (f) =>
+                        !searchQuery ||
+                        f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        f.bec.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .map((friend) => {
+                      const isSelected = chatType === 'direct' && activeChatId === friend.bec;
+                      return (
+                        <div
+                          key={friend.bec}
+                          onClick={() => {
+                            setActiveChatId(friend.bec);
+                            setChatType('direct');
+                          }}
+                          className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition ${
+                            isSelected ? 'bg-pink-50 border border-pink-200' : 'hover:bg-stone-50'
+                          }`}
+                        >
+                          <div className="relative">
+                            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-tr from-pink-500 to-rose-500 text-white font-black text-xs shadow-xs">
+                              {friend.name?.slice(0, 2).toUpperCase() || 'ST'}
+                            </div>
+                            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-black text-stone-900 truncate">{friend.name}</p>
+                              <span className="text-[10px] text-stone-400">Connected</span>
+                            </div>
+                            <p className="text-[11px] text-stone-500 truncate">{friend.bec} • {friend.department}</p>
+                          </div>
+                        </div>
+                      );
+                    })
+                )}
+              </>
+            )}
+
+            {/* 2. GROUPS TAB */}
+            {activeTab === 'groups' && (
+              <div className="space-y-1.5">
+                {myGroups.map((grp) => {
+                  const isSelected = chatType === 'group' && activeChatId === grp.id;
+                  return (
+                    <div
+                      key={grp.id}
+                      onClick={() => {
+                        setActiveChatId(grp.id);
+                        setChatType('group');
+                      }}
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition ${
+                        isSelected ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-stone-50'
+                      }`}
+                    >
+                      <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-white font-black text-xs shrink-0 shadow-xs">
+                        <Users className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-black text-stone-900 truncate">{grp.name}</p>
+                          <span className="rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-[10px] font-bold">
+                            {grp.members?.length || 0} members
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-stone-500 truncate">{grp.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 3. REQUESTS TAB */}
+            {activeTab === 'requests' && (
+              <div className="space-y-2 p-1">
+                <p className="text-xs font-black uppercase tracking-wider text-stone-500">Incoming Connect Requests</p>
+                {pendingRequests.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-stone-500 bg-stone-50 rounded-xl">
+                    <UserCheck className="h-6 w-6 text-stone-400 mx-auto mb-2" />
+                    <p className="font-semibold text-stone-700">No pending requests</p>
+                    <p className="text-[11px] text-stone-400 mt-0.5">When classmates request to connect with you, they will appear here.</p>
+                  </div>
+                ) : (
+                  pendingRequests.map((req) => (
+                    <div key={req.id} className="rounded-xl border border-stone-200 bg-white p-3 shadow-xs space-y-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="grid h-9 w-9 place-items-center rounded-lg bg-stone-900 text-white font-black text-xs">
+                          {req.user1_name?.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-black text-stone-900 truncate">{req.user1_name}</p>
+                          <p className="text-[11px] text-stone-500 truncate">{req.user1_bec} • {req.user1_dept}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAcceptRequest(req.id)}
+                          className="flex-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 text-xs font-bold transition shadow-xs cursor-pointer"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeclineRequest(req.id)}
+                          className="flex-1 rounded-lg border border-stone-200 bg-stone-100 hover:bg-stone-200 text-stone-700 py-1.5 text-xs font-bold transition cursor-pointer"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* 4. DISCOVER PEERS TAB */}
+            {activeTab === 'discover' && (
+              <div className="space-y-2 p-1">
+                <p className="text-xs font-black uppercase tracking-wider text-stone-500">Search College Directory</p>
+                {allDirectoryUsers
+                  .filter(
+                    (u) =>
+                      !searchQuery ||
+                      u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      u.bec?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      u.department?.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map((dirUser) => {
+                    const isFriend = acceptedFriends.some((f) => f.bec.toUpperCase() === dirUser.bec.toUpperCase());
+                    const isPending = connections.some(
+                      (c) =>
+                        c.status === 'pending' &&
+                        ((c.user1_bec.toUpperCase() === currentBec && c.user2_bec.toUpperCase() === dirUser.bec.toUpperCase()) ||
+                          (c.user2_bec.toUpperCase() === currentBec && c.user1_bec.toUpperCase() === dirUser.bec.toUpperCase()))
+                    );
+
+                    return (
+                      <div key={dirUser.bec} className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-stone-100 bg-stone-50/80 hover:bg-white transition">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="grid h-9 w-9 place-items-center rounded-lg bg-stone-900 text-white font-black text-xs shrink-0">
+                            {dirUser.name?.slice(0, 2).toUpperCase() || 'ST'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-stone-900 truncate">{dirUser.name}</p>
+                            <p className="text-[10px] text-stone-500 truncate">{dirUser.bec} • {dirUser.department}</p>
+                          </div>
+                        </div>
+
+                        {isFriend ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveChatId(dirUser.bec);
+                              setChatType('direct');
+                              setActiveTab('chats');
+                            }}
+                            className="shrink-0 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 text-[11px] font-bold hover:bg-emerald-200 transition cursor-pointer"
+                          >
+                            Chat 💬
+                          </button>
+                        ) : isPending ? (
+                          <span className="shrink-0 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 text-[11px] font-bold">
+                            Requested ⏳
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSendRequest(dirUser)}
+                            className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-stone-900 hover:bg-rose-600 text-white px-3 py-1 text-[11px] font-black transition shadow-xs cursor-pointer"
+                          >
+                            <UserPlus className="h-3 w-3" />
+                            <span>Connect</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ================= RIGHT CHAT WORKSPACE ================= */}
+        <div className="flex flex-col rounded-2xl border border-stone-200 bg-white shadow-xs overflow-hidden">
+          {/* Chat Header */}
+          <div className="p-4 border-b border-stone-100 bg-white flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-tr from-[#1B2A44] to-[#2E456E] text-white font-black text-sm shadow-xs shrink-0">
+                {activeChatInfo.isGroup ? <Users className="h-5 w-5 text-cyan-300" /> : activeChatInfo.title.slice(0, 2).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-black text-stone-900 truncate">{activeChatInfo.title}</h4>
+                  <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.2 text-[10px] font-black text-emerald-800">
+                    Verified BEC
+                  </span>
+                </div>
+                <p className="text-[11px] text-stone-500 font-medium truncate">{activeChatInfo.subtitle}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('Clear messages in this conversation for your view?')) {
+                    setMessages((prev) => prev.filter((m) => m.conversationId !== activeChatId));
+                  }
+                }}
+                className="rounded-lg border border-stone-200 hover:bg-stone-100 text-stone-600 px-2.5 py-1 text-xs font-semibold transition cursor-pointer"
+                title="Clear chat"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          {/* Messages Feed */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-stone-50/50">
+            {currentConversationMessages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 text-stone-400">
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-stone-100 mb-3 text-stone-400 shadow-inner">
+                  <MessageCircle className="h-7 w-7" />
+                </div>
+                <p className="text-sm font-bold text-stone-700">No messages yet</p>
+                <p className="text-xs text-stone-500 mt-1 max-w-sm">
+                  Say hello, share project documents, or ask academic doubts. All messages are securely tied to your institutional BEC profile.
+                </p>
+              </div>
+            ) : (
+              currentConversationMessages.map((msg) => {
+                const isMe = msg.senderBec?.toUpperCase() === currentBec;
+                return (
+                  <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                    <div className="flex items-center gap-1.5 mb-1 px-1">
+                      <span className="text-[11px] font-black text-stone-700">{msg.senderName}</span>
+                      <span className="rounded bg-stone-200 px-1 py-0.2 text-[9px] font-bold text-stone-600 uppercase">
+                        {msg.senderRole}
+                      </span>
+                      <span className="text-[10px] text-stone-400">{msg.timestamp}</span>
+                    </div>
+
+                    <div
+                      className={`max-w-[85%] sm:max-w-md rounded-2xl px-4 py-2.5 shadow-2xs space-y-2 ${
+                        isMe
+                          ? 'bg-gradient-to-r from-stone-900 to-stone-800 text-white rounded-tr-none'
+                          : 'bg-white border border-stone-200 text-stone-900 rounded-tl-none'
+                      }`}
+                    >
+                      {msg.text && <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>}
+
+                      {/* File attachment preview */}
+                      {msg.attachment && (
+                        <div
+                          className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border ${
+                            isMe
+                              ? 'bg-stone-800/90 border-stone-700 text-white'
+                              : 'bg-stone-50 border-stone-200 text-stone-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="grid h-8 w-8 place-items-center rounded-lg bg-rose-500/20 text-rose-400 shrink-0">
+                              <FileText className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold truncate">{msg.attachment.name}</p>
+                              <p className="text-[10px] opacity-70">{msg.attachment.size}</p>
+                            </div>
+                          </div>
+                          <a
+                            href={msg.attachment.dataUrl}
+                            download={msg.attachment.name}
+                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 text-[11px] font-bold transition shrink-0 shadow-2xs"
+                          >
+                            <Download className="h-3 w-3" />
+                            <span>Download</span>
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Attached File Preview before sending */}
+          {attachedFile && (
+            <div className="px-4 py-2 bg-emerald-50 border-t border-emerald-200 flex items-center justify-between text-xs text-emerald-900">
+              <div className="flex items-center gap-2 min-w-0">
+                <Paperclip className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span className="font-bold truncate">Attached: {attachedFile.name} ({attachedFile.size})</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAttachedFile(null)}
+                className="text-stone-400 hover:text-rose-600 p-1 rounded-md"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Chat Input Box */}
+          <form onSubmit={handleSendMessage} className="p-3 bg-white border-t border-stone-200 flex items-center gap-2 shrink-0">
+            {/* Attachment Button */}
+            <label className="grid h-10 w-10 place-items-center rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-600 transition cursor-pointer shrink-0" title="Attach document / PDF / image">
+              <Paperclip className="h-4 w-4" />
+              <input type="file" onChange={handleFileUpload} className="hidden" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.zip" />
+            </label>
+
+            {/* Text Input */}
+            <input
+              type="text"
+              placeholder={`Message ${activeChatInfo.title}...`}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              className="flex-1 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-xs sm:text-sm font-medium focus:bg-white focus:border-stone-900 focus:outline-none"
+            />
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={!inputText.trim() && !attachedFile}
+              className="grid h-10 w-10 place-items-center rounded-xl bg-stone-900 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-stone-900 text-white transition shadow-sm cursor-pointer shrink-0"
+              title="Send message"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* ================= CREATE GROUP MODAL ================= */}
+      {showGroupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 backdrop-blur-xs p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-600 text-white shadow-xs">
+                  <Users className="h-4 w-4" />
+                </div>
+                <h3 className="text-base font-black text-stone-900">Create Campus Group</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGroupModal(false)}
+                className="text-stone-400 hover:text-stone-700 p-1 rounded-lg"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateGroup} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1">Group Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Major Project Team Alpha"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  className="w-full rounded-xl border border-stone-200 px-3.5 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1">Group Purpose / Description</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Project milestones, sprint discussions & review notes"
+                  value={newGroupDesc}
+                  onChange={(e) => setNewGroupDesc(e.target.value)}
+                  className="w-full rounded-xl border border-stone-200 px-3.5 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
+                  Select Members from Connected Friends
+                </label>
+                <div className="max-h-36 overflow-y-auto space-y-1.5 rounded-xl border border-stone-200 p-2 bg-stone-50">
+                  {acceptedFriends.length === 0 ? (
+                    <p className="text-[11px] text-stone-400 p-2 text-center">No connected friends yet. Connect with classmates first.</p>
+                  ) : (
+                    acceptedFriends.map((friend) => {
+                      const isChecked = selectedGroupMembers.includes(friend.bec);
+                      return (
+                        <label
+                          key={friend.bec}
+                          className="flex items-center justify-between p-2 rounded-lg bg-white border border-stone-100 hover:bg-stone-100 cursor-pointer text-xs"
+                        >
+                          <div>
+                            <span className="font-bold text-stone-900">{friend.name}</span>
+                            <span className="text-[10px] text-stone-500 ml-1.5">({friend.bec})</span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedGroupMembers((prev) => [...prev, friend.bec]);
+                              } else {
+                                setSelectedGroupMembers((prev) => prev.filter((b) => b !== friend.bec));
+                              }
+                            }}
+                            className="rounded border-stone-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => setShowGroupModal(false)}
+                  className="rounded-xl border border-stone-200 px-4 py-2 text-xs font-bold text-stone-700 hover:bg-stone-100 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 text-xs font-black transition shadow-xs cursor-pointer"
+                >
+                  Create Group
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+    </ModuleFrame>
   );
 }
 
