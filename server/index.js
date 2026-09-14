@@ -3,6 +3,8 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import http from 'http';
+import { Server } from 'socket.io';
 
 // Automatically load .env.local or .env if present
 try {
@@ -40,9 +42,19 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Create HTTP server & Socket.IO instance
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
+
 // Middleware
 app.use(cors({ origin: process.env.ALLOWED_ORIGIN || true, credentials: true }));
 app.use(express.json({ limit: '20mb' }));
+
 // Root status check
 app.get('/', (req, res) => {
   res.json({
@@ -75,6 +87,63 @@ app.use('/api/db/registrations', registrationRoutes);
 app.use('/api/db', projectRoutes);
 app.use('/api', aiRoutes);
 
+// Socket.IO Real-Time Messaging & Friend Request Handling
+io.on('connection', (socket) => {
+  console.log(`⚡ Client connected to Socket.IO: ${socket.id}`);
+
+  // Register user BEC room
+  socket.on('join_user', ({ bec }) => {
+    if (!bec) return;
+    const cleanBec = String(bec).trim().toUpperCase();
+    socket.join(`user_${cleanBec}`);
+    console.log(`👤 Socket ${socket.id} joined room user_${cleanBec}`);
+  });
+
+  // Friend Request Sent Live Broadcast
+  socket.on('send_connect_request', (connData) => {
+    if (!connData || !connData.user2_bec) return;
+    const targetRoom = `user_${String(connData.user2_bec).trim().toUpperCase()}`;
+    io.to(targetRoom).emit('new_connect_request', connData);
+    io.emit('sync_connections_update', connData);
+    console.log(`📡 Broadcasted connect request to ${targetRoom}`);
+  });
+
+  // Accept / Decline / Delete Connection Broadcast
+  socket.on('update_connection_status', (data) => {
+    io.emit('connection_status_updated', data);
+  });
+
+  // Live Chat Message Broadcast
+  socket.on('send_message', (msgData) => {
+    if (!msgData || !msgData.conversationId) return;
+
+    const convId = String(msgData.conversationId).trim().toUpperCase();
+    if (convId.startsWith('GROUP_')) {
+      io.emit('receive_message', msgData);
+    } else {
+      // Direct message: broadcast to recipient room and sender room
+      const recipientRoom = `user_${convId}`;
+      const senderRoom = `user_${String(msgData.senderBec).trim().toUpperCase()}`;
+      io.to(recipientRoom).to(senderRoom).emit('receive_message', msgData);
+    }
+    console.log(`💬 Message broadcasted for conversation ${convId}`);
+  });
+
+  // Group Created Live Broadcast
+  socket.on('create_group', (groupData) => {
+    io.emit('group_created', groupData);
+  });
+
+  // Delete event broadcast
+  socket.on('delete_event', (payload) => {
+    io.emit('sync_delete_event', payload);
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`🔌 Client disconnected: ${socket.id}`);
+  });
+});
+
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error('❌ Express Server Error:', err);
@@ -84,7 +153,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start Server
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Towards Connected Campus Express Backend Server running on http://localhost:${PORT}`);
 });
 

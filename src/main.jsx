@@ -5,6 +5,7 @@ import { useDrag } from '@use-gesture/react';
 import QRCode from 'qrcode';
 import * as XLSX from 'xlsx';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
+import { io } from 'socket.io-client';
 
 if (typeof window !== 'undefined' && pdfjsLib?.GlobalWorkerOptions) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '3.11.174'}/pdf.worker.min.js`;
@@ -7447,10 +7448,6 @@ function FormattedChatMessage({ text, role }) {
 // CAMPUS CONNECT & SOCIAL MESSENGER MODULE
 // ==========================================
 
-// ==========================================
-// CAMPUS CONNECT & SOCIAL MESSENGER MODULE
-// ==========================================
-
 function CampusConnect({ student, setPage }) {
   const currentBec = (student?.bec || '').toUpperCase();
   const currentRole = student?.role || 'student';
@@ -7483,6 +7480,108 @@ function CampusConnect({ student, setPage }) {
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDesc, setNewGroupDesc] = useState('');
   const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
+
+  const socketRef = useRef(null);
+
+  // Real-Time Socket.IO & BroadcastChannel Synchronization
+  useEffect(() => {
+    if (!currentBec) return;
+
+    const serverUrl =
+      window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:5000'
+        : `${window.location.protocol}//${window.location.hostname}:5000`;
+
+    let socket;
+    try {
+      socket = io(serverUrl, { transports: ['websocket', 'polling'] });
+      socketRef.current = socket;
+
+      socket.on('connect', () => {
+        console.log('⚡ Connected to Socket.IO real-time server:', socket.id);
+        socket.emit('join_user', { bec: currentBec });
+      });
+
+      // Live incoming connect request
+      socket.on('new_connect_request', (connData) => {
+        if (!connData) return;
+        setConnections((prev) => {
+          if (prev.some((c) => c.id === connData.id)) return prev;
+          return [connData, ...prev];
+        });
+      });
+
+      // Live connection status update (Accept / Decline / Delete)
+      socket.on('connection_status_updated', (data) => {
+        if (!data) return;
+        if (data.action === 'accept') {
+          setConnections((prev) =>
+            prev.map((c) => (c.id === data.connId ? { ...c, status: 'accepted' } : c))
+          );
+        } else if (data.action === 'delete') {
+          setConnections((prev) => prev.filter((c) => c.id !== data.connId));
+        }
+      });
+
+      socket.on('sync_connections_update', (connData) => {
+        if (!connData) return;
+        setConnections((prev) => {
+          const idx = prev.findIndex((c) => c.id === connData.id);
+          if (idx !== -1) {
+            const copy = [...prev];
+            copy[idx] = connData;
+            return copy;
+          }
+          return [connData, ...prev];
+        });
+      });
+
+      // Live message reception
+      socket.on('receive_message', (msgData) => {
+        if (!msgData) return;
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === msgData.id)) return prev;
+          return [...prev, msgData];
+        });
+      });
+
+      // Live group creation
+      socket.on('group_created', (groupData) => {
+        if (!groupData) return;
+        setGroups((prev) => {
+          if (prev.some((g) => g.id === groupData.id)) return prev;
+          return [groupData, ...prev];
+        });
+      });
+    } catch (err) {
+      console.warn('Socket.IO connection notice:', err);
+    }
+
+    // Cross-tab BroadcastChannel listener
+    let channel;
+    try {
+      channel = new BroadcastChannel('bec_campus_connect_channel');
+      channel.onmessage = (event) => {
+        const { type, payload } = event.data || {};
+        if (type === 'NEW_CONNECT_REQUEST') {
+          setConnections((prev) => (prev.some((c) => c.id === payload.id) ? prev : [payload, ...prev]));
+        } else if (type === 'ACCEPT_REQUEST') {
+          setConnections((prev) => prev.map((c) => (c.id === payload ? { ...c, status: 'accepted' } : c)));
+        } else if (type === 'DELETE_CONNECTION') {
+          setConnections((prev) => prev.filter((c) => c.id !== payload));
+        } else if (type === 'NEW_MESSAGE') {
+          setMessages((prev) => (prev.some((m) => m.id === payload.id) ? prev : [...prev, payload]));
+        } else if (type === 'NEW_GROUP') {
+          setGroups((prev) => (prev.some((g) => g.id === payload.id) ? prev : [payload, ...prev]));
+        }
+      };
+    } catch (e) {}
+
+    return () => {
+      if (socket) socket.disconnect();
+      if (channel) channel.close();
+    };
+  }, [currentBec]);
 
   // Directory of real registered/logged-in users (excluding current user)
   const allDirectoryUsers = useMemo(() => {
@@ -7607,6 +7706,12 @@ function CampusConnect({ student, setPage }) {
       })
     );
 
+    const targetConn = connections.find(
+      (c) =>
+        (c.user1_bec?.toUpperCase() === currentBec && c.user2_bec?.toUpperCase() === targetBec.toUpperCase()) ||
+        (c.user2_bec?.toUpperCase() === currentBec && c.user1_bec?.toUpperCase() === targetBec.toUpperCase())
+    );
+
     setConnections((prev) =>
       prev.filter((c) => {
         const isMatch =
@@ -7615,6 +7720,13 @@ function CampusConnect({ student, setPage }) {
         return !isMatch;
       })
     );
+
+    if (targetConn && socketRef.current) {
+      socketRef.current.emit('update_connection_status', { connId: targetConn.id, action: 'delete' });
+    }
+    try {
+      new BroadcastChannel('bec_campus_connect_channel').postMessage({ type: 'DELETE_CONNECTION', payload: targetConn?.id });
+    } catch (err) {}
 
     if (activeChatId?.toUpperCase() === targetBec.toUpperCase()) {
       setActiveChatId(null);
@@ -7639,6 +7751,12 @@ function CampusConnect({ student, setPage }) {
     if (e) e.stopPropagation();
     if (!confirm('Are you sure you want to remove this connection/request?')) return;
     setConnections((prev) => prev.filter((c) => c.id !== connId));
+    if (socketRef.current) {
+      socketRef.current.emit('update_connection_status', { connId, action: 'delete' });
+    }
+    try {
+      new BroadcastChannel('bec_campus_connect_channel').postMessage({ type: 'DELETE_CONNECTION', payload: connId });
+    } catch (err) {}
   };
 
   // Send friend request
@@ -7674,6 +7792,16 @@ function CampusConnect({ student, setPage }) {
     };
 
     setConnections((prev) => [newConn, ...prev]);
+
+    // Live Socket.IO Broadcast
+    if (socketRef.current) {
+      socketRef.current.emit('send_connect_request', newConn);
+    }
+    // Live Cross-Tab BroadcastChannel
+    try {
+      new BroadcastChannel('bec_campus_connect_channel').postMessage({ type: 'NEW_CONNECT_REQUEST', payload: newConn });
+    } catch (err) {}
+
     alert(`Connect request sent to ${targetUser.name} (${targetUser.bec})!`);
   };
 
@@ -7682,12 +7810,25 @@ function CampusConnect({ student, setPage }) {
     setConnections((prev) =>
       prev.map((c) => (c.id === connId ? { ...c, status: 'accepted' } : c))
     );
+
+    if (socketRef.current) {
+      socketRef.current.emit('update_connection_status', { connId, action: 'accept' });
+    }
+    try {
+      new BroadcastChannel('bec_campus_connect_channel').postMessage({ type: 'ACCEPT_REQUEST', payload: connId });
+    } catch (err) {}
   };
 
   // Decline request
   const handleDeclineRequest = (connId, e) => {
     if (e) e.stopPropagation();
     setConnections((prev) => prev.filter((c) => c.id !== connId));
+    if (socketRef.current) {
+      socketRef.current.emit('update_connection_status', { connId, action: 'delete' });
+    }
+    try {
+      new BroadcastChannel('bec_campus_connect_channel').postMessage({ type: 'DELETE_CONNECTION', payload: connId });
+    } catch (err) {}
   };
 
   // Create Group
@@ -7708,6 +7849,14 @@ function CampusConnect({ student, setPage }) {
     };
 
     setGroups((prev) => [newGroup, ...prev]);
+
+    if (socketRef.current) {
+      socketRef.current.emit('create_group', newGroup);
+    }
+    try {
+      new BroadcastChannel('bec_campus_connect_channel').postMessage({ type: 'NEW_GROUP', payload: newGroup });
+    } catch (err) {}
+
     setNewGroupName('');
     setNewGroupDesc('');
     setSelectedGroupMembers([]);
@@ -7760,6 +7909,14 @@ function CampusConnect({ student, setPage }) {
     };
 
     setMessages((prev) => [...prev, newMsg]);
+
+    if (socketRef.current) {
+      socketRef.current.emit('send_message', newMsg);
+    }
+    try {
+      new BroadcastChannel('bec_campus_connect_channel').postMessage({ type: 'NEW_MESSAGE', payload: newMsg });
+    } catch (err) {}
+
     setInputText('');
     setAttachedFile(null);
   };
