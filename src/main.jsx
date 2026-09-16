@@ -7473,6 +7473,7 @@ function CampusConnect({ student, setPage }) {
   });
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDept, setSelectedDept] = useState('ALL');
   const [inputText, setInputText] = useState('');
   const [attachedFile, setAttachedFile] = useState(null);
 
@@ -7613,6 +7614,21 @@ function CampusConnect({ student, setPage }) {
     return safeSaved.filter((u) => u?.bec?.toUpperCase() !== currentBec);
   }, [currentBec]);
 
+  // Available departments extracted from real users + standard college branches
+  const availableDepartments = useMemo(() => {
+    const defaultList = ['ALL', 'CSE', 'ISE', 'ECE', 'AIML', 'MECH', 'CIVIL', 'FACULTY'];
+    const extra = [];
+    allDirectoryUsers.forEach((u) => {
+      if (u.department && u.department.trim()) {
+        const d = u.department.trim().toUpperCase();
+        if (!defaultList.includes(d) && !extra.includes(d)) {
+          extra.push(d);
+        }
+      }
+    });
+    return [...defaultList, ...extra];
+  }, [allDirectoryUsers]);
+
   // Accepted friends
   const acceptedFriends = useMemo(() => {
     return connections
@@ -7674,6 +7690,56 @@ function CampusConnect({ student, setPage }) {
 
     return Array.from(map.values());
   }, [acceptedFriends, messages, allDirectoryUsers, currentBec]);
+
+  // Filtered active chat partners by search and department selector
+  const filteredChatPartners = useMemo(() => {
+    return activeChatPartners.filter((partner) => {
+      // 1. Department / Faculty Filter
+      if (selectedDept !== 'ALL') {
+        if (selectedDept === 'FACULTY') {
+          const isFaculty = partner.role === 'teacher' || partner.role === 'hod' || partner.role === 'po' || partner.role === 'guard';
+          if (!isFaculty) return false;
+        } else {
+          const dept = (partner.department || '').toUpperCase();
+          if (dept !== selectedDept && !dept.includes(selectedDept)) return false;
+        }
+      }
+      // 2. Text Search Query
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        partner.name?.toLowerCase().includes(q) ||
+        partner.bec?.toLowerCase().includes(q) ||
+        partner.department?.toLowerCase().includes(q) ||
+        partner.role?.toLowerCase().includes(q)
+      );
+    });
+  }, [activeChatPartners, selectedDept, searchQuery]);
+
+  // Filtered discover users directory by search and department selector
+  const filteredDiscoverUsers = useMemo(() => {
+    return allDirectoryUsers.filter((dirUser) => {
+      // 1. Department / Faculty Filter
+      if (selectedDept !== 'ALL') {
+        if (selectedDept === 'FACULTY') {
+          const isFaculty = dirUser.role === 'teacher' || dirUser.role === 'hod' || dirUser.role === 'po' || dirUser.role === 'guard';
+          if (!isFaculty) return false;
+        } else {
+          const dept = (dirUser.department || '').toUpperCase();
+          if (dept !== selectedDept && !dept.includes(selectedDept)) return false;
+        }
+      }
+      // 2. Text Search Query
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        dirUser.name?.toLowerCase().includes(q) ||
+        dirUser.bec?.toLowerCase().includes(q) ||
+        dirUser.department?.toLowerCase().includes(q) ||
+        dirUser.role?.toLowerCase().includes(q)
+      );
+    });
+  }, [allDirectoryUsers, selectedDept, searchQuery]);
 
   // Pending incoming requests
   const pendingRequests = useMemo(() => {
@@ -8119,16 +8185,47 @@ function CampusConnect({ student, setPage }) {
               </button>
             </div>
 
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-stone-400" />
-              <input
-                type="text"
-                placeholder="Search ID, Name, Department..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-stone-200 bg-white pl-8 pr-3 py-1.5 text-xs font-medium focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
-              />
+            {/* Search Input & Department Selector */}
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-stone-400" />
+                <input
+                  type="text"
+                  placeholder="Search ID, Name, Department..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full rounded-xl border border-stone-200 bg-white pl-8 pr-3 py-1.5 text-xs font-medium focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
+                />
+              </div>
+
+              {/* Department Dropdown Selector for All Portals */}
+              <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-stone-200 shadow-2xs">
+                <label htmlFor="campus-dept-select" className="text-[10px] font-black uppercase text-stone-500 tracking-wider shrink-0">
+                  Dept:
+                </label>
+                <select
+                  id="campus-dept-select"
+                  value={selectedDept}
+                  onChange={(e) => setSelectedDept(e.target.value)}
+                  className="w-full bg-transparent text-xs font-bold text-stone-800 focus:outline-none cursor-pointer py-0.5"
+                >
+                  <option value="ALL">All Departments & Roles</option>
+                  <option value="CSE">CSE - Computer Science</option>
+                  <option value="ISE">ISE - Information Science</option>
+                  <option value="ECE">ECE - Electronics & Comm.</option>
+                  <option value="AIML">AIML - AI & Machine Learning</option>
+                  <option value="MECH">MECH - Mechanical Engg</option>
+                  <option value="CIVIL">CIVIL - Civil Engg</option>
+                  <option value="FACULTY">Faculty & Staff Members</option>
+                  {availableDepartments
+                    .filter((d) => !['ALL', 'CSE', 'ISE', 'ECE', 'AIML', 'MECH', 'CIVIL', 'FACULTY'].includes(d))
+                    .map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -8138,23 +8235,19 @@ function CampusConnect({ student, setPage }) {
             {activeTab === 'chats' && (
               <>
                 <div className="px-2 pt-1 pb-1 flex items-center justify-between">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-stone-400">Active Conversations ({activeChatPartners.length})</p>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-stone-400">Active Conversations ({filteredChatPartners.length})</p>
                 </div>
-                {activeChatPartners.length === 0 ? (
+                {filteredChatPartners.length === 0 ? (
                   <div className="p-5 text-center text-xs text-stone-500 bg-stone-50 rounded-xl space-y-1">
-                    <p className="font-bold text-stone-700">No active chats yet</p>
+                    <p className="font-bold text-stone-700">No active chats found</p>
                     <p className="text-[11px] text-stone-400">
-                      Go to "Discover" tab to connect with registered classmates & teachers.
+                      {searchQuery || selectedDept !== 'ALL'
+                        ? 'No active chats match your department or search query.'
+                        : 'Go to "Discover" tab to connect with registered classmates & teachers.'}
                     </p>
                   </div>
                 ) : (
-                  activeChatPartners
-                    .filter(
-                      (p) =>
-                        !searchQuery ||
-                        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        p.bec.toLowerCase().includes(searchQuery.toLowerCase())
-                    )
+                  filteredChatPartners
                     .map((partner) => {
                       const isSelected = chatType === 'direct' && activeChatId?.toUpperCase() === partner.bec.toUpperCase();
                       const isFaculty = partner.role === 'teacher' || partner.role === 'hod';
@@ -8349,23 +8442,18 @@ function CampusConnect({ student, setPage }) {
             {/* 4. DISCOVER PEERS TAB */}
             {activeTab === 'discover' && (
               <div className="space-y-2 p-1">
-                <p className="text-xs font-black uppercase tracking-wider text-stone-500">Registered Users Directory ({allDirectoryUsers.length})</p>
-                {allDirectoryUsers.length === 0 ? (
+                <p className="text-xs font-black uppercase tracking-wider text-stone-500">Registered Users Directory ({filteredDiscoverUsers.length})</p>
+                {filteredDiscoverUsers.length === 0 ? (
                   <div className="p-6 text-center text-xs text-stone-500 bg-stone-50 rounded-xl space-y-1">
-                    <p className="font-bold text-stone-700">No other users registered yet</p>
+                    <p className="font-bold text-stone-700">No users found</p>
                     <p className="text-[11px] text-stone-400">
-                      As soon as classmates or teachers create accounts or log in, they will appear here automatically.
+                      {searchQuery || selectedDept !== 'ALL'
+                        ? 'No registered users match your department or search query.'
+                        : 'As soon as classmates or teachers create accounts or log in, they will appear here automatically.'}
                     </p>
                   </div>
                 ) : (
-                  allDirectoryUsers
-                    .filter(
-                      (u) =>
-                        !searchQuery ||
-                        u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        u.bec?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        u.department?.toLowerCase().includes(searchQuery.toLowerCase())
-                    )
+                  filteredDiscoverUsers
                     .map((dirUser) => {
                       const friendConn = connections.find(
                         (c) =>
