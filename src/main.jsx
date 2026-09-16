@@ -1688,18 +1688,32 @@ function PortalShell({
       </main>
 
       {/* Floating Bottom Navigation Capsule Pill */}
-      <nav className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[96vw] rounded-full bg-white/95 backdrop-blur-md shadow-[0_14px_40px_rgba(38,64,85,0.18)] border border-slate-200/80 px-2 sm:px-3 py-1.5 flex items-center gap-1 sm:gap-1.5 transition-all">
+      <nav className="fixed bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[98vw] rounded-full bg-white/95 backdrop-blur-md shadow-[0_12px_36px_rgba(38,64,85,0.18)] border border-slate-200/80 px-1.5 py-1 sm:px-3 sm:py-1.5 flex items-center justify-center gap-0.5 sm:gap-1.5 transition-all">
         {navItems.map(([id, Icon, label]) => {
           const isActive = page === id;
+          const displayLabel =
+            id === 'connect'
+              ? 'Connect'
+              : id === 'dashboard'
+              ? 'Dashboard'
+              : label === 'College Calendar'
+              ? 'Calendar'
+              : label === 'Placement Drives'
+              ? 'Drives'
+              : label;
+
           return (
             <button
               key={id}
               type="button"
               onClick={() => setPage(id)}
-              className={`relative flex items-center gap-2 rounded-full px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer select-none ${
-                isActive ? 'text-white' : 'text-[#264055]/70 hover:text-[#264055] hover:bg-slate-100/70'
+              className={`relative flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer select-none shrink-0 ${
+                isActive
+                  ? 'px-3 py-1.5 sm:px-4 sm:py-2 text-white'
+                  : 'p-2 sm:px-3.5 sm:py-2 text-[#264055]/70 hover:text-[#264055] hover:bg-slate-100/70'
               }`}
               aria-label={label}
+              title={label}
             >
               {isActive && (
                 <motion.div
@@ -1711,11 +1725,11 @@ function PortalShell({
               <motion.span
                 whileTap={{ scale: 1.12 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                className="relative z-10 flex items-center gap-1.5"
+                className="relative z-10 flex items-center gap-1 sm:gap-1.5"
               >
-                <Icon className={`h-4 w-4 sm:h-4.5 sm:w-4.5 ${isActive ? 'text-white' : 'text-[#264055]'}`} />
-                <span className={`${isActive ? 'inline-block' : 'hidden sm:inline-block'} font-black truncate max-w-[110px]`}>
-                  {label === 'College Calendar' ? 'Calendar' : label === 'Placement Drives' ? 'Drives' : label}
+                <Icon className={`h-4 w-4 sm:h-4.5 sm:w-4.5 shrink-0 ${isActive ? 'text-white' : 'text-[#264055]'}`} />
+                <span className={`${isActive ? 'inline-block text-[11px] sm:text-xs' : 'hidden sm:inline-block text-xs sm:text-sm'} font-black truncate max-w-[80px] sm:max-w-[110px]`}>
+                  {displayLabel}
                 </span>
               </motion.span>
             </button>
