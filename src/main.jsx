@@ -5942,9 +5942,7 @@ const getGatePassVerificationUrl = (passIdOrPass) => {
   const isObj = typeof passIdOrPass === 'object' && passIdOrPass !== null;
   const id = isObj ? passIdOrPass.id : passIdOrPass;
   if (!id) return '';
-  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const host = isLocal ? '192.168.0.171:5173' : window.location.host;
-  return `${window.location.protocol}//${host}/?verify=${encodeURIComponent(id)}`;
+  return `${window.location.protocol}//${window.location.host}/?verify=${encodeURIComponent(id)}`;
 };
 
 function RealQRCode({ value = 'GATEPASS', size = 200 }) {
@@ -7497,9 +7495,11 @@ function CampusConnect({ student, setPage }) {
     if (!currentBec) return;
 
     const serverUrl =
-      window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:5000'
-        : `${window.location.protocol}//${window.location.hostname}:5000`;
+      window.location.port === '5173'
+        ? window.location.origin
+        : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+          ? 'http://localhost:5000'
+          : `${window.location.protocol}//${window.location.hostname}:5000`);
 
     let socket;
     try {
