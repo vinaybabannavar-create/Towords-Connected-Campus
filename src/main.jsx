@@ -9631,7 +9631,7 @@ CRITICAL BEHAVIORAL RULES:
 
       {/* Floating Widget at Bottom Right (Popup + Dancing Button) */}
       <div className={`fixed z-40 flex flex-col items-end pointer-events-none ${
-        activePage === 'connect' ? 'bottom-36 right-3.5 sm:bottom-24 sm:right-6' : 'bottom-24 right-4 sm:bottom-24 sm:right-6'
+        activePage === 'connect' ? 'hidden sm:flex sm:bottom-24 sm:right-6' : 'bottom-24 right-4 sm:bottom-24 sm:right-6'
       }`}>
         {/* Smoothly Sliding Interactive Pop-up Speech Bubble */}
         <div
