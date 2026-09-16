@@ -8117,12 +8117,28 @@ function CampusConnect({ student, setPage }) {
   }, [currentConversationMessages, isTargetTyping]);
 
   return (
-    <ModuleFrame
-      title="Campus Connect & Social Network"
-      subtitle={`Verified campus network for ${student.name} (${student.bec}). Live 1-on-1 chats, study groups & document sharing with registered users.`}
-      icon={MessageCircle}
-    >
-      <div className="relative min-w-0 font-sans h-[750px] max-h-[85vh] lg:grid lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] lg:gap-4">
+    <div className="min-w-0 space-y-2.5 sm:space-y-3 font-sans">
+      {/* Top Header Banner: hidden on mobile when chat is open to grant 100% viewport to active chat */}
+      <section className={`${mobileChatOpen ? 'hidden lg:flex' : 'flex'} min-w-0 rounded-2xl bg-white p-3 sm:p-4 shadow-xs border border-stone-200/80 items-center justify-between gap-3 shrink-0`}>
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-pink-500 to-rose-500 text-white shadow-xs">
+            <MessageCircle className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="break-words text-base sm:text-lg font-black text-stone-900 tracking-tight">Campus Connect & Social Network</h2>
+            <p className="break-words text-xs text-stone-500 line-clamp-1">
+              Verified campus network for {student.name} ({student.bec}). Live 1-on-1 chats, study groups & document sharing.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Main Responsive Workspace: perfectly fits viewport without outer page scroll on both mobile and laptop */}
+      <div className={`relative min-w-0 font-sans ${
+        mobileChatOpen
+          ? 'h-[calc(100dvh-135px)] min-h-[380px]'
+          : 'h-[calc(100dvh-200px)] min-h-[380px]'
+      } lg:h-[calc(100vh-235px)] lg:min-h-[520px] lg:max-h-[740px] lg:grid lg:grid-cols-[minmax(320px,360px)_minmax(0,1fr)] lg:gap-4`}>
         {/* ================= LEFT SIDEBAR (WhatsApp style list on mobile) ================= */}
         <div className={`${mobileChatOpen ? 'hidden lg:flex' : 'flex'} flex-col rounded-2xl border border-stone-200 bg-white shadow-xs overflow-hidden h-full`}>
           {/* Header & Tabs */}
@@ -8885,7 +8901,8 @@ function CampusConnect({ student, setPage }) {
           </motion.div>
         </div>
       )}
-    </ModuleFrame>
+      {/* Main Container Close */}
+    </div>
   );
 }
 
