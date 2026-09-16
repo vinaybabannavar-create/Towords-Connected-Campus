@@ -7480,6 +7480,7 @@ function CampusConnect({ student, setPage }) {
   // Real-time states
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [typingUsers, setTypingUsers] = useState({}); // {[bec.toUpperCase()]: boolean}
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
 
   // Modal for new group
   const [showGroupModal, setShowGroupModal] = useState(false);
@@ -7853,6 +7854,7 @@ function CampusConnect({ student, setPage }) {
 
     if (activeChatId?.toUpperCase() === targetBec.toUpperCase()) {
       setActiveChatId(null);
+      setMobileChatOpen(false);
     }
   };
 
@@ -7866,6 +7868,7 @@ function CampusConnect({ student, setPage }) {
 
     if (activeChatId === groupId) {
       setActiveChatId(null);
+      setMobileChatOpen(false);
     }
   };
 
@@ -8119,9 +8122,9 @@ function CampusConnect({ student, setPage }) {
       subtitle={`Verified campus network for ${student.name} (${student.bec}). Live 1-on-1 chats, study groups & document sharing with registered users.`}
       icon={MessageCircle}
     >
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] font-sans h-[750px] max-h-[85vh]">
-        {/* ================= LEFT SIDEBAR ================= */}
-        <div className="flex flex-col rounded-2xl border border-stone-200 bg-white shadow-xs overflow-hidden">
+      <div className="relative min-w-0 font-sans h-[750px] max-h-[85vh] lg:grid lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] lg:gap-4">
+        {/* ================= LEFT SIDEBAR (WhatsApp style list on mobile) ================= */}
+        <div className={`${mobileChatOpen ? 'hidden lg:flex' : 'flex'} flex-col rounded-2xl border border-stone-200 bg-white shadow-xs overflow-hidden h-full`}>
           {/* Header & Tabs */}
           <div className="p-4 border-b border-stone-100 bg-stone-50/70 space-y-3 shrink-0">
             <div className="flex items-center justify-between">
@@ -8258,6 +8261,7 @@ function CampusConnect({ student, setPage }) {
                           onClick={() => {
                             setActiveChatId(partner.bec);
                             setChatType('direct');
+                            setMobileChatOpen(true);
                           }}
                           className={`group flex items-center justify-between gap-2 p-2.5 rounded-xl cursor-pointer transition ${
                             isSelected
@@ -8346,6 +8350,7 @@ function CampusConnect({ student, setPage }) {
                         onClick={() => {
                           setActiveChatId(grp.id);
                           setChatType('group');
+                          setMobileChatOpen(true);
                         }}
                         className={`group flex items-center justify-between gap-2 p-3 rounded-xl cursor-pointer transition ${
                           isSelected ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-stone-50 border border-transparent'
@@ -8503,6 +8508,7 @@ function CampusConnect({ student, setPage }) {
                                     setActiveChatId(dirUser.bec);
                                     setChatType('direct');
                                     setActiveTab('chats');
+                                    setMobileChatOpen(true);
                                   }}
                                   className="rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 text-[11px] font-bold hover:bg-emerald-200 transition cursor-pointer"
                                 >
@@ -8551,8 +8557,8 @@ function CampusConnect({ student, setPage }) {
           </div>
         </div>
 
-        {/* ================= RIGHT CHAT WORKSPACE ================= */}
-        <div className="flex flex-col rounded-2xl border border-stone-200 bg-white shadow-xs overflow-hidden">
+        {/* ================= RIGHT CHAT WORKSPACE (Full-screen on mobile when open) ================= */}
+        <div className={`${mobileChatOpen ? 'flex' : 'hidden lg:flex'} flex-col rounded-2xl border border-stone-200 bg-white shadow-xs overflow-hidden h-full`}>
           {!activeChatId || !activeChatInfo ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 text-stone-400 bg-stone-50/50">
               <div className="grid h-16 w-16 place-items-center rounded-2xl bg-stone-100 mb-3 text-stone-400 shadow-inner">
@@ -8566,8 +8572,19 @@ function CampusConnect({ student, setPage }) {
           ) : (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b border-stone-100 bg-white flex items-center justify-between shrink-0 shadow-2xs">
-                <div className="flex items-center gap-3 min-w-0">
+              <div className="p-3 sm:p-4 border-b border-stone-100 bg-white flex items-center justify-between shrink-0 shadow-2xs">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  {/* WhatsApp-Style Mobile Back Button */}
+                  <button
+                    type="button"
+                    onClick={() => setMobileChatOpen(false)}
+                    className="lg:hidden -ml-1 mr-0.5 p-1.5 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-100 transition cursor-pointer"
+                    title="Back to chats list"
+                    aria-label="Back to chats list"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+
                   <div className="relative shrink-0">
                     <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-tr from-[#1B2A44] to-[#2E456E] text-white font-black text-sm shadow-xs">
                       {activeChatInfo.isGroup ? <Users className="h-5 w-5 text-cyan-300" /> : activeChatInfo.title.slice(0, 2).toUpperCase()}
