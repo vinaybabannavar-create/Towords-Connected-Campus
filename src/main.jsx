@@ -7636,7 +7636,7 @@ function CampusConnect({ student, setPage }) {
       });
   }, [connections, currentBec]);
 
-  // Active chat partners (friends + anyone with message history)
+  // Active chat partners (friends + anyone with direct message history with current user)
   const activeChatPartners = useMemo(() => {
     const map = new Map();
 
@@ -7651,14 +7651,21 @@ function CampusConnect({ student, setPage }) {
     });
 
     messages.forEach((m) => {
-      if (m.conversationId && m.conversationId !== currentBec && !m.conversationId.startsWith('group_')) {
-        const targetBec = (m.senderBec?.toUpperCase() === currentBec ? (m.recipientBec || m.conversationId) : m.senderBec)?.toUpperCase();
-        if (targetBec && targetBec !== currentBec && !map.has(targetBec)) {
-          const matched = allDirectoryUsers.find((u) => u.bec?.toUpperCase() === targetBec);
-          map.set(targetBec, {
-            bec: targetBec,
-            name: matched?.name || m.senderName || targetBec,
-            role: matched?.role || m.senderRole || 'student',
+      if (!m.conversationId || m.isGroup || String(m.conversationId).startsWith('group_')) return;
+
+      const sender = (m.senderBec || '').toUpperCase();
+      const recipient = (m.recipientBec || m.conversationId || '').toUpperCase();
+      const me = currentBec.toUpperCase();
+
+      // Strictly check that current user is directly involved in this message
+      if (sender === me || recipient === me) {
+        const partnerBec = sender === me ? recipient : sender;
+        if (partnerBec && partnerBec !== me && !map.has(partnerBec)) {
+          const matched = allDirectoryUsers.find((u) => u.bec?.toUpperCase() === partnerBec);
+          map.set(partnerBec, {
+            bec: partnerBec,
+            name: matched?.name || (sender === me ? partnerBec : m.senderName) || partnerBec,
+            role: matched?.role || (sender === me ? 'student' : m.senderRole) || 'student',
             department: matched?.department || 'Campus'
           });
         }
