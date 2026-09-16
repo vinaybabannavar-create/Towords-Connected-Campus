@@ -9541,7 +9541,9 @@ CRITICAL BEHAVIORAL RULES:
       )}
 
       {/* Floating Widget at Bottom Right (Popup + Dancing Button) */}
-      <div className="fixed bottom-24 right-4 z-40 sm:bottom-24 sm:right-6 flex flex-col items-end pointer-events-none">
+      <div className={`fixed z-40 flex flex-col items-end pointer-events-none ${
+        activePage === 'connect' ? 'bottom-36 right-3.5 sm:bottom-24 sm:right-6' : 'bottom-24 right-4 sm:bottom-24 sm:right-6'
+      }`}>
         {/* Smoothly Sliding Interactive Pop-up Speech Bubble */}
         <div
           className={`mb-2.5 transition-all duration-700 ease-in-out transform origin-bottom-right pointer-events-auto ${
