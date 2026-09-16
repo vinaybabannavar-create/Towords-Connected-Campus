@@ -23,6 +23,7 @@ import {
   CalendarDays,
   Camera,
   Check,
+  CheckCheck,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -7475,6 +7476,10 @@ function CampusConnect({ student, setPage }) {
   const [inputText, setInputText] = useState('');
   const [attachedFile, setAttachedFile] = useState(null);
 
+  // Real-time states
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [typingUsers, setTypingUsers] = useState({}); // {[bec.toUpperCase()]: boolean}
+
   // Modal for new group
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -7482,6 +7487,8 @@ function CampusConnect({ student, setPage }) {
   const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
 
   const socketRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
   // Real-Time Socket.IO & BroadcastChannel Synchronization
   useEffect(() => {
@@ -7500,6 +7507,22 @@ function CampusConnect({ student, setPage }) {
       socket.on('connect', () => {
         console.log('⚡ Connected to Socket.IO real-time server:', socket.id);
         socket.emit('join_user', { bec: currentBec });
+      });
+
+      // Online Users List
+      socket.on('online_users_list', (list) => {
+        if (Array.isArray(list)) {
+          setOnlineUsers(list.map((b) => b.toUpperCase()));
+        }
+      });
+
+      // Live Typing Indicator Event
+      socket.on('user_typing', ({ senderBec, isTyping }) => {
+        if (!senderBec) return;
+        setTypingUsers((prev) => ({
+          ...prev,
+          [senderBec.toUpperCase()]: Boolean(isTyping)
+        }));
       });
 
       // Live incoming connect request
@@ -7629,7 +7652,7 @@ function CampusConnect({ student, setPage }) {
 
     messages.forEach((m) => {
       if (m.conversationId && m.conversationId !== currentBec && !m.conversationId.startsWith('group_')) {
-        const targetBec = (m.senderBec?.toUpperCase() === currentBec ? m.conversationId : m.senderBec)?.toUpperCase();
+        const targetBec = (m.senderBec?.toUpperCase() === currentBec ? (m.recipientBec || m.conversationId) : m.senderBec)?.toUpperCase();
         if (targetBec && targetBec !== currentBec && !map.has(targetBec)) {
           const matched = allDirectoryUsers.find((u) => u.bec?.toUpperCase() === targetBec);
           map.set(targetBec, {
@@ -7692,6 +7715,32 @@ function CampusConnect({ student, setPage }) {
     setJSON(STORAGE_KEYS.chatMessages, messages);
   }, [messages]);
 
+  // Handle typing event emission on input change
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setInputText(val);
+
+    if (socketRef.current && activeChatId) {
+      socketRef.current.emit('typing_start', {
+        senderBec: currentBec,
+        senderName: student?.name || currentBec,
+        targetId: activeChatId,
+        isGroup: chatType === 'group'
+      });
+
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        if (socketRef.current) {
+          socketRef.current.emit('typing_stop', {
+            senderBec: currentBec,
+            targetId: activeChatId,
+            isGroup: chatType === 'group'
+          });
+        }
+      }, 1500);
+    }
+  };
+
   // Delete conversation
   const handleDeleteConversation = (targetBec, targetName, e) => {
     if (e) e.stopPropagation();
@@ -7701,7 +7750,8 @@ function CampusConnect({ student, setPage }) {
       prev.filter((m) => {
         const match1 = m.conversationId?.toUpperCase() === targetBec.toUpperCase() && m.senderBec?.toUpperCase() === currentBec;
         const match2 = m.conversationId?.toUpperCase() === currentBec && m.senderBec?.toUpperCase() === targetBec.toUpperCase();
-        const match3 = m.conversationId?.toUpperCase() === targetBec.toUpperCase();
+        const match3 = (m.recipientBec?.toUpperCase() === targetBec.toUpperCase() && m.senderBec?.toUpperCase() === currentBec) ||
+                       (m.senderBec?.toUpperCase() === targetBec.toUpperCase() && m.recipientBec?.toUpperCase() === currentBec);
         return !(match1 || match2 || match3);
       })
     );
@@ -7897,15 +7947,27 @@ function CampusConnect({ student, setPage }) {
     }
     if (!inputText.trim() && !attachedFile) return;
 
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    if (socketRef.current) {
+      socketRef.current.emit('typing_stop', {
+        senderBec: currentBec,
+        targetId: activeChatId,
+        isGroup: chatType === 'group'
+      });
+    }
+
     const newMsg = {
-      id: `msg_${Date.now()}`,
+      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       conversationId: activeChatId,
       senderBec: currentBec,
-      senderName: student.name || currentBec,
+      senderName: student?.name || currentBec,
       senderRole: currentRole,
+      recipientBec: chatType === 'group' ? null : activeChatId,
+      isGroup: chatType === 'group',
       text: inputText.trim(),
       attachment: attachedFile,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      createdAt: new Date().toISOString()
     };
 
     setMessages((prev) => [...prev, newMsg]);
@@ -7945,19 +8007,38 @@ function CampusConnect({ student, setPage }) {
     };
   }, [chatType, activeChatId, groups, activeChatPartners, allDirectoryUsers]);
 
-  // Messages in active conversation
+  // Online & Typing indicators for active chat
+  const isTargetOnline = useMemo(() => {
+    if (!activeChatId || chatType === 'group') return false;
+    return onlineUsers.includes(activeChatId.toUpperCase());
+  }, [onlineUsers, activeChatId, chatType]);
+
+  const isTargetTyping = useMemo(() => {
+    if (!activeChatId) return false;
+    return Boolean(typingUsers[activeChatId.toUpperCase()]);
+  }, [typingUsers, activeChatId]);
+
+  // Messages in active conversation strictly filtered
   const currentConversationMessages = useMemo(() => {
     if (!activeChatId) return [];
     if (chatType === 'group') {
-      return messages.filter((m) => m.conversationId === activeChatId);
+      return messages.filter((m) => m.conversationId === activeChatId || m.groupId === activeChatId);
     }
+    const me = currentBec.toUpperCase();
+    const other = activeChatId.toUpperCase();
     return messages.filter((m) => {
-      const match1 = m.conversationId?.toUpperCase() === activeChatId?.toUpperCase() && m.senderBec?.toUpperCase() === currentBec;
-      const match2 = m.conversationId?.toUpperCase() === currentBec && m.senderBec?.toUpperCase() === activeChatId?.toUpperCase();
-      const match3 = m.conversationId?.toUpperCase() === activeChatId?.toUpperCase();
-      return match1 || match2 || match3;
+      if (m.isGroup || (m.conversationId && String(m.conversationId).startsWith('group_'))) return false;
+      const s = (m.senderBec || '').toUpperCase();
+      const r = (m.recipientBec || m.conversationId || '').toUpperCase();
+      // True 1-on-1 pairing: either sent by me to other, or sent by other to me
+      return (s === me && r === other) || (s === other && r === me);
     });
   }, [messages, activeChatId, chatType, currentBec]);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [currentConversationMessages, isTargetTyping]);
 
   return (
     <ModuleFrame
@@ -8070,6 +8151,7 @@ function CampusConnect({ student, setPage }) {
                     .map((partner) => {
                       const isSelected = chatType === 'direct' && activeChatId?.toUpperCase() === partner.bec.toUpperCase();
                       const isFaculty = partner.role === 'teacher' || partner.role === 'hod';
+                      const isOnline = onlineUsers.includes(partner.bec.toUpperCase());
                       return (
                         <div
                           key={partner.bec}
@@ -8096,7 +8178,12 @@ function CampusConnect({ student, setPage }) {
                               >
                                 {partner.name?.slice(0, 2).toUpperCase() || 'US'}
                               </div>
-                              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                              <span
+                                className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
+                                  isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-stone-300'
+                                }`}
+                                title={isOnline ? 'Online Now' : 'Offline'}
+                              />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center justify-between gap-1">
@@ -8113,7 +8200,13 @@ function CampusConnect({ student, setPage }) {
                                   {partner.role === 'hod' ? 'HOD' : partner.role === 'teacher' ? 'Faculty' : 'Peer'}
                                 </span>
                               </div>
-                              <p className="text-[11px] text-stone-500 truncate">{partner.bec} • {partner.department}</p>
+                              <p className="text-[11px] text-stone-500 truncate flex items-center gap-1">
+                                <span>{partner.bec}</span>
+                                <span>•</span>
+                                <span className={isOnline ? 'text-emerald-600 font-bold' : ''}>
+                                  {isOnline ? 'Online' : 'Offline'}
+                                </span>
+                              </p>
                             </div>
                           </div>
 
@@ -8274,12 +8367,20 @@ function CampusConnect({ student, setPage }) {
                       );
                       const isFriend = friendConn?.status === 'accepted';
                       const isPending = friendConn?.status === 'pending';
+                      const isOnline = onlineUsers.includes(dirUser.bec?.toUpperCase());
 
                       return (
                         <div key={dirUser.bec} className="group flex items-center justify-between gap-2 p-2.5 rounded-xl border border-stone-100 bg-stone-50/80 hover:bg-white transition">
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            <div className="grid h-9 w-9 place-items-center rounded-lg bg-stone-900 text-white font-black text-xs shrink-0">
-                              {dirUser.name?.slice(0, 2).toUpperCase() || 'ST'}
+                            <div className="relative shrink-0">
+                              <div className="grid h-9 w-9 place-items-center rounded-lg bg-stone-900 text-white font-black text-xs">
+                                {dirUser.name?.slice(0, 2).toUpperCase() || 'ST'}
+                              </div>
+                              <span
+                                className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
+                                  isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-stone-300'
+                                }`}
+                              />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
@@ -8370,10 +8471,19 @@ function CampusConnect({ student, setPage }) {
           ) : (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b border-stone-100 bg-white flex items-center justify-between shrink-0">
+              <div className="p-4 border-b border-stone-100 bg-white flex items-center justify-between shrink-0 shadow-2xs">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-tr from-[#1B2A44] to-[#2E456E] text-white font-black text-sm shadow-xs shrink-0">
-                    {activeChatInfo.isGroup ? <Users className="h-5 w-5 text-cyan-300" /> : activeChatInfo.title.slice(0, 2).toUpperCase()}
+                  <div className="relative shrink-0">
+                    <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-tr from-[#1B2A44] to-[#2E456E] text-white font-black text-sm shadow-xs">
+                      {activeChatInfo.isGroup ? <Users className="h-5 w-5 text-cyan-300" /> : activeChatInfo.title.slice(0, 2).toUpperCase()}
+                    </div>
+                    {!activeChatInfo.isGroup && (
+                      <span
+                        className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-white ${
+                          isTargetOnline ? 'bg-emerald-500 animate-pulse' : 'bg-stone-300'
+                        }`}
+                      />
+                    )}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -8382,7 +8492,20 @@ function CampusConnect({ student, setPage }) {
                         Verified BEC
                       </span>
                     </div>
-                    <p className="text-[11px] text-stone-500 font-medium truncate">{activeChatInfo.subtitle}</p>
+                    <div className="text-[11px] font-medium truncate flex items-center gap-1.5">
+                      {isTargetTyping ? (
+                        <span className="text-emerald-600 font-bold animate-pulse flex items-center gap-1">
+                          <span>✍️ Typing...</span>
+                        </span>
+                      ) : isTargetOnline ? (
+                        <span className="text-emerald-600 font-bold flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>Online Now</span>
+                        </span>
+                      ) : (
+                        <span className="text-stone-400">{activeChatInfo.subtitle}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -8403,15 +8526,15 @@ function CampusConnect({ student, setPage }) {
               </div>
 
               {/* Messages Feed */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-stone-50/50">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F4F6F8]">
                 {currentConversationMessages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-8 text-stone-400">
-                    <div className="grid h-14 w-14 place-items-center rounded-2xl bg-stone-100 mb-3 text-stone-400 shadow-inner">
-                      <MessageCircle className="h-7 w-7" />
+                    <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white border border-stone-200 mb-3 text-stone-400 shadow-xs">
+                      <MessageCircle className="h-7 w-7 text-emerald-600" />
                     </div>
-                    <p className="text-sm font-bold text-stone-700">No messages yet</p>
+                    <p className="text-sm font-bold text-stone-800">No messages yet</p>
                     <p className="text-xs text-stone-500 mt-1 max-w-sm">
-                      Say hello, share project documents, or ask academic doubts. All messages are securely tied to your institutional BEC profile.
+                      Start a live conversation with {activeChatInfo.title}. All messages are securely tied to institutional BEC profiles.
                     </p>
                   </div>
                 ) : (
@@ -8419,21 +8542,25 @@ function CampusConnect({ student, setPage }) {
                     const isMe = msg.senderBec?.toUpperCase() === currentBec;
                     return (
                       <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                        <div className="flex items-center gap-1.5 mb-1 px-1">
-                          <span className="text-[11px] font-black text-stone-700">{msg.senderName}</span>
-                          <span className="rounded bg-stone-200 px-1 py-0.2 text-[9px] font-bold text-stone-600 uppercase">
-                            {msg.senderRole}
-                          </span>
-                          <span className="text-[10px] text-stone-400">{msg.timestamp}</span>
-                        </div>
-
+                        {/* Bubble Container */}
                         <div
-                          className={`max-w-[85%] sm:max-w-md rounded-2xl px-4 py-2.5 shadow-2xs space-y-2 ${
+                          className={`max-w-[85%] sm:max-w-md rounded-2xl px-4 py-2.5 shadow-2xs space-y-1.5 transition ${
                             isMe
-                              ? 'bg-gradient-to-r from-stone-900 to-stone-800 text-white rounded-tr-none'
-                              : 'bg-white border border-stone-200 text-stone-900 rounded-tl-none'
+                              ? 'bg-gradient-to-tr from-emerald-600 to-teal-600 text-white rounded-tr-xs'
+                              : 'bg-white border border-stone-200 text-stone-900 rounded-tl-xs'
                           }`}
                         >
+                          {/* Sender name badge for received messages */}
+                          {!isMe && (
+                            <div className="flex items-center gap-1.5 text-[11px] font-black text-emerald-700 pb-0.5 border-b border-stone-100">
+                              <span>{msg.senderName}</span>
+                              <span className="rounded bg-stone-100 px-1 py-0.2 text-[9px] font-bold text-stone-500 uppercase">
+                                {msg.senderRole || 'student'}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Text Content */}
                           {msg.text && <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>}
 
                           {/* File attachment preview */}
@@ -8441,7 +8568,7 @@ function CampusConnect({ student, setPage }) {
                             <div
                               className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border ${
                                 isMe
-                                  ? 'bg-stone-800/90 border-stone-700 text-white'
+                                  ? 'bg-emerald-700/80 border-emerald-500 text-white'
                                   : 'bg-stone-50 border-stone-200 text-stone-900'
                               }`}
                             >
@@ -8457,18 +8584,39 @@ function CampusConnect({ student, setPage }) {
                               <a
                                 href={msg.attachment.dataUrl}
                                 download={msg.attachment.name}
-                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 text-[11px] font-bold transition shrink-0 shadow-2xs"
+                                className="inline-flex items-center gap-1 rounded-lg bg-stone-900 hover:bg-stone-800 text-white px-2.5 py-1 text-[11px] font-bold transition shrink-0 shadow-2xs"
                               >
                                 <Download className="h-3 w-3" />
                                 <span>Download</span>
                               </a>
                             </div>
                           )}
+
+                          {/* Footer Meta info (Timestamp & Double Ticks for sent messages) */}
+                          <div className={`flex items-center justify-end gap-1 text-[10px] ${isMe ? 'text-emerald-100' : 'text-stone-400'}`}>
+                            <span>{msg.timestamp}</span>
+                            {isMe && <CheckCheck className="h-3.5 w-3.5 text-cyan-200 inline-block" title="Delivered" />}
+                          </div>
                         </div>
                       </div>
                     );
                   })
                 )}
+
+                {/* Animated Typing Indicator Bubble */}
+                {isTargetTyping && (
+                  <div className="flex items-center gap-2 text-stone-600 text-xs bg-white border border-stone-200 px-3.5 py-2 rounded-2xl rounded-tl-xs w-fit shadow-xs animate-pulse">
+                    <span className="font-bold text-emerald-700">{activeChatInfo.title}</span>
+                    <span className="text-stone-400">is typing</span>
+                    <span className="flex gap-1 items-center ml-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </span>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Attached File Preview before sending */}
@@ -8501,15 +8649,15 @@ function CampusConnect({ student, setPage }) {
                   type="text"
                   placeholder={`Message ${activeChatInfo.title}...`}
                   value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  className="flex-1 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-xs sm:text-sm font-medium focus:bg-white focus:border-stone-900 focus:outline-none"
+                  onChange={handleInputChange}
+                  className="flex-1 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-xs sm:text-sm font-medium focus:bg-white focus:border-emerald-600 focus:outline-none"
                 />
 
                 {/* Send Button */}
                 <button
                   type="submit"
                   disabled={!inputText.trim() && !attachedFile}
-                  className="grid h-10 w-10 place-items-center rounded-xl bg-stone-900 hover:bg-emerald-600 disabled:opacity-50 disabled:hover:bg-stone-900 text-white transition shadow-sm cursor-pointer shrink-0"
+                  className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white transition shadow-sm cursor-pointer shrink-0"
                   title="Send message"
                 >
                   <Send className="h-4 w-4" />

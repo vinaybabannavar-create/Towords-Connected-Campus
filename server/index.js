@@ -87,16 +87,22 @@ app.use('/api/db/registrations', registrationRoutes);
 app.use('/api/db', projectRoutes);
 app.use('/api', aiRoutes);
 
-// Socket.IO Real-Time Messaging & Friend Request Handling
+// Socket.IO Real-Time Messaging, Online Status & Typing Indicators
+const onlineSockets = new Map(); // socket.id -> bec
+
 io.on('connection', (socket) => {
   console.log(`⚡ Client connected to Socket.IO: ${socket.id}`);
 
-  // Register user BEC room
+  // Register user BEC room and mark online
   socket.on('join_user', ({ bec }) => {
     if (!bec) return;
     const cleanBec = String(bec).trim().toUpperCase();
     socket.join(`user_${cleanBec}`);
-    console.log(`👤 Socket ${socket.id} joined room user_${cleanBec}`);
+    onlineSockets.set(socket.id, cleanBec);
+
+    const onlineList = Array.from(new Set(onlineSockets.values()));
+    io.emit('online_users_list', onlineList);
+    console.log(`👤 User joined: ${cleanBec} (Socket: ${socket.id}). Online users: [${onlineList.join(', ')}]`);
   });
 
   // Friend Request Sent Live Broadcast
@@ -113,20 +119,41 @@ io.on('connection', (socket) => {
     io.emit('connection_status_updated', data);
   });
 
+  // Live Typing Indicators
+  socket.on('typing_start', ({ senderBec, senderName, targetId, isGroup }) => {
+    if (!targetId || !senderBec) return;
+    if (isGroup) {
+      socket.broadcast.emit('user_typing', { senderBec, senderName, targetId, isGroup: true, isTyping: true });
+    } else {
+      const recipientRoom = `user_${String(targetId).trim().toUpperCase()}`;
+      socket.to(recipientRoom).emit('user_typing', { senderBec, senderName, targetId, isGroup: false, isTyping: true });
+    }
+  });
+
+  socket.on('typing_stop', ({ senderBec, targetId, isGroup }) => {
+    if (!targetId || !senderBec) return;
+    if (isGroup) {
+      socket.broadcast.emit('user_typing', { senderBec, targetId, isGroup: true, isTyping: false });
+    } else {
+      const recipientRoom = `user_${String(targetId).trim().toUpperCase()}`;
+      socket.to(recipientRoom).emit('user_typing', { senderBec, targetId, isGroup: false, isTyping: false });
+    }
+  });
+
   // Live Chat Message Broadcast
   socket.on('send_message', (msgData) => {
-    if (!msgData || !msgData.conversationId) return;
+    if (!msgData) return;
 
-    const convId = String(msgData.conversationId).trim().toUpperCase();
-    if (convId.startsWith('GROUP_')) {
+    if (msgData.isGroup || (msgData.conversationId && String(msgData.conversationId).startsWith('group_'))) {
       io.emit('receive_message', msgData);
     } else {
-      // Direct message: broadcast to recipient room and sender room
-      const recipientRoom = `user_${convId}`;
-      const senderRoom = `user_${String(msgData.senderBec).trim().toUpperCase()}`;
+      const recipientBec = String(msgData.recipientBec || msgData.conversationId).trim().toUpperCase();
+      const senderBec = String(msgData.senderBec).trim().toUpperCase();
+      const recipientRoom = `user_${recipientBec}`;
+      const senderRoom = `user_${senderBec}`;
       io.to(recipientRoom).to(senderRoom).emit('receive_message', msgData);
     }
-    console.log(`💬 Message broadcasted for conversation ${convId}`);
+    console.log(`💬 Message broadcasted from ${msgData.senderBec} to ${msgData.recipientBec || msgData.conversationId}`);
   });
 
   // Group Created Live Broadcast
@@ -140,7 +167,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log(`🔌 Client disconnected: ${socket.id}`);
+    const bec = onlineSockets.get(socket.id);
+    onlineSockets.delete(socket.id);
+    const onlineList = Array.from(new Set(onlineSockets.values()));
+    io.emit('online_users_list', onlineList);
+    console.log(`🔌 Client disconnected: ${socket.id} (${bec || 'unknown'}). Online users: [${onlineList.join(', ')}]`);
   });
 });
 
