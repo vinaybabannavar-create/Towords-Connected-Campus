@@ -8562,6 +8562,8 @@ function CampusConnect({ student, setPage }) {
                       const isPending = friendConn?.status === 'pending';
                       const isOnline = onlineUsers.includes(dirUser.bec?.toUpperCase());
 
+                      const isDirectMessagingAllowed = currentRole !== 'student' || (dirUser.role && dirUser.role !== 'student');
+
                       return (
                         <div key={dirUser.bec} className="group flex items-center justify-between gap-2 p-2.5 rounded-xl border border-stone-100 bg-stone-50/80 hover:bg-white transition">
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -8593,7 +8595,21 @@ function CampusConnect({ student, setPage }) {
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
-                            {isFriend ? (
+                            {isDirectMessagingAllowed ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveChatId(dirUser.bec);
+                                  setChatType('direct');
+                                  setActiveTab('chats');
+                                  setMobileChatOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 text-[11px] font-black transition shadow-xs cursor-pointer"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                <span>Message</span>
+                              </button>
+                            ) : isFriend ? (
                               <>
                                 <button
                                   type="button"
