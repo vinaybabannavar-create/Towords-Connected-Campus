@@ -9724,7 +9724,7 @@ CRITICAL BEHAVIORAL RULES:
 
       {/* Floating Widget at Bottom Right (Popup + Dancing Button) */}
       <div className={`fixed z-40 flex flex-col items-end pointer-events-none ${
-        activePage === 'connect' ? 'hidden sm:flex sm:bottom-24 sm:right-6' : 'bottom-24 right-4 sm:bottom-24 sm:right-6'
+        activePage === 'connect' ? 'hidden sm:flex sm:bottom-24 sm:right-6' : 'bottom-24 right-5 sm:bottom-24 sm:right-6'
       }`}>
         {/* Smoothly Sliding Interactive Pop-up Speech Bubble */}
         <div
@@ -9909,7 +9909,7 @@ CRITICAL BEHAVIORAL RULES:
           }`}
           aria-label="Open chatbot"
         >
-          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+          <span className="absolute top-0.5 right-0.5 flex h-3.5 w-3.5 pointer-events-none">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-stone-950" />
           </span>
