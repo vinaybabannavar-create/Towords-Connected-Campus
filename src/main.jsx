@@ -7470,6 +7470,22 @@ function CampusConnect({ student, setPage }) {
     return Array.isArray(raw) ? raw : [];
   });
 
+  const [clearedChats, setClearedChats] = useState(() => {
+    return currentBec ? getJSON(`bec_portal_cleared_chats_${currentBec.toUpperCase()}`, {}) : {};
+  });
+
+  useEffect(() => {
+    if (currentBec) {
+      setClearedChats(getJSON(`bec_portal_cleared_chats_${currentBec.toUpperCase()}`, {}));
+    }
+  }, [currentBec]);
+
+  useEffect(() => {
+    if (currentBec) {
+      setJSON(`bec_portal_cleared_chats_${currentBec.toUpperCase()}`, clearedChats);
+    }
+  }, [clearedChats, currentBec]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [inputText, setInputText] = useState('');
@@ -7579,23 +7595,29 @@ function CampusConnect({ student, setPage }) {
         });
       });
 
-      // Live chat cleared broadcast (deletes both sides in real time)
-      socket.on('chat_cleared', ({ senderBec, targetId, isGroup }) => {
-        const sBec = (senderBec || '').toUpperCase();
-        const tId = (targetId || '').toUpperCase();
-        const me = currentBec.toUpperCase();
-
+      // Live message read receipt broadcast
+      socket.on('messages_seen', ({ senderBec, readerBec }) => {
+        if (!senderBec || !readerBec) return;
+        const sBec = String(senderBec).toUpperCase();
+        const rBec = String(readerBec).toUpperCase();
         setMessages((prev) =>
-          prev.filter((m) => {
-            if (isGroup) {
-              return m.conversationId !== targetId && m.groupId !== targetId;
+          prev.map((m) => {
+            const ms = (m.senderBec || '').toUpperCase();
+            const mr = (m.recipientBec || m.conversationId || '').toUpperCase();
+            if (ms === sBec && mr === rBec) {
+              return { ...m, seen: true };
             }
-            const s = (m.senderBec || '').toUpperCase();
-            const r = (m.recipientBec || m.conversationId || '').toUpperCase();
-            const isMatch = (s === sBec && r === tId) || (s === tId && r === sBec) || (s === me && r === tId) || (s === tId && r === me);
-            return !isMatch;
+            return m;
           })
         );
+      });
+
+      // Live chat cleared event (updates local user timestamp only)
+      socket.on('chat_cleared', ({ senderBec, targetId }) => {
+        if ((senderBec || '').toUpperCase() === currentBec) {
+          const targetKey = (targetId || '').toUpperCase();
+          setClearedChats((prev) => ({ ...prev, [targetKey]: Date.now() }));
+        }
       });
     } catch (err) {
       console.warn('Socket.IO connection notice:', err);
@@ -7617,23 +7639,28 @@ function CampusConnect({ student, setPage }) {
           setMessages((prev) => (prev.some((m) => m.id === payload.id) ? prev : [...prev, payload]));
         } else if (type === 'NEW_GROUP') {
           setGroups((prev) => (prev.some((g) => g.id === payload.id) ? prev : [payload, ...prev]));
-        } else if (type === 'CLEAR_CHAT') {
-          const { senderBec, targetId, isGroup } = payload || {};
-          const sBec = (senderBec || '').toUpperCase();
-          const tId = (targetId || '').toUpperCase();
-          const me = currentBec.toUpperCase();
-
-          setMessages((prev) =>
-            prev.filter((m) => {
-              if (isGroup) {
-                return m.conversationId !== targetId && m.groupId !== targetId;
-              }
-              const s = (m.senderBec || '').toUpperCase();
-              const r = (m.recipientBec || m.conversationId || '').toUpperCase();
-              const isMatch = (s === sBec && r === tId) || (s === tId && r === sBec) || (s === me && r === tId) || (s === tId && r === me);
-              return !isMatch;
-            })
-          );
+        } else if (type === 'MARK_SEEN') {
+          const { senderBec, readerBec } = payload || {};
+          if (senderBec && readerBec) {
+            const sBec = String(senderBec).toUpperCase();
+            const rBec = String(readerBec).toUpperCase();
+            setMessages((prev) =>
+              prev.map((m) => {
+                const ms = (m.senderBec || '').toUpperCase();
+                const mr = (m.recipientBec || m.conversationId || '').toUpperCase();
+                if (ms === sBec && mr === rBec) {
+                  return { ...m, seen: true };
+                }
+                return m;
+              })
+            );
+          }
+        } else if (type === 'CLEAR_CHAT_LOCAL') {
+          const { userBec, targetId } = payload || {};
+          if ((userBec || '').toUpperCase() === currentBec) {
+            const targetKey = (targetId || '').toUpperCase();
+            setClearedChats((prev) => ({ ...prev, [targetKey]: Date.now() }));
+          }
         }
       };
     } catch (e) {}
@@ -7908,43 +7935,31 @@ function CampusConnect({ student, setPage }) {
     }
   };
 
-  // Clear all messages in the active conversation (both sent and received)
+  // Clear chat history ONLY for the current user's portal view (does NOT delete for the other user)
   const handleClearChat = () => {
     if (!activeChatId) return;
     const name = activeChatInfo?.title || activeChatId;
-    if (!confirm(`Are you sure you want to clear all messages in the chat with ${name}?`)) return;
+    if (!confirm(`Are you sure you want to clear your chat history with ${name}?`)) return;
 
-    const me = currentBec.toUpperCase();
-    const target = activeChatId.toUpperCase();
-    const isGroup = chatType === 'group';
+    const targetKey = activeChatId.toUpperCase();
+    const now = Date.now();
 
-    // 1. Delete all messages locally (both sent AND received)
-    setMessages((prev) =>
-      prev.filter((m) => {
-        if (isGroup) {
-          return m.conversationId !== activeChatId && m.groupId !== activeChatId;
-        }
-        const s = (m.senderBec || '').toUpperCase();
-        const r = (m.recipientBec || m.conversationId || '').toUpperCase();
-        const isBetweenBoth = (s === me && r === target) || (s === target && r === me);
-        return !isBetweenBoth;
-      })
-    );
+    setClearedChats((prev) => ({
+      ...prev,
+      [targetKey]: now
+    }));
 
-    // 2. Real-time broadcast to recipient via Socket.IO
     if (socketRef.current) {
       socketRef.current.emit('clear_chat', {
         senderBec: currentBec,
-        targetId: activeChatId,
-        isGroup
+        targetId: activeChatId
       });
     }
 
-    // 3. Real-time broadcast to other browser tabs
     try {
       new BroadcastChannel('bec_campus_connect_channel').postMessage({
-        type: 'CLEAR_CHAT',
-        payload: { senderBec: currentBec, targetId: activeChatId, isGroup }
+        type: 'CLEAR_CHAT_LOCAL',
+        payload: { userBec: currentBec, targetId: activeChatId }
       });
     } catch (err) {}
   };
@@ -8120,7 +8135,8 @@ function CampusConnect({ student, setPage }) {
       text: inputText.trim(),
       attachment: attachedFile,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      seen: false
     };
 
     setMessages((prev) => [...prev, newMsg]);
@@ -8171,22 +8187,79 @@ function CampusConnect({ student, setPage }) {
     return Boolean(typingUsers[activeChatId.toUpperCase()]);
   }, [typingUsers, activeChatId]);
 
-  // Messages in active conversation strictly filtered
+  // Automatically mark incoming messages as SEEN if the user is currently viewing this conversation
+  useEffect(() => {
+    if (!activeChatId || !currentBec || chatType === 'group') return;
+    const targetBec = activeChatId.toUpperCase();
+    const myBec = currentBec.toUpperCase();
+
+    // Check if there are any unread messages from targetBec to currentBec
+    const hasUnseen = messages.some(
+      (m) =>
+        (m.senderBec || '').toUpperCase() === targetBec &&
+        (m.recipientBec || m.conversationId || '').toUpperCase() === myBec &&
+        !m.seen
+    );
+
+    if (hasUnseen) {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (
+            (m.senderBec || '').toUpperCase() === targetBec &&
+            (m.recipientBec || m.conversationId || '').toUpperCase() === myBec &&
+            !m.seen
+          ) {
+            return { ...m, seen: true };
+          }
+          return m;
+        })
+      );
+
+      if (socketRef.current) {
+        socketRef.current.emit('mark_seen', {
+          senderBec: targetBec,
+          readerBec: currentBec
+        });
+      }
+
+      try {
+        new BroadcastChannel('bec_campus_connect_channel').postMessage({
+          type: 'MARK_SEEN',
+          payload: { senderBec: targetBec, readerBec: currentBec }
+        });
+      } catch (err) {}
+    }
+  }, [activeChatId, messages, currentBec, chatType]);
+
+  // Messages in active conversation strictly filtered (and respecting user's local cleared timestamp)
   const currentConversationMessages = useMemo(() => {
     if (!activeChatId) return [];
+    const targetKey = activeChatId.toUpperCase();
+    const clearedTime = clearedChats[targetKey] || 0;
+
+    let filtered = [];
     if (chatType === 'group') {
-      return messages.filter((m) => m.conversationId === activeChatId || m.groupId === activeChatId);
+      filtered = messages.filter((m) => m.conversationId === activeChatId || m.groupId === activeChatId);
+    } else {
+      const me = currentBec.toUpperCase();
+      const other = activeChatId.toUpperCase();
+      filtered = messages.filter((m) => {
+        if (m.isGroup || (m.conversationId && String(m.conversationId).startsWith('group_'))) return false;
+        const s = (m.senderBec || '').toUpperCase();
+        const r = (m.recipientBec || m.conversationId || '').toUpperCase();
+        return (s === me && r === other) || (s === other && r === me);
+      });
     }
-    const me = currentBec.toUpperCase();
-    const other = activeChatId.toUpperCase();
-    return messages.filter((m) => {
-      if (m.isGroup || (m.conversationId && String(m.conversationId).startsWith('group_'))) return false;
-      const s = (m.senderBec || '').toUpperCase();
-      const r = (m.recipientBec || m.conversationId || '').toUpperCase();
-      // True 1-on-1 pairing: either sent by me to other, or sent by other to me
-      return (s === me && r === other) || (s === other && r === me);
-    });
-  }, [messages, activeChatId, chatType, currentBec]);
+
+    if (clearedTime > 0) {
+      filtered = filtered.filter((m) => {
+        const msgTime = new Date(m.createdAt || 0).getTime() || (m.id ? parseInt(m.id.split('_')[1] || 0) : 0);
+        return msgTime > clearedTime;
+      });
+    }
+
+    return filtered;
+  }, [messages, activeChatId, chatType, currentBec, clearedChats]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -8809,10 +8882,16 @@ function CampusConnect({ student, setPage }) {
                             </div>
                           )}
 
-                          {/* Footer Meta info (Timestamp & Double Ticks for sent messages) */}
+                          {/* Footer Meta info (Timestamp & WhatsApp ticks for sent messages) */}
                           <div className={`flex items-center justify-end gap-1 text-[10px] ${isMe ? 'text-emerald-100' : 'text-stone-400'}`}>
                             <span>{msg.timestamp}</span>
-                            {isMe && <CheckCheck className="h-3.5 w-3.5 text-cyan-200 inline-block" title="Delivered" />}
+                            {isMe && (
+                              msg.seen ? (
+                                <CheckCheck className="h-3.5 w-3.5 text-[#34B7F1] inline-block drop-shadow-xs" title="Seen (Read)" />
+                              ) : (
+                                <Check className="h-3.5 w-3.5 text-emerald-100/75 inline-block" title="Sent (Unread)" />
+                              )
+                            )}
                           </div>
                         </div>
                       </div>
