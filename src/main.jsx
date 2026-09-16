@@ -7578,6 +7578,25 @@ function CampusConnect({ student, setPage }) {
           return [groupData, ...prev];
         });
       });
+
+      // Live chat cleared broadcast (deletes both sides in real time)
+      socket.on('chat_cleared', ({ senderBec, targetId, isGroup }) => {
+        const sBec = (senderBec || '').toUpperCase();
+        const tId = (targetId || '').toUpperCase();
+        const me = currentBec.toUpperCase();
+
+        setMessages((prev) =>
+          prev.filter((m) => {
+            if (isGroup) {
+              return m.conversationId !== targetId && m.groupId !== targetId;
+            }
+            const s = (m.senderBec || '').toUpperCase();
+            const r = (m.recipientBec || m.conversationId || '').toUpperCase();
+            const isMatch = (s === sBec && r === tId) || (s === tId && r === sBec) || (s === me && r === tId) || (s === tId && r === me);
+            return !isMatch;
+          })
+        );
+      });
     } catch (err) {
       console.warn('Socket.IO connection notice:', err);
     }
@@ -7598,6 +7617,23 @@ function CampusConnect({ student, setPage }) {
           setMessages((prev) => (prev.some((m) => m.id === payload.id) ? prev : [...prev, payload]));
         } else if (type === 'NEW_GROUP') {
           setGroups((prev) => (prev.some((g) => g.id === payload.id) ? prev : [payload, ...prev]));
+        } else if (type === 'CLEAR_CHAT') {
+          const { senderBec, targetId, isGroup } = payload || {};
+          const sBec = (senderBec || '').toUpperCase();
+          const tId = (targetId || '').toUpperCase();
+          const me = currentBec.toUpperCase();
+
+          setMessages((prev) =>
+            prev.filter((m) => {
+              if (isGroup) {
+                return m.conversationId !== targetId && m.groupId !== targetId;
+              }
+              const s = (m.senderBec || '').toUpperCase();
+              const r = (m.recipientBec || m.conversationId || '').toUpperCase();
+              const isMatch = (s === sBec && r === tId) || (s === tId && r === sBec) || (s === me && r === tId) || (s === tId && r === me);
+              return !isMatch;
+            })
+          );
         }
       };
     } catch (e) {}
@@ -7870,6 +7906,47 @@ function CampusConnect({ student, setPage }) {
       setActiveChatId(null);
       setMobileChatOpen(false);
     }
+  };
+
+  // Clear all messages in the active conversation (both sent and received)
+  const handleClearChat = () => {
+    if (!activeChatId) return;
+    const name = activeChatInfo?.title || activeChatId;
+    if (!confirm(`Are you sure you want to clear all messages in the chat with ${name}?`)) return;
+
+    const me = currentBec.toUpperCase();
+    const target = activeChatId.toUpperCase();
+    const isGroup = chatType === 'group';
+
+    // 1. Delete all messages locally (both sent AND received)
+    setMessages((prev) =>
+      prev.filter((m) => {
+        if (isGroup) {
+          return m.conversationId !== activeChatId && m.groupId !== activeChatId;
+        }
+        const s = (m.senderBec || '').toUpperCase();
+        const r = (m.recipientBec || m.conversationId || '').toUpperCase();
+        const isBetweenBoth = (s === me && r === target) || (s === target && r === me);
+        return !isBetweenBoth;
+      })
+    );
+
+    // 2. Real-time broadcast to recipient via Socket.IO
+    if (socketRef.current) {
+      socketRef.current.emit('clear_chat', {
+        senderBec: currentBec,
+        targetId: activeChatId,
+        isGroup
+      });
+    }
+
+    // 3. Real-time broadcast to other browser tabs
+    try {
+      new BroadcastChannel('bec_campus_connect_channel').postMessage({
+        type: 'CLEAR_CHAT',
+        payload: { senderBec: currentBec, targetId: activeChatId, isGroup }
+      });
+    } catch (err) {}
   };
 
   // Delete / cancel connection request
@@ -8640,13 +8717,9 @@ function CampusConnect({ student, setPage }) {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
-                    onClick={() => {
-                      if (confirm('Clear messages in this conversation for your view?')) {
-                        setMessages((prev) => prev.filter((m) => m.conversationId !== activeChatId));
-                      }
-                    }}
-                    className="rounded-lg border border-stone-200 hover:bg-stone-100 text-stone-600 px-2.5 py-1 text-xs font-semibold transition cursor-pointer"
-                    title="Clear chat messages"
+                    onClick={handleClearChat}
+                    className="rounded-lg border border-stone-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 text-stone-600 px-2.5 py-1 text-xs font-semibold transition cursor-pointer"
+                    title="Clear all messages in this conversation"
                   >
                     Clear
                   </button>

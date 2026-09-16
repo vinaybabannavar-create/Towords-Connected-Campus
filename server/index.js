@@ -161,6 +161,18 @@ io.on('connection', (socket) => {
     io.emit('group_created', groupData);
   });
 
+  // Clear Chat Live Broadcast
+  socket.on('clear_chat', ({ senderBec, targetId, isGroup }) => {
+    if (!targetId || !senderBec) return;
+    if (isGroup) {
+      io.emit('chat_cleared', { senderBec, targetId, isGroup: true });
+    } else {
+      const recipientRoom = `user_${String(targetId).trim().toUpperCase()}`;
+      const senderRoom = `user_${String(senderBec).trim().toUpperCase()}`;
+      io.to(recipientRoom).to(senderRoom).emit('chat_cleared', { senderBec, targetId, isGroup: false });
+    }
+  });
+
   // Delete event broadcast
   socket.on('delete_event', (payload) => {
     io.emit('sync_delete_event', payload);
