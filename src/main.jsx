@@ -2110,21 +2110,21 @@ function Dashboard({ student, setPage, onOpenProfile }) {
             {upcomingItems.map((item) => (
               <div
                 key={item.id}
-                className="rounded-3xl bg-white p-4 sm:p-5 shadow-[0_6px_24px_rgba(38,64,85,0.06)] border border-slate-100 flex items-center justify-between gap-4 hover:border-[#3B6280]/40 transition-all"
+                className="rounded-3xl bg-white p-3.5 sm:p-5 shadow-[0_6px_24px_rgba(38,64,85,0.06)] border border-slate-100 flex items-center justify-between gap-3 hover:border-[#3B6280]/40 transition-all overflow-hidden"
               >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="grid place-items-center h-12 w-12 rounded-2xl bg-[#3B6280]/10 border border-[#3B6280]/20 text-[#3B6280] shrink-0">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="grid place-items-center h-11 w-11 sm:h-12 sm:w-12 rounded-2xl bg-[#3B6280]/10 border border-[#3B6280]/20 text-[#3B6280] shrink-0">
                     <span className="text-[10px] font-black uppercase leading-tight">{item.month}</span>
-                    <span className="text-base font-black leading-none">{item.day}</span>
+                    <span className="text-sm sm:text-base font-black leading-none">{item.day}</span>
                   </div>
-                  <div className="min-w-0">
-                    <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border mb-1 ${item.badgeColor}`}>
+                  <div className="min-w-0 flex-1">
+                    <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border mb-0.5 ${item.badgeColor}`}>
                       {item.badge}
                     </span>
-                    <h4 className="text-sm font-black text-[#264055] truncate">
+                    <h4 className="text-xs sm:text-sm font-black text-[#264055] truncate">
                       {item.title}
                     </h4>
-                    <p className="text-xs text-slate-500 font-medium truncate">
+                    <p className="text-[11px] sm:text-xs text-slate-500 font-medium truncate">
                       {item.subtitle}
                     </p>
                   </div>
@@ -2133,7 +2133,7 @@ function Dashboard({ student, setPage, onOpenProfile }) {
                 <button
                   type="button"
                   onClick={() => setPage(item.page)}
-                  className="rounded-xl bg-slate-100 hover:bg-[#3B6280] hover:text-white p-2.5 text-slate-600 transition-colors shrink-0 cursor-pointer"
+                  className="rounded-xl bg-slate-100 hover:bg-[#3B6280] hover:text-white p-2 sm:p-2.5 text-slate-600 transition-colors shrink-0 cursor-pointer ml-1"
                   title="View"
                 >
                   <ArrowRight className="h-4 w-4" />
