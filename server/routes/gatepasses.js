@@ -2,6 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { getDbPool } from '../db.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 const LOCAL_GATEPASS_FILE = path.resolve(process.cwd(), 'gate_passes_data.json');
@@ -22,7 +23,7 @@ const saveLocalPasses = (passes) => {
 };
 
 // GET /api/db/gatepasses
-router.get('/gatepasses', async (req, res) => {
+router.get('/gatepasses', requireAuth, async (req, res) => {
   try {
     const bec = req.query.bec;
     const local = getLocalPasses();
@@ -31,7 +32,7 @@ router.get('/gatepasses', async (req, res) => {
     try {
       const db = await getDbPool();
       if (bec) {
-        [rows] = await db.query('SELECT * FROM gate_passes WHERE bec = ? ORDER BY created_at DESC', [bec]);
+        [rows] = await db.query('SELECT * FROM gate_passes WHERE UPPER(TRIM(bec)) = UPPER(TRIM(?)) ORDER BY created_at DESC', [bec]);
       } else {
         [rows] = await db.query('SELECT * FROM gate_passes ORDER BY created_at DESC');
       }
@@ -43,21 +44,31 @@ router.get('/gatepasses', async (req, res) => {
     let merged = Array.from(map.values());
 
     if (bec) {
-      merged = merged.filter((p) => (p.bec || p.usn || '').toUpperCase() === bec.toUpperCase());
+      merged = merged.filter((p) => (p.bec || p.usn || '').toUpperCase() === String(bec).trim().toUpperCase());
     }
 
     res.json({ gatePasses: merged });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch gate passes: ' + err.message });
+    console.error('Fetch gatepasses error:', err.message);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 
 // POST /api/db/gatepasses (Create / Save Gate Pass)
-router.post('/gatepasses', async (req, res) => {
+router.post('/gatepasses', requireAuth, async (req, res) => {
   try {
     const g = req.body || {};
-    if (!g.id || !g.bec || !g.reason) {
+    if (!g.id || (!g.bec && !g.usn) || !g.reason) {
       return res.status(400).json({ error: 'Gate pass ID, USN/BEC, and reason are required.' });
+    }
+
+    const passBec = String(g.bec || g.usn || '').trim().toUpperCase();
+    const callerBec = String(req.user?.bec || '').trim().toUpperCase();
+    const callerRole = String(req.user?.role || '').trim().toLowerCase();
+
+    // A student cannot file a pass under someone else's ID
+    if (callerRole === 'student' && passBec !== callerBec) {
+      return res.status(403).json({ error: 'Students can only create gate passes under their own BEC / USN.' });
     }
 
     const local = getLocalPasses();
@@ -72,7 +83,7 @@ router.post('/gatepasses', async (req, res) => {
          ON DUPLICATE KEY UPDATE status=VALUES(status), teacher_approval=VALUES(teacher_approval), hod_approval=VALUES(hod_approval), rejection_reason=VALUES(rejection_reason), security_key=VALUES(security_key)`,
         [
           g.id,
-          g.bec || g.usn,
+          passBec,
           g.name || '',
           g.roll_no || g.rollNo || '',
           g.branch || 'CSE',
@@ -98,12 +109,13 @@ router.post('/gatepasses', async (req, res) => {
 
     res.json({ success: true, message: 'Gate pass saved.' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save gate pass: ' + err.message });
+    console.error('Save gatepass error:', err.message);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 
 // POST /api/db/gatepasses/status (Teacher / HOD Sign-off)
-router.post('/gatepasses/status', async (req, res) => {
+router.post('/gatepasses/status', requireAuth, requireRole('teacher', 'hod'), async (req, res) => {
   try {
     const { id, status, teacherApproval, hodApproval, rejectionReason, securityKey } = req.body || {};
     if (!id || !status) {
@@ -141,12 +153,13 @@ router.post('/gatepasses/status', async (req, res) => {
 
     res.json({ success: true, message: 'Gate pass approval status updated.' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update gate pass status: ' + err.message });
+    console.error('Update gatepass status error:', err.message);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 
-// POST /api/db/gatepasses/verify (Security Guard QR Scanner)
-router.post('/gatepasses/verify', async (req, res) => {
+// POST /api/db/gatepasses/verify (Security Guard / Terminal Scanner)
+router.post('/gatepasses/verify', requireAuth, requireRole('guard', 'teacher', 'hod'), async (req, res) => {
   try {
     const { keyOrId } = req.body || {};
     if (!keyOrId) {
@@ -183,12 +196,13 @@ router.post('/gatepasses/verify', async (req, res) => {
 
     res.json({ success: true, pass: { ...pass, status: 'USED' } });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to verify pass: ' + err.message });
+    console.error('Verify gatepass error:', err.message);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 
 // POST /api/db/gatepasses/delete
-router.post('/gatepasses/delete', async (req, res) => {
+router.post('/gatepasses/delete', requireAuth, async (req, res) => {
   try {
     const { id } = req.body || {};
     if (!id) {
@@ -205,7 +219,8 @@ router.post('/gatepasses/delete', async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete gate pass: ' + err.message });
+    console.error('Delete gatepass error:', err.message);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 

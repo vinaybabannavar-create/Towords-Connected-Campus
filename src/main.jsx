@@ -623,17 +623,40 @@ const apiFetch = async (url, options = {}) => {
     const fullUrl = url.startsWith('http')
       ? url
       : `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+
+    const token = typeof window !== 'undefined'
+      ? (sessionStorage.getItem('bec_auth_token') || localStorage.getItem('bec_auth_token'))
+      : null;
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {})
+    };
+
     const res = await fetch(fullUrl, {
-      headers: { 'Content-Type': 'application/json' },
-      ...options
+      ...options,
+      headers
     });
+
+    if (res.status === 401 && !url.includes('/auth/login')) {
+      if (typeof window !== 'undefined' && token) {
+        sessionStorage.removeItem('bec_auth_token');
+        localStorage.removeItem('bec_auth_token');
+        sessionStorage.removeItem('bec_tab_user');
+        sessionStorage.removeItem('bec_tab_page');
+        window.dispatchEvent(new CustomEvent('bec_auth_expired'));
+      }
+      return { error: 'Session expired or not authorized.' };
+    }
+
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       return { error: data.error || `Request failed with status ${res.status}` };
     }
     return data;
   } catch (err) {
-    console.warn('TiDB API notice:', err.message);
+    console.warn('API notice:', err.message);
     return { error: err.message || 'Network request failed' };
   }
 };
@@ -956,26 +979,41 @@ function App() {
   }, [activeStudent?.role, page]);
 
   useEffect(() => {
+    const handleAuthExpired = () => {
+      sessionStorage.removeItem('bec_auth_token');
+      localStorage.removeItem('bec_auth_token');
+      sessionStorage.removeItem('bec_tab_user');
+      sessionStorage.removeItem('bec_tab_page');
+      setSessionBec(null);
+      setPage('login');
+    };
+    window.addEventListener('bec_auth_expired', handleAuthExpired);
+    return () => window.removeEventListener('bec_auth_expired', handleAuthExpired);
+  }, []);
+
+  useEffect(() => {
     // Check TiDB Cloud Status
     apiFetch('/api/db/status').then((res) => {
       if (res?.online) setDbConnected(true);
     });
 
-    // Fetch existing students from TiDB Cloud
-    apiFetch('/api/db/students').then((res) => {
-      if (res?.students?.length) {
-        setStudents((prev) => {
-          const merged = [...prev];
-          res.students.forEach((s) => {
-            if (!merged.some((p) => p.bec === s.bec)) {
-              merged.push(s);
-            }
+    // Fetch existing students from TiDB Cloud when authenticated
+    if (sessionBec) {
+      apiFetch('/api/db/students').then((res) => {
+        if (res?.students?.length) {
+          setStudents((prev) => {
+            const merged = [...prev];
+            res.students.forEach((s) => {
+              if (!merged.some((p) => p.bec === s.bec)) {
+                merged.push(s);
+              }
+            });
+            return merged;
           });
-          return merged;
-        });
-      }
-    });
-  }, []);
+        }
+      });
+    }
+  }, [sessionBec]);
 
   const [showLoginSplash, setShowLoginSplash] = useState(false);
   const [splashUser, setSplashUser] = useState(null);
@@ -984,6 +1022,28 @@ function App() {
     const userAccount = { role: 'student', college: 'T. John Institute Of Technology', ...account };
     const cleanBec = userAccount.bec.trim().toUpperCase();
     userAccount.bec = cleanBec;
+
+    // Save to TiDB Cloud (hashed with bcrypt on backend)
+    const saveRes = await apiFetch('/api/db/students', {
+      method: 'POST',
+      body: JSON.stringify(userAccount)
+    });
+
+    if (saveRes?.error) {
+      alert(`Could not create account: ${saveRes.error}`);
+      return;
+    }
+
+    // Auto-login to obtain signed JWT token
+    const loginRes = await apiFetch('/api/db/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ bec: cleanBec, password: userAccount.password, role: userAccount.role })
+    });
+
+    if (loginRes?.token) {
+      sessionStorage.setItem('bec_auth_token', loginRes.token);
+      localStorage.setItem('bec_auth_token', loginRes.token);
+    }
 
     const nextStudents = [...students.filter((s) => (s?.bec || '').toUpperCase() !== cleanBec), userAccount];
     setStudents(nextStudents);
@@ -994,12 +1054,6 @@ function App() {
     setPage(getRoleHomePage(userAccount.role));
     setSplashUser(userAccount);
     setShowLoginSplash(true);
-
-    // Save to TiDB Cloud
-    await apiFetch('/api/db/students', {
-      method: 'POST',
-      body: JSON.stringify(userAccount)
-    });
   };
 
   const login = async (bec, password, role, college) => {
@@ -1007,49 +1061,20 @@ function App() {
     const cleanPass = (password || '').trim();
     const cleanRole = (role || 'student').toLowerCase();
 
-    // 1. Gather all local accounts + default demo accounts
-    const allKnown = [...students];
-    DEFAULT_ACCOUNTS.forEach((acc) => {
-      if (!allKnown.some((s) => (s?.bec || '').toUpperCase() === acc.bec.toUpperCase())) {
-        allKnown.push(acc);
-      }
-    });
-
-    const found = allKnown.find((s) => {
-      const matchBec = (s?.bec || '').trim().toUpperCase() === cleanBec;
-      const matchRole = !cleanRole || (s?.role || 'student').toLowerCase() === cleanRole;
-      const matchPass = !s?.password || s.password === cleanPass || cleanPass === 'password123' || cleanPass === '1234';
-      return matchBec && matchRole && matchPass;
-    });
-
-    if (found) {
-      const updatedFound = {
-        ...found,
-        college: college || found.college || 'T. John Institute Of Technology'
-      };
-      const nextStudents = [...students.filter((s) => (s?.bec || '').toUpperCase() !== cleanBec), updatedFound];
-      setStudents(nextStudents);
-      setJSON(STORAGE_KEYS.students, nextStudents);
-      const home = getRoleHomePage(found.role || role);
-      sessionStorage.setItem('bec_tab_user', found.bec);
-      sessionStorage.setItem('bec_tab_page', home);
-      setSessionBec(found.bec);
-      setPage(home);
-      setSplashUser(updatedFound);
-      setShowLoginSplash(true);
-      return { success: true };
-    }
-
-    // 2. Try TiDB Cloud database login
+    // Authenticate with server and obtain signed JWT token
     const res = await apiFetch('/api/db/auth/login', {
       method: 'POST',
       body: JSON.stringify({ bec: cleanBec, password: cleanPass, role: cleanRole })
     });
 
     if (res?.success && res.student) {
+      if (res.token) {
+        sessionStorage.setItem('bec_auth_token', res.token);
+        localStorage.setItem('bec_auth_token', res.token);
+      }
+
       const dbStudent = {
         ...res.student,
-        password: cleanPass,
         college: college || res.student.college || 'T. John Institute Of Technology'
       };
       const nextStudents = [...students.filter((s) => (s?.bec || '').trim().toUpperCase() !== cleanBec), dbStudent];
@@ -1072,6 +1097,8 @@ function App() {
   };
 
   const logout = () => {
+    sessionStorage.removeItem('bec_auth_token');
+    localStorage.removeItem('bec_auth_token');
     sessionStorage.removeItem('bec_tab_user');
     sessionStorage.removeItem('bec_tab_page');
     sessionStorage.removeItem('bec_tab_session');

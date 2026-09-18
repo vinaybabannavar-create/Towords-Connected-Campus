@@ -42,17 +42,20 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
+
 // Create HTTP server & Socket.IO instance
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+    origin: allowedOrigin,
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
 // Middleware
-app.use(cors({ origin: process.env.ALLOWED_ORIGIN || true, credentials: true }));
+app.use(cors({ origin: allowedOrigin, credentials: true }));
 app.use(express.json({ limit: '20mb' }));
 
 // Root status check

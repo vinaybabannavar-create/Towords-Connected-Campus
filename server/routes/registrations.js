@@ -2,6 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { getDbPool } from '../db.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 const LOCAL_REGISTRATIONS_FILE = path.resolve(process.cwd(), 'placement_registrations_data.json');
@@ -22,7 +23,7 @@ const saveLocalRegistrations = (regs) => {
 };
 
 // GET /api/db/registrations
-router.get('/registrations', async (req, res) => {
+router.get('/registrations', requireAuth, async (req, res) => {
   try {
     const local = getLocalRegistrations();
     let rows = [];
@@ -36,16 +37,26 @@ router.get('/registrations', async (req, res) => {
     rows.forEach((r) => { if (r?.id) map.set(r.id, { ...map.get(r.id), ...r }); });
     res.json({ registrations: Array.from(map.values()) });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch placement registrations: ' + err.message });
+    console.error('Fetch registrations error:', err.message);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 
 // POST /api/db/registrations
-router.post('/registrations', async (req, res) => {
+router.post('/registrations', requireAuth, async (req, res) => {
   try {
     const r = req.body || {};
-    if (!r.id || !r.driveId || !r.studentBec) {
+    if (!r.id || !r.driveId || (!r.studentBec && !r.student_bec)) {
       return res.status(400).json({ error: 'Registration ID, Drive ID, and Student BEC are required.' });
+    }
+
+    const regBec = String(r.studentBec || r.student_bec || '').trim().toUpperCase();
+    const callerBec = String(req.user?.bec || '').trim().toUpperCase();
+    const callerRole = String(req.user?.role || '').trim().toLowerCase();
+
+    // A student can only register themselves unless caller is PO or HOD
+    if (callerRole === 'student' && regBec !== callerBec) {
+      return res.status(403).json({ error: 'Students can only register for drives under their own BEC / USN.' });
     }
 
     const local = getLocalRegistrations();
@@ -61,7 +72,7 @@ router.post('/registrations', async (req, res) => {
         [
           r.id,
           r.driveId || r.drive_id,
-          r.studentBec || r.student_bec,
+          regBec,
           r.studentName || r.student_name || 'Student',
           r.department || 'CSE',
           r.year || 'III Year',
@@ -78,7 +89,8 @@ router.post('/registrations', async (req, res) => {
 
     res.json({ success: true, message: 'Placement registration saved.' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save registration: ' + err.message });
+    console.error('Save registration error:', err.message);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 

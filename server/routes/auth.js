@@ -1,7 +1,18 @@
 import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { executeQuery } from '../db.js';
 
 const router = express.Router();
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15, // limit each IP to 15 login requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' }
+});
 
 const DEFAULT_AUTH_USERS = [
   { bec: '1XY21CS001', name: 'Student', department: 'CSE', year: 'IV Year', role: 'student', password: 'password123' },
@@ -14,8 +25,23 @@ const DEFAULT_AUTH_USERS = [
   { bec: 'GUARD01', name: 'Main Gate Security', department: 'Security', year: 'Staff', role: 'guard', password: 'password123' }
 ];
 
+const sanitizeUser = (user) => {
+  if (!user) return null;
+  const { password, ...safeUser } = user;
+  return safeUser;
+};
+
+const generateToken = (user) => {
+  const secret = process.env.JWT_SECRET || 'bec_default_jwt_fallback_secret_key_2026';
+  return jwt.sign(
+    { bec: user.bec, role: user.role || 'student' },
+    secret,
+    { expiresIn: '12h' }
+  );
+};
+
 // POST /api/db/auth/login
-router.post('/auth/login', async (req, res) => {
+router.post('/auth/login', loginLimiter, async (req, res) => {
   try {
     const { bec, password, role } = req.body || {};
     if (!bec || !password) {
@@ -39,40 +65,53 @@ router.post('/auth/login', async (req, res) => {
 
     if (rows && rows.length > 0) {
       const dbUser = rows[0];
-      if (!dbUser.password || dbUser.password === cleanPassword || cleanPassword === 'password123' || cleanPassword === '1234') {
-        return res.json({ success: true, student: dbUser });
+      const isPasswordMatch = await bcrypt.compare(cleanPassword, dbUser.password || '');
+      if (isPasswordMatch) {
+        const safeStudent = sanitizeUser(dbUser);
+        const token = generateToken(safeStudent);
+        return res.json({ success: true, token, student: safeStudent });
       }
     }
 
-    // Check default accounts
-    const match = DEFAULT_AUTH_USERS.find(
-      (u) =>
-        u.bec.toUpperCase() === cleanBec &&
-        (!cleanRole || u.role.toLowerCase() === cleanRole) &&
-        (u.password === cleanPassword || cleanPassword === 'password123' || cleanPassword === '1234')
-    );
+    // Check default accounts only if ALLOW_DEMO_LOGINS is true
+    if (process.env.ALLOW_DEMO_LOGINS === 'true') {
+      const match = DEFAULT_AUTH_USERS.find(
+        (u) =>
+          u.bec.toUpperCase() === cleanBec &&
+          (!cleanRole || u.role.toLowerCase() === cleanRole) &&
+          u.password === cleanPassword
+      );
 
-    if (match) {
-      return res.json({ success: true, student: match });
+      if (match) {
+        const safeStudent = sanitizeUser(match);
+        const token = generateToken(safeStudent);
+        return res.json({ success: true, token, student: safeStudent });
+      }
     }
 
-    res.status(401).json({ error: 'Invalid ID, password, or role selection.' });
+    return res.status(401).json({ error: 'Invalid ID, password, or role selection.' });
   } catch (err) {
     console.error('Login error:', err.message);
-    // Even if DB fails, check default accounts
-    const cleanBec = String(req.body?.bec || '').trim().toUpperCase();
-    const cleanRole = String(req.body?.role || '').trim().toLowerCase();
-    const cleanPassword = String(req.body?.password || '').trim();
-    const match = DEFAULT_AUTH_USERS.find(
-      (u) =>
-        u.bec.toUpperCase() === cleanBec &&
-        (!cleanRole || u.role.toLowerCase() === cleanRole) &&
-        (u.password === cleanPassword || cleanPassword === 'password123' || cleanPassword === '1234')
-    );
-    if (match) {
-      return res.json({ success: true, student: match });
+
+    // Fallback demo accounts check only if ALLOW_DEMO_LOGINS is true
+    if (process.env.ALLOW_DEMO_LOGINS === 'true') {
+      const cleanBec = String(req.body?.bec || '').trim().toUpperCase();
+      const cleanRole = String(req.body?.role || '').trim().toLowerCase();
+      const cleanPassword = String(req.body?.password || '').trim();
+      const match = DEFAULT_AUTH_USERS.find(
+        (u) =>
+          u.bec.toUpperCase() === cleanBec &&
+          (!cleanRole || u.role.toLowerCase() === cleanRole) &&
+          u.password === cleanPassword
+      );
+      if (match) {
+        const safeStudent = sanitizeUser(match);
+        const token = generateToken(safeStudent);
+        return res.json({ success: true, token, student: safeStudent });
+      }
     }
-    res.status(500).json({ error: 'Authentication service error: ' + err.message });
+
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 

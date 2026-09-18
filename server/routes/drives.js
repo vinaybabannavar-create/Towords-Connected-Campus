@@ -2,6 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { getDbPool } from '../db.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 const LOCAL_DRIVES_FILE = path.resolve(process.cwd(), 'placement_drives_data.json');
@@ -22,7 +23,7 @@ const saveLocalDrives = (drives) => {
 };
 
 // GET /api/db/drives
-router.get('/drives', async (req, res) => {
+router.get('/drives', requireAuth, async (req, res) => {
   try {
     const local = getLocalDrives();
     let rows = [];
@@ -36,12 +37,13 @@ router.get('/drives', async (req, res) => {
     rows.forEach((d) => { if (d?.id) map.set(d.id, { ...map.get(d.id), ...d }); });
     res.json({ drives: Array.from(map.values()) });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch placement drives: ' + err.message });
+    console.error('Fetch drives error:', err.message);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 
-// POST /api/db/drives (Create / Update Drive)
-router.post('/drives', async (req, res) => {
+// POST /api/db/drives (Create / Update Drive - PO / HOD only)
+router.post('/drives', requireAuth, requireRole('po', 'hod'), async (req, res) => {
   try {
     const d = req.body || {};
     if (!d.id || !d.company || !d.role) {
@@ -82,12 +84,13 @@ router.post('/drives', async (req, res) => {
 
     res.json({ success: true, message: 'Placement drive saved.' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save drive: ' + err.message });
+    console.error('Save drive error:', err.message);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 
 // POST /api/db/drives/delete
-router.post('/drives/delete', async (req, res) => {
+router.post('/drives/delete', requireAuth, requireRole('po', 'hod'), async (req, res) => {
   try {
     const { id } = req.body || {};
     if (!id) {
@@ -104,7 +107,8 @@ router.post('/drives/delete', async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to delete placement drive: ' + err.message });
+    console.error('Delete drive error:', err.message);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 

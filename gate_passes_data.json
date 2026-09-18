@@ -1,1 +1,27 @@
-[]
+[
+  {
+    "id": "GP-MU5J7S7Q",
+    "bec": "115",
+    "student_session_bec": "BEC233040",
+    "name": "Vinay",
+    "roll_no": "BEC233040",
+    "branch": "CSE",
+    "year_sem": "IV Year",
+    "college_name": "T. John Institute Of Technology",
+    "department": "CSE",
+    "reason": "fever",
+    "document_name": "",
+    "document_data": "",
+    "ai_priority": "HIGH",
+    "security_key": "003076",
+    "date": "2026-09-17",
+    "out_time": "18:24",
+    "return_time": "N/A",
+    "contact": "9876543210",
+    "status": "USED",
+    "teacher_approval": "Verified by Prof. Class Teacher (17/9/2026 at 06:24 pm)",
+    "hod_approval": "Approved by HOD Dr. HOD (17/9/2026 at 06:24 pm)",
+    "rejection_reason": null,
+    "created_at": "17/9/2026, 6:24:46 pm"
+  }
+]
