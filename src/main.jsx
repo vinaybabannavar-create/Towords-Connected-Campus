@@ -12,6 +12,7 @@ if (typeof window !== 'undefined' && pdfjsLib?.GlobalWorkerOptions) {
 }
 import { ArchitectureWorkspace } from './ArchitectureWorkspace.jsx';
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowRight,
   Bell,
@@ -3778,7 +3779,7 @@ async function extractSkillsFromResumeDoc(file, student) {
   if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
     try {
       const arrayBuffer = await file.arrayBuffer();
-      if (pdfjsLib && pdfjsLib.getDocument) {
+      if (typeof pdfjsLib !== 'undefined' && pdfjsLib && pdfjsLib.getDocument) {
         const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
         const pdf = await loadingTask.promise;
         let pageTexts = [];
@@ -3810,9 +3811,57 @@ async function extractSkillsFromResumeDoc(file, student) {
     } catch (e) {}
   }
 
-  const matchedSkills = [];
+  const cleanLower = (rawText || '').toLowerCase();
+  const fileNameLower = (file.name || '').toLowerCase();
 
-  // Match ONLY recognized skills from catalog
+  // Document Type Classification / Rejection
+  const isScholarship = /\b(scholarship|ssp|nsp|vidyasaarathi|epass|vidyaposhak|taluk|sanction|disbursement|state\s+scholarship)\b/i.test(cleanLower) || /\b(scholarship|ssp|nsp)\b/i.test(fileNameLower);
+  const isFeeReceipt = /\b(fee\s+receipt|tuition\s+fee|payment\s+receipt|challan|fee\s+structure|transaction\s+id)\b/i.test(cleanLower) || /\bfee\b/i.test(fileNameLower);
+  const isAdmitCard = /\b(admit\s+card|hall\s+ticket|examination\s+hall|invigilator)\b/i.test(cleanLower) || /\b(hall\s*ticket|admit\s*card)\b/i.test(fileNameLower);
+  const isMarksCard = /\b(marks\s+card|grade\s+sheet|marksheet|sgpa|cgpa\s+card|statement\s+of\s+marks)\b/i.test(cleanLower) && !/\b(projects?|experience|technical\s+skills)\b/i.test(cleanLower);
+  const isGovId = /\b(aadhaar|pan\s+card|voter\s+id|income\s+certificate|caste\s+certificate|caste\s*&\s*income)\b/i.test(cleanLower);
+
+  if (isScholarship) {
+    return {
+      isValidResume: false,
+      reason: 'This file is a Scholarship document (State Scholarship Portal / SSP), not a Resume/CV. Please upload a valid resume containing your technical skills and projects.',
+      skills: '',
+      skillsCount: 0,
+      rawText
+    };
+  }
+
+  if (isFeeReceipt) {
+    return {
+      isValidResume: false,
+      reason: 'This file is a College Fee Receipt / Payment Challan, not a Resume. Please upload a technical resume.',
+      skills: '',
+      skillsCount: 0,
+      rawText
+    };
+  }
+
+  if (isAdmitCard) {
+    return {
+      isValidResume: false,
+      reason: 'This file is an Exam Hall Ticket / Admit Card, not a Resume. Please upload a technical resume.',
+      skills: '',
+      skillsCount: 0,
+      rawText
+    };
+  }
+
+  if (isGovId) {
+    return {
+      isValidResume: false,
+      reason: 'This file is a Government ID / Certificate, not a Resume. Please upload a technical resume.',
+      skills: '',
+      skillsCount: 0,
+      rawText
+    };
+  }
+
+  const matchedSkills = [];
   for (const skillItem of KNOWN_SKILL_CATALOG) {
     const isMatched = skillItem.patterns.some((pattern) => pattern.test(rawText));
     if (isMatched && !matchedSkills.includes(skillItem.name)) {
@@ -3820,12 +3869,26 @@ async function extractSkillsFromResumeDoc(file, student) {
     }
   }
 
-  if (matchedSkills.length > 0) {
-    return matchedSkills.join(', ');
+  const resumeKeywords = ['experience', 'education', 'skills', 'projects', 'internship', 'objective', 'summary', 'certification', 'technologies', 'curriculum vitae', 'resume', 'b.e', 'b.tech', 'engineering', 'developer', 'engineer', 'github', 'linkedin'];
+  const resumeKeywordHits = resumeKeywords.filter((k) => cleanLower.includes(k)).length;
+
+  if (matchedSkills.length === 0 && resumeKeywordHits < 2) {
+    return {
+      isValidResume: false,
+      reason: 'No technical skills or typical resume sections were found in this document. Please upload a technical Resume or CV.',
+      skills: '',
+      skillsCount: 0,
+      rawText
+    };
   }
 
-  // If no technical skills are present in the uploaded document, return empty
-  return '';
+  return {
+    isValidResume: true,
+    reason: null,
+    skills: matchedSkills.join(', '),
+    skillsCount: matchedSkills.length,
+    rawText
+  };
 }
 
 function JDMatcher({ student, selectedDrive, onClearSelectedDrive }) {
@@ -3853,6 +3916,8 @@ function JDMatcher({ student, selectedDrive, onClearSelectedDrive }) {
   });
 
   const [resumeFile, setResumeFile] = useState(null);
+  const [resumeText, setResumeText] = useState('');
+  const [resumeError, setResumeError] = useState('');
   const [isParsingResume, setIsParsingResume] = useState(false);
   const [extractionStatus, setExtractionStatus] = useState({ status: 'none', count: 0 });
   const [aiMatch, setAiMatch] = useState('');
@@ -3881,23 +3946,36 @@ function JDMatcher({ student, selectedDrive, onClearSelectedDrive }) {
   const handleResumeUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setResumeFile(file);
     setIsParsingResume(true);
+    setResumeError('');
+    setAiError('');
 
     try {
       const extracted = await extractSkillsFromResumeDoc(file, student);
-      if (extracted && extracted.trim()) {
-        const count = extracted.split(',').map((s) => s.trim()).filter(Boolean).length;
-        setSkills(extracted.trim());
-        setExtractionStatus({ status: 'success', count });
+      if (!extracted.isValidResume) {
+        setResumeFile(null);
+        setResumeText('');
+        setResumeError(extracted.reason || 'Document does not appear to be a technical resume.');
+        setExtractionStatus({ status: 'error', count: 0 });
+        e.target.value = '';
       } else {
-        setSkills('');
-        setExtractionStatus({ status: 'empty', count: 0 });
+        setResumeFile(file);
+        setResumeText(extracted.rawText || '');
+        setResumeError('');
+        if (extracted.skills && extracted.skills.trim()) {
+          setSkills(extracted.skills.trim());
+          setExtractionStatus({ status: 'success', count: extracted.skillsCount });
+        } else {
+          setExtractionStatus({ status: 'empty', count: 0 });
+        }
       }
     } catch (err) {
       console.error('Resume skill extraction error:', err);
-      setSkills('');
+      setResumeFile(null);
+      setResumeText('');
+      setResumeError('Failed to parse document. Please upload a PDF or TXT resume.');
       setExtractionStatus({ status: 'empty', count: 0 });
+      e.target.value = '';
     } finally {
       setIsParsingResume(false);
     }
@@ -3936,25 +4014,43 @@ function JDMatcher({ student, selectedDrive, onClearSelectedDrive }) {
   }, [skills, jd]);
 
   const runAIMatch = async () => {
-    if (!skills && !jd && !resumeFile) {
-      setAiError('Please enter your skills (or upload a resume) and paste a job description.');
+    const hasSkills = Boolean(skills.trim() || resumeText.trim());
+    const hasJd = Boolean(jd.trim());
+
+    if (!hasSkills && !hasJd) {
+      setAiError('Please enter your technical skills (or upload a valid resume) AND paste a job description.');
       return;
     }
+    if (!hasSkills) {
+      setAiError('Please enter your technical skills or upload a valid resume.');
+      return;
+    }
+    if (!hasJd) {
+      setAiError('Please paste a Job Description or select a drive from the Placement Ledger to generate the roadmap.');
+      return;
+    }
+
     setAiLoading(true);
     setAiError('');
     try {
+      const resumeSnippet = resumeText.trim() ? `\nResume Excerpt / Extracted Content:\n${resumeText.slice(0, 2500)}` : '';
       const text = await callAI(
-        `You are a college placement mentor. Analyze this student's skills against the job description.
+        `You are an expert college placement mentor and technical interview coach.
+Analyze this student's actual technical profile and skills against the provided Job Description (JD).
 
 Student: ${student.name}
 BEC Number: ${student.bec}
 Department: ${student.department}
 Year: ${student.year}
-Uploaded Resume File: ${resumeFile ? resumeFile.name : 'None'}
-Skills: ${skills || 'Extracted from resume'}
+Candidate Skills: ${skills.trim() || 'Extracted from resume'}
+${resumeSnippet}
 
-Job Description:
-${jd}
+Target Job Description:
+${jd.trim()}
+
+Instructions:
+You MUST provide a concrete, personalized placement preparation report evaluating the candidate's exact skills against this specific Job Description.
+Do NOT output an empty placeholder template or say you lack access to the files, because the candidate's profile and the exact Job Description are explicitly provided above.
 
 Write a practical placement report with these exact headings:
 Match Summary
@@ -3964,12 +4060,12 @@ Projects To Show
 7 Day Preparation Plan
 Interview Talking Points
 
-Keep it clear and useful for a student.`,
-        { maxOutputTokens: 1700 }
+Keep the tone actionable, direct, and tailored to this student and job role.`,
+        { maxOutputTokens: 1800 }
       );
       setAiMatch(text);
     } catch (error) {
-      setAiError(error.message);
+      setAiError(error.message || 'Failed to generate placement roadmap.');
     } finally {
       setAiLoading(false);
     }
@@ -4006,6 +4102,17 @@ Keep it clear and useful for a student.`,
                 <input type="file" accept=".pdf,.docx,.doc,.txt" className="hidden" disabled={isParsingResume} onChange={handleResumeUpload} />
               </label>
             </div>
+            {resumeError && (
+              <div className="mt-3 rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-900 shadow-2xs">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                  <div>
+                    <p className="font-black text-rose-950">Invalid Resume Document</p>
+                    <p className="mt-0.5 font-semibold text-rose-800 leading-relaxed">{resumeError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <label className="block">
@@ -4131,7 +4238,21 @@ Keep it clear and useful for a student.`,
               <Bot className="h-4 w-4 text-[#8A6A22]" />
               <span>{aiLoading ? currentJdStep : 'Generate 7-Day AI Placement Roadmap'}</span>
             </button>
-            {aiError && <p className="mt-3 rounded-xl bg-[#8C2F26]/20 border border-[#8C2F26]/40 p-3 text-xs font-bold text-rose-200">{aiError}</p>}
+            {(!skills.trim() || !jd.trim()) && !aiLoading && (
+              <p className="mt-2 text-center text-[11px] font-semibold text-stone-300">
+                {!skills.trim() && !jd.trim()
+                  ? '⚠️ Enter technical skills & paste a job description to generate roadmap'
+                  : !skills.trim()
+                  ? '⚠️ Enter your technical skills or upload a resume'
+                  : '⚠️ Paste a job description or select a drive'}
+              </p>
+            )}
+            {aiError && (
+              <div className="mt-3 rounded-xl bg-[#8C2F26]/30 border border-[#8C2F26]/50 p-3 text-xs font-bold text-rose-200 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-300 mt-0.5" />
+                <span>{aiError}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
