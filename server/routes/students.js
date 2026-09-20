@@ -14,7 +14,7 @@ router.get('/students/me', requireAuth, async (req, res) => {
     }
 
     const [rows] = await executeQuery(
-      'SELECT bec, name, department, year, role, created_at FROM students WHERE UPPER(TRIM(bec)) = UPPER(TRIM(?)) LIMIT 1',
+      'SELECT bec, name, department, year, semester, role, created_at FROM students WHERE UPPER(TRIM(bec)) = UPPER(TRIM(?)) LIMIT 1',
       [userBec]
     );
 
@@ -33,7 +33,7 @@ router.get('/students/me', requireAuth, async (req, res) => {
 router.get('/students', requireAuth, async (req, res) => {
   try {
     const [rows] = await executeQuery(
-      'SELECT bec, name, department, year, role, created_at FROM students ORDER BY created_at DESC'
+      'SELECT bec, name, department, year, semester, role, created_at FROM students ORDER BY created_at DESC'
     );
     res.json({ students: rows || [] });
   } catch (err) {
@@ -45,7 +45,7 @@ router.get('/students', requireAuth, async (req, res) => {
 // POST /api/db/students (Create or Register Account)
 router.post('/students', async (req, res) => {
   try {
-    const { bec, name, department, year, password, role } = req.body || {};
+    const { bec, name, department, year, semester, password, role } = req.body || {};
     if (!bec || !name || !password) {
       return res.status(400).json({ error: 'BEC / Staff ID, name, and password are required.' });
     }
@@ -55,16 +55,22 @@ router.post('/students', async (req, res) => {
     const hashedPassword = await bcrypt.hash(cleanPassword, 10);
     const userRole = role ? String(role).trim().toLowerCase() : 'student';
 
+    // Add semester column if not exists (safe migration)
+    try {
+      await executeQuery(`ALTER TABLE students ADD COLUMN IF NOT EXISTS semester VARCHAR(20) DEFAULT ''`);
+    } catch (e) { /* column may already exist */ }
+
     await executeQuery(
-      `INSERT INTO students (bec, name, department, year, password, role) 
-       VALUES (?, ?, ?, ?, ?, ?) 
+      `INSERT INTO students (bec, name, department, year, semester, password, role) 
+       VALUES (?, ?, ?, ?, ?, ?, ?) 
        ON DUPLICATE KEY UPDATE 
          name = VALUES(name), 
          department = VALUES(department), 
          year = VALUES(year), 
+         semester = VALUES(semester),
          password = VALUES(password), 
          role = VALUES(role)`,
-      [cleanBec, String(name).trim(), department || '', year || 'III Year', hashedPassword, userRole]
+      [cleanBec, String(name).trim(), department || '', year || 'III Year', semester || '', hashedPassword, userRole]
     );
 
     res.json({ success: true, message: 'Account saved successfully.' });
@@ -78,7 +84,7 @@ router.post('/students', async (req, res) => {
 router.post('/students/update', requireAuth, async (req, res) => {
   try {
     const student = req.body || {};
-    const { bec, name, department, year, password, role } = student;
+    const { bec, name, department, year, semester, password, role } = student;
 
     if (!bec) {
       return res.status(400).json({ error: 'BEC / USN identifier is required.' });
@@ -111,6 +117,7 @@ router.post('/students/update', requireAuth, async (req, res) => {
          name = COALESCE(?, name), 
          department = COALESCE(?, department), 
          year = COALESCE(?, year), 
+         semester = COALESCE(?, semester),
          password = COALESCE(?, password), 
          role = COALESCE(?, role)
        WHERE UPPER(TRIM(bec)) = UPPER(TRIM(?))`,
@@ -118,6 +125,7 @@ router.post('/students/update', requireAuth, async (req, res) => {
         name ? String(name).trim() : null,
         department ? String(department).trim() : null,
         year ? String(year).trim() : null,
+        semester ? String(semester).trim() : null,
         hashedPassword,
         targetRole,
         cleanBec
@@ -127,9 +135,9 @@ router.post('/students/update', requireAuth, async (req, res) => {
     if (result.affectedRows === 0) {
       const defaultPass = hashedPassword || (await bcrypt.hash('password123', 10));
       await executeQuery(
-        `INSERT INTO students (bec, name, department, year, password, role) 
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [cleanBec, name || '', department || '', year || 'III Year', defaultPass, targetRole || 'student']
+        `INSERT INTO students (bec, name, department, year, semester, password, role) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [cleanBec, name || '', department || '', year || 'III Year', semester || '', defaultPass, targetRole || 'student']
       );
     }
 

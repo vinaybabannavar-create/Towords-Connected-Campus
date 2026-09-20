@@ -701,6 +701,7 @@ const DEFAULT_ACCOUNTS = [
     name: 'Vinay',
     department: 'CSE',
     year: 'IV Year',
+    semester: '7th Sem',
     role: 'student',
     password: 'password123',
     isProfileSaved: true
@@ -710,6 +711,7 @@ const DEFAULT_ACCOUNTS = [
     name: 'Vinay',
     department: 'CSE',
     year: 'IV Year',
+    semester: '7th Sem',
     role: 'student',
     password: 'password123',
     isProfileSaved: true
@@ -1227,7 +1229,7 @@ function AuthScreen({ students, onCreateAccount, onLogin, initialRole = 'student
   const [mode, setMode] = useState('login');
   const [role, setRole] = useState(initialRole); // 'student', 'teacher', 'hod', 'guard', 'po'
   const [selectedCollege, setSelectedCollege] = useState('T. John Institute Of Technology');
-  const [form, setForm] = useState({ name: '', bec: '', department: '', year: 'III Year', password: '' });
+  const [form, setForm] = useState({ name: '', bec: '', department: '', year: 'III Year', semester: '5th Sem', password: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
@@ -1246,7 +1248,7 @@ function AuthScreen({ students, onCreateAccount, onLogin, initialRole = 'student
 
   const changeMode = (nextMode) => {
     setMode(nextMode);
-    setForm({ name: '', bec: '', department: '', year: 'III Year', password: '' });
+    setForm({ name: '', bec: '', department: '', year: 'III Year', semester: '5th Sem', password: '' });
     setError('');
   };
 
@@ -1289,6 +1291,7 @@ function AuthScreen({ students, onCreateAccount, onLogin, initialRole = 'student
           college: selectedCollege,
           department: form.department.trim(),
           year: role === 'student' ? form.year : 'Staff',
+          semester: role === 'student' ? form.semester : '',
           role,
           password
         });
@@ -1466,17 +1469,38 @@ function AuthScreen({ students, onCreateAccount, onLogin, initialRole = 'student
                         onChange={(value) => update('department', value)}
                         placeholder="e.g. CSE, ECE, ISE, MECH"
                       />
-                      {role === 'student' && (
-                        <div className="relative">
-                          <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-1">Academic Year</label>
-                          <select className="input font-semibold" value={form.year} onChange={(event) => update('year', event.target.value)}>
-                            <option>I Year</option>
-                            <option>II Year</option>
-                            <option>III Year</option>
-                            <option>IV Year</option>
-                          </select>
-                        </div>
-                      )}
+                      {role === 'student' && (() => {
+                          const SEM_BY_YEAR = {
+                            'I Year':   ['1st Sem', '2nd Sem'],
+                            'II Year':  ['3rd Sem', '4th Sem'],
+                            'III Year': ['5th Sem', '6th Sem'],
+                            'IV Year':  ['7th Sem', '8th Sem'],
+                          };
+                          const semOptions = SEM_BY_YEAR[form.year] || ['1st Sem'];
+                          return (
+                            <div className="flex gap-3">
+                              <div className="relative flex-1">
+                                <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-1">Academic Year</label>
+                                <select className="input font-semibold" value={form.year} onChange={(e) => {
+                                  const newYear = e.target.value;
+                                  const firstSem = SEM_BY_YEAR[newYear]?.[0] || '1st Sem';
+                                  setForm(f => ({ ...f, year: newYear, semester: firstSem }));
+                                }}>
+                                  <option>I Year</option>
+                                  <option>II Year</option>
+                                  <option>III Year</option>
+                                  <option>IV Year</option>
+                                </select>
+                              </div>
+                              <div className="relative flex-1">
+                                <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-1">Semester</label>
+                                <select className="input font-semibold" value={form.semester} onChange={(e) => update('semester', e.target.value)}>
+                                  {semOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                              </div>
+                            </div>
+                          );
+                        })()}
                     </>
                   )}
 

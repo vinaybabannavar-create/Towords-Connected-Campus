@@ -22,49 +22,86 @@ import {
   ShieldAlert
 } from 'lucide-react';
 
-// Default subjects per branch for college semester
-export const BRANCH_SUBJECTS = {
-  CSE: [
-    'Design & Analysis of Algorithms',
-    'Database Management Systems',
-    'Operating Systems',
-    'Computer Networks',
-    'Artificial Intelligence & Machine Learning',
-    'Full Stack Web Development'
-  ],
-  ISE: [
-    'Software Engineering & Testing',
-    'Database Management Systems',
-    'Computer Networks',
-    'Cloud Computing Services',
-    'Information & Network Security',
-    'Data Warehousing & Mining'
-  ],
-  ECE: [
-    'Digital Signal Processing',
-    'VLSI Design & Embedded Systems',
-    'Control Systems Engineering',
-    'Microcontrollers & ARM',
-    'Electromagnetic Waves',
-    'Wireless Communication'
-  ],
-  EEE: [
-    'Power Electronics & Drives',
-    'Electrical Power Transmission',
-    'Control Systems',
-    'Renewable Energy Technology',
-    'Microprocessors & Interfacing',
-    'Electric Vehicles & Storage'
-  ],
-  MECH: [
-    'Thermodynamics & Heat Transfer',
-    'Fluid Mechanics & Machinery',
-    'Design of Machine Elements',
-    'Manufacturing Technology',
-    'Robotics & Automation',
-    'Finite Element Analysis'
-  ]
+// All 8 semesters with proper values and display labels
+export const SEMESTER_OPTIONS = [
+  { value: '1st Sem', label: 'I Year - 1st Semester', year: 'I Year' },
+  { value: '2nd Sem', label: 'I Year - 2nd Semester', year: 'I Year' },
+  { value: '3rd Sem', label: 'II Year - 3rd Semester', year: 'II Year' },
+  { value: '4th Sem', label: 'II Year - 4th Semester', year: 'II Year' },
+  { value: '5th Sem', label: 'III Year - 5th Semester', year: 'III Year' },
+  { value: '6th Sem', label: 'III Year - 6th Semester', year: 'III Year' },
+  { value: '7th Sem', label: 'IV Year - 7th Semester', year: 'IV Year' },
+  { value: '8th Sem', label: 'IV Year - 8th Semester', year: 'IV Year' },
+];
+
+// Subjects per branch per semester
+export const BRANCH_SEM_SUBJECTS = {
+  CSE: {
+    '1st Sem': ['Engineering Mathematics I', 'Engineering Physics', 'C Programming', 'Engineering Drawing', 'Environmental Science'],
+    '2nd Sem': ['Engineering Mathematics II', 'Engineering Chemistry', 'Data Structures', 'Basic Electronics', 'Communication Skills'],
+    '3rd Sem': ['Discrete Mathematics', 'Digital Design', 'Object Oriented Programming', 'Data Structures & Algorithms', 'Computer Organization'],
+    '4th Sem': ['Graph Theory & Algorithms', 'Microprocessors', 'Operating Systems', 'Database Management Systems', 'Software Engineering'],
+    '5th Sem': ['Design & Analysis of Algorithms', 'Computer Networks', 'Formal Languages & Automata', 'Web Technologies', 'Elective I'],
+    '6th Sem': ['Compiler Design', 'Information & Network Security', 'Cloud Computing', 'Machine Learning', 'Elective II'],
+    '7th Sem': ['Artificial Intelligence', 'Full Stack Development', 'Big Data Analytics', 'Project Management', 'Elective III'],
+    '8th Sem': ['Deep Learning & AI', 'Internet of Things', 'Industry Internship', 'Major Project', 'Seminar'],
+  },
+  ISE: {
+    '1st Sem': ['Engineering Mathematics I', 'Engineering Physics', 'C Programming', 'Engineering Drawing', 'Environmental Science'],
+    '2nd Sem': ['Engineering Mathematics II', 'Engineering Chemistry', 'Data Structures', 'Basic Electronics', 'Communication Skills'],
+    '3rd Sem': ['Discrete Mathematics', 'Digital Design', 'OOP with Java', 'Data Structures & Algorithms', 'Computer Organization'],
+    '4th Sem': ['Software Engineering & Testing', 'Operating Systems', 'Database Management Systems', 'Computer Networks', 'Graph Theory'],
+    '5th Sem': ['Information & Network Security', 'Cloud Computing Services', 'Data Warehousing & Mining', 'Web Technologies', 'Elective I'],
+    '6th Sem': ['Machine Learning', 'Mobile Application Development', 'Software Architecture', 'Distributed Systems', 'Elective II'],
+    '7th Sem': ['Artificial Intelligence', 'Big Data Analytics', 'Project Management', 'DevOps & Agile', 'Elective III'],
+    '8th Sem': ['Cyber Security', 'Internet of Things', 'Industry Internship', 'Major Project', 'Seminar'],
+  },
+  ECE: {
+    '1st Sem': ['Engineering Mathematics I', 'Engineering Physics', 'C Programming', 'Engineering Drawing', 'Environmental Science'],
+    '2nd Sem': ['Engineering Mathematics II', 'Engineering Chemistry', 'Basic Electronics', 'Circuit Theory', 'Communication Skills'],
+    '3rd Sem': ['Network Analysis', 'Electronic Devices & Circuits', 'Digital Electronics', 'Signals & Systems', 'Engineering Mathematics III'],
+    '4th Sem': ['Analog Communication', 'Linear Integrated Circuits', 'Microcontrollers & ARM', 'Electromagnetic Fields', 'Control Systems Engineering'],
+    '5th Sem': ['Digital Signal Processing', 'VLSI Design & Embedded Systems', 'Digital Communication', 'Wireless Communication', 'Elective I'],
+    '6th Sem': ['RF & Microwave Engineering', 'Optical Fiber Communication', 'Electromagnetic Waves', 'Image Processing', 'Elective II'],
+    '7th Sem': ['Antenna & Wave Propagation', 'IoT & Embedded Systems', '5G Networks', 'VLSI Testing', 'Elective III'],
+    '8th Sem': ['Satellite Communication', 'Industry Internship', 'Major Project', 'Seminar', 'Elective IV'],
+  },
+  EEE: {
+    '1st Sem': ['Engineering Mathematics I', 'Engineering Physics', 'C Programming', 'Engineering Drawing', 'Environmental Science'],
+    '2nd Sem': ['Engineering Mathematics II', 'Engineering Chemistry', 'Basic Electrical', 'Circuit Theory', 'Communication Skills'],
+    '3rd Sem': ['Network Analysis', 'Electronic Devices', 'Digital Electronics', 'Electrical Machines I', 'Engineering Mathematics III'],
+    '4th Sem': ['Electrical Machines II', 'Microprocessors & Interfacing', 'Control Systems', 'Transmission & Distribution', 'Signals & Systems'],
+    '5th Sem': ['Power Electronics & Drives', 'Power Systems I', 'Electrical Power Transmission', 'Renewable Energy Technology', 'Elective I'],
+    '6th Sem': ['Power Systems II', 'High Voltage Engineering', 'Industrial Drives', 'PLC & SCADA', 'Elective II'],
+    '7th Sem': ['Electric Vehicles & Storage', 'Smart Grid', 'Power System Protection', 'Energy Audit', 'Elective III'],
+    '8th Sem': ['Power Quality', 'Industry Internship', 'Major Project', 'Seminar', 'Elective IV'],
+  },
+  MECH: {
+    '1st Sem': ['Engineering Mathematics I', 'Engineering Physics', 'C Programming', 'Engineering Drawing', 'Environmental Science'],
+    '2nd Sem': ['Engineering Mathematics II', 'Engineering Chemistry', 'Basic Mechanics', 'Engineering Graphics', 'Communication Skills'],
+    '3rd Sem': ['Materials Science', 'Thermodynamics', 'Manufacturing Technology I', 'Strength of Materials', 'Engineering Mathematics III'],
+    '4th Sem': ['Fluid Mechanics & Machinery', 'Manufacturing Technology II', 'Kinematics of Machinery', 'Heat Transfer', 'Metrology'],
+    '5th Sem': ['Design of Machine Elements', 'Dynamics of Machinery', 'Heat & Mass Transfer', 'CAD/CAM', 'Elective I'],
+    '6th Sem': ['Finite Element Analysis', 'Robotics & Automation', 'Industrial Engineering', 'Automobile Engineering', 'Elective II'],
+    '7th Sem': ['Mechatronics', '3D Printing & Additive Manufacturing', 'Project Management', 'Lean Manufacturing', 'Elective III'],
+    '8th Sem': ['Industry 4.0', 'Industry Internship', 'Major Project', 'Seminar', 'Elective IV'],
+  },
 };
+
+// Get subjects for a branch + semester combination
+export function getSubjectsForSem(branch, sem) {
+  const cleanBranch = String(branch || '').trim().toUpperCase();
+  const cleanSem = String(sem || '').trim();
+  return BRANCH_SEM_SUBJECTS[cleanBranch]?.[cleanSem] || DEFAULT_SUBJECTS;
+}
+
+// Legacy fallback: get all unique subjects for a branch (for student view)
+export const BRANCH_SUBJECTS = Object.fromEntries(
+  Object.entries(BRANCH_SEM_SUBJECTS).map(([branch, sems]) => [
+    branch,
+    [...new Set(Object.values(sems).flat())]
+  ])
+);
 
 export const DEFAULT_SUBJECTS = [
   'Data Structures & Algorithms',
@@ -79,14 +116,31 @@ export function getSubjectsForBranch(branch) {
   return BRANCH_SUBJECTS[clean] || DEFAULT_SUBJECTS;
 }
 
+const YEAR_TO_DEFAULT_SEM = {
+  'I Year': '1st Sem',
+  'II Year': '3rd Sem',
+  'III Year': '5th Sem',
+  'IV Year': '7th Sem'
+};
+
 // ─── 1. STUDENT ATTENDANCE PORTAL VIEW ──────────────────────────────────────────
 export function StudentAttendanceView({ student, apiFetch }) {
   const currentBec = (student?.bec || '').toUpperCase();
   const currentBranch = (student?.department || student?.branch || 'CSE').toUpperCase();
+  const defaultSem = student?.semester || YEAR_TO_DEFAULT_SEM[student?.year] || '7th Sem';
+  const [activeSem, setActiveSem] = useState(defaultSem);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState('ALL');
   const [selectedSubject, setSelectedSubject] = useState('ALL');
+
+  useEffect(() => {
+    if (student?.semester) {
+      setActiveSem(student.semester);
+    } else if (student?.year && YEAR_TO_DEFAULT_SEM[student.year]) {
+      setActiveSem(YEAR_TO_DEFAULT_SEM[student.year]);
+    }
+  }, [student?.semester, student?.year]);
 
   const fetchAttendance = async () => {
     try {
@@ -129,49 +183,39 @@ export function StudentAttendanceView({ student, apiFetch }) {
     });
   }, [records, selectedMonth, selectedSubject]);
 
-  // Calculate Overall Statistics
-  const overallStats = useMemo(() => {
-    const total = records.length;
-    const present = records.filter((r) => r.status === 'PRESENT').length;
-    const absent = total - present;
-    const percentage = total > 0 ? Math.round((present / total) * 100) : 100;
-    return { total, present, absent, percentage };
-  }, [records]);
+  // Exact subjects for the selected semester (max 5-8 subjects per semester)
+  const semesterSubjects = useMemo(() => {
+    return getSubjectsForSem(currentBranch, activeSem);
+  }, [currentBranch, activeSem]);
 
-  // Calculate Subject-wise Breakdown
+  // Calculate Subject-wise Breakdown — strictly for the active semester's subjects
   const subjectStats = useMemo(() => {
-    const branchSubs = getSubjectsForBranch(currentBranch);
-    const subMap = new Map();
-
-    // Initialize with branch subjects
-    branchSubs.forEach((sub) => {
-      subMap.set(sub, { total: 0, present: 0, absent: 0 });
-    });
-
-    // Populate from actual records
-    records.forEach((r) => {
-      const subName = r.subject || 'General Academic';
-      const existing = subMap.get(subName) || { total: 0, present: 0, absent: 0 };
-      existing.total += 1;
-      if (r.status === 'PRESENT') {
-        existing.present += 1;
-      } else {
-        existing.absent += 1;
-      }
-      subMap.set(subName, existing);
-    });
-
-    return Array.from(subMap.entries()).map(([subject, data]) => {
-      const percentage = data.total > 0 ? Math.round((data.present / data.total) * 100) : 100;
+    return semesterSubjects.map((subName) => {
+      const subRecords = records.filter((r) => r.subject === subName);
+      const total = subRecords.length;
+      const present = subRecords.filter((r) => r.status === 'PRESENT').length;
+      const absent = total - present;
+      const percentage = total > 0 ? Math.round((present / total) * 100) : 100;
       return {
-        subject,
-        total: data.total,
-        present: data.present,
-        absent: data.absent,
+        subject: subName,
+        total,
+        present,
+        absent,
         percentage
       };
     });
-  }, [records, currentBranch]);
+  }, [records, semesterSubjects]);
+
+  // Calculate Overall Statistics (for active semester subjects or all records)
+  const overallStats = useMemo(() => {
+    const semRecords = records.filter(r => semesterSubjects.includes(r.subject) || r.year_sem === activeSem);
+    const targetRecords = semRecords.length > 0 ? semRecords : records;
+    const total = targetRecords.length;
+    const present = targetRecords.filter((r) => r.status === 'PRESENT').length;
+    const absent = total - present;
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 100;
+    return { total, present, absent, percentage };
+  }, [records, semesterSubjects, activeSem]);
 
   // Calculate Monthly Breakdown
   const monthlyStats = useMemo(() => {
@@ -220,7 +264,7 @@ export function StudentAttendanceView({ student, apiFetch }) {
                 Attendance Ledger
               </h2>
               <span className="rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider">
-                {currentBranch} • {student?.year || 'IV Year'}
+                {currentBranch} • {activeSem}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-semibold mt-0.5">
@@ -229,15 +273,32 @@ export function StudentAttendanceView({ student, apiFetch }) {
           </div>
         </div>
 
-        {/* Quick Refresh Button */}
-        <button
-          onClick={fetchAttendance}
-          disabled={loading}
-          className="self-start sm:self-center px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#264055] text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
-        >
-          <Clock className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>{loading ? 'Refreshing...' : 'Refresh Records'}</span>
-        </button>
+        {/* Actions & Semester Selector */}
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-center">
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs">
+            <Filter className="h-3.5 w-3.5 text-slate-500" />
+            <select
+              value={activeSem}
+              onChange={(e) => setActiveSem(e.target.value)}
+              className="bg-transparent text-xs font-bold text-[#264055] focus:outline-none cursor-pointer"
+            >
+              {SEMESTER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={fetchAttendance}
+            disabled={loading}
+            className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#264055] text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Clock className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Warning Notice Banner if < 75% */}
@@ -360,7 +421,7 @@ export function StudentAttendanceView({ student, apiFetch }) {
               <span>Subject-Wise Attendance Breakdown</span>
             </h3>
             <p className="text-xs text-slate-500 font-semibold mt-0.5">
-              Individual course compliance for {currentBranch} Department
+              Individual course compliance for {currentBranch} ({activeSem})
             </p>
           </div>
           <span className="text-xs text-slate-400 font-bold self-start sm:self-auto">
@@ -575,13 +636,20 @@ export function TeacherAttendanceView({ student, apiFetch }) {
   const defaultBranch = (student?.department || 'CSE').toUpperCase();
 
   const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
-  const [selectedYear, setSelectedYear] = useState('IV Year');
+  const [selectedSem, setSelectedSem] = useState('7th Sem');
   const [selectedSubject, setSelectedSubject] = useState(() => {
-    return getSubjectsForBranch(defaultBranch)[0] || 'Computer Networks';
+    return getSubjectsForSem(defaultBranch, '7th Sem')[0] || 'Computer Networks';
   });
   const [attendanceDate, setAttendanceDate] = useState(() => {
     return new Date().toISOString().split('T')[0];
   });
+
+  // Auto-update subject list when branch or semester changes
+  useEffect(() => {
+    const subs = getSubjectsForSem(selectedBranch, selectedSem);
+    setSelectedSubject(subs[0] || '');
+  }, [selectedBranch, selectedSem]);
+
 
   // Student roster fetched from database for the selected branch
   const [studentsList, setStudentsList] = useState([]);
@@ -595,7 +663,7 @@ export function TeacherAttendanceView({ student, apiFetch }) {
   // History of attendance recorded
   const [recentSessions, setRecentSessions] = useState([]);
 
-  // Fetch student roster whenever branch changes
+  // Fetch student list whenever branch or semester changes
   useEffect(() => {
     let isMounted = true;
     const loadStudents = async () => {
@@ -603,11 +671,18 @@ export function TeacherAttendanceView({ student, apiFetch }) {
         setLoadingStudents(true);
         const res = await apiFetch('/api/db/students');
         if (res?.students && Array.isArray(res.students) && isMounted) {
-          // Filter students strictly by selected branch and role === 'student'
+          // Filter students by selected branch AND semester
           const filtered = res.students.filter((s) => {
             const isStud = !s.role || s.role === 'student';
             const dept = String(s.department || '').trim().toUpperCase();
-            return isStud && dept === selectedBranch.toUpperCase();
+            const stuSem = String(s.semester || '').trim();
+            const matchBranch = dept === selectedBranch.toUpperCase();
+            // Match semester: if student has semester stored, match it; else match by year
+            const selectedSemObj = SEMESTER_OPTIONS.find(o => o.value === selectedSem);
+            const matchSem = stuSem
+              ? stuSem === selectedSem
+              : (s.year === selectedSemObj?.year);
+            return isStud && matchBranch && matchSem;
           });
           setStudentsList(filtered);
 
@@ -629,15 +704,8 @@ export function TeacherAttendanceView({ student, apiFetch }) {
     return () => {
       isMounted = false;
     };
-  }, [selectedBranch]);
+  }, [selectedBranch, selectedSem]);
 
-  // Update subject list when branch changes
-  useEffect(() => {
-    const subjects = getSubjectsForBranch(selectedBranch);
-    if (!subjects.includes(selectedSubject)) {
-      setSelectedSubject(subjects[0] || 'General Lecture');
-    }
-  }, [selectedBranch, selectedSubject]);
 
   // Fetch recent attendance history
   const fetchRecentHistory = async () => {
@@ -691,7 +759,7 @@ export function TeacherAttendanceView({ student, apiFetch }) {
 
       const payload = {
         branch: selectedBranch,
-        yearSem: selectedYear,
+        yearSem: selectedSem,
         subject: selectedSubject,
         date: attendanceDate,
         teacherBec,
@@ -783,17 +851,18 @@ export function TeacherAttendanceView({ student, apiFetch }) {
           {/* 2. Academic Year / Sem */}
           <div>
             <label className="mb-1.5 block text-xs font-bold text-slate-700">
-              Year & Semester
+              Semester
             </label>
             <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
+              value={selectedSem}
+              onChange={(e) => setSelectedSem(e.target.value)}
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs sm:text-sm font-bold text-[#264055] focus:outline-none focus:border-[#3B6280] cursor-pointer"
             >
-              <option value="I Year">I Year (1st / 2nd Sem)</option>
-              <option value="II Year">II Year (3rd / 4th Sem)</option>
-              <option value="III Year">III Year (5th / 6th Sem)</option>
-              <option value="IV Year">IV Year (7th / 8th Sem)</option>
+              {SEMESTER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -807,7 +876,7 @@ export function TeacherAttendanceView({ student, apiFetch }) {
               onChange={(e) => setSelectedSubject(e.target.value)}
               className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs sm:text-sm font-bold text-[#264055] focus:outline-none focus:border-[#3B6280] cursor-pointer"
             >
-              {getSubjectsForBranch(selectedBranch).map((sub) => (
+              {getSubjectsForSem(selectedBranch, selectedSem).map((sub) => (
                 <option key={sub} value={sub}>
                   {sub}
                 </option>
@@ -836,7 +905,7 @@ export function TeacherAttendanceView({ student, apiFetch }) {
           <div>
             <h3 className="text-base font-black text-[#264055] flex items-center gap-2">
               <Users className="h-4 w-4 text-[#3B6280]" />
-              <span>Step 2: Student Roster ({studentsList.length} Students in {selectedBranch})</span>
+              <span>Step 2: Student List ({studentsList.length} Students in {selectedBranch})</span>
             </h3>
             <p className="text-xs text-slate-500 font-semibold mt-0.5">
               Click any student to toggle between Present & Absent. Fast batch mark options available below.
@@ -888,7 +957,7 @@ export function TeacherAttendanceView({ student, apiFetch }) {
               No registered students found in {selectedBranch} department
             </p>
             <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-              Students registered under branch "{selectedBranch}" will automatically appear in this classroom roster.
+              Students registered under branch "{selectedBranch}" will automatically appear in this student list.
             </p>
           </div>
         ) : (
