@@ -6155,7 +6155,7 @@ const getGatePassVerificationUrl = (passIdOrPass) => {
   let host = window.location.host;
 
   if (isLocal) {
-    const lanIp = window.BEC_SERVER_IP || localStorage.getItem('bec_server_lan_ip') || '192.168.0.171';
+    const lanIp = window.BEC_SERVER_IP || localStorage.getItem('bec_server_lan_ip') || '10.97.10.153';
     const port = window.location.port ? `:${window.location.port}` : ':5173';
     host = `${lanIp}${port}`;
   }
@@ -8177,6 +8177,69 @@ function CampusConnect({ student, setPage }) {
     setJSON(STORAGE_KEYS.chatMessages, messages);
   }, [messages]);
 
+  // ── BACKEND SYNC ON LOGIN: fetch all chat data from DB ──────────────────────
+  useEffect(() => {
+    if (!currentBec) return;
+
+    // 1. Fetch connections
+    apiFetch(`/api/db/chat/connections/${currentBec}`).then((res) => {
+      if (res?.connections?.length) {
+        setConnections((prev) => {
+          const map = new Map(prev.map((c) => [c.id, c]));
+          res.connections.forEach((c) => map.set(c.id, { ...map.get(c.id), ...c }));
+          const merged = Array.from(map.values());
+          setJSON(STORAGE_KEYS.chatConnections, merged);
+          return merged;
+        });
+      }
+    }).catch(() => {});
+
+    // 2. Fetch groups
+    apiFetch('/api/db/chat/groups').then((res) => {
+      if (res?.groups?.length) {
+        setGroups((prev) => {
+          const map = new Map(prev.map((g) => [g.id, g]));
+          res.groups.forEach((g) => map.set(g.id, { ...map.get(g.id), ...g }));
+          const merged = Array.from(map.values());
+          setJSON(STORAGE_KEYS.chatGroups, merged);
+          return merged;
+        });
+      }
+    }).catch(() => {});
+  }, [currentBec]);
+
+  // ── Fetch messages when opening a chat conversation ─────────────────────────
+  useEffect(() => {
+    if (!activeChatId) return;
+    const convId = chatType === 'group' ? `group_${activeChatId}` : [currentBec, activeChatId.toUpperCase()].sort().join('_');
+    apiFetch(`/api/db/chat/messages/${encodeURIComponent(convId)}`).then((res) => {
+      if (res?.messages?.length) {
+        setMessages((prev) => {
+          const map = new Map(prev.map((m) => [m.id, m]));
+          res.messages.forEach((m) => {
+            map.set(m.id, {
+              id: m.id,
+              conversationId: m.conversation_id,
+              senderBec: m.sender_bec,
+              recipientBec: m.recipient_bec,
+              content: m.content,
+              type: m.type || 'text',
+              fileName: m.file_name,
+              fileUrl: m.file_url,
+              isGroup: !!m.is_group,
+              seen: !!m.seen,
+              timestamp: m.created_at,
+              ...map.get(m.id)
+            });
+          });
+          const merged = Array.from(map.values());
+          setJSON(STORAGE_KEYS.chatMessages, merged);
+          return merged;
+        });
+      }
+    }).catch(() => {});
+  }, [activeChatId, chatType, currentBec]);
+
   // Handle typing event emission on input change
   const handleInputChange = (e) => {
     const val = e.target.value;
@@ -8336,6 +8399,12 @@ function CampusConnect({ student, setPage }) {
 
     setConnections((prev) => [newConn, ...prev]);
 
+    // Save to backend DB (persists across devices)
+    apiFetch('/api/db/chat/connections', {
+      method: 'POST',
+      body: JSON.stringify({ ...newConn, requested_by: currentBec, created_at: new Date().toISOString() })
+    }).catch(() => {});
+
     // Live Socket.IO Broadcast
     if (socketRef.current) {
       socketRef.current.emit('send_connect_request', newConn);
@@ -8353,6 +8422,12 @@ function CampusConnect({ student, setPage }) {
     setConnections((prev) =>
       prev.map((c) => (c.id === connId ? { ...c, status: 'accepted' } : c))
     );
+
+    // Persist to backend DB
+    apiFetch(`/api/db/chat/connections/${connId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'accepted' })
+    }).catch(() => {});
 
     if (socketRef.current) {
       socketRef.current.emit('update_connection_status', { connId, action: 'accept' });
@@ -8402,11 +8477,23 @@ function CampusConnect({ student, setPage }) {
 
     setGroups((prev) => {
       const next = [newGroup, ...prev.filter((g) => g.id !== newGroup.id)];
-      try {
-        setJSON(STORAGE_KEYS.chatGroups, next);
-      } catch (err) {}
+      try { setJSON(STORAGE_KEYS.chatGroups, next); } catch (err) {}
       return next;
     });
+
+    // Save to backend DB (so all members see group on any device)
+    apiFetch('/api/db/chat/groups', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: newGroup.id,
+        name: newGroup.name,
+        description: newGroup.description,
+        created_by: newGroup.createdBy,
+        members: newGroup.members,
+        avatar: newGroup.avatar || '👥',
+        created_at: new Date().toISOString()
+      })
+    }).catch(() => {});
 
     if (socketRef.current) {
       socketRef.current.emit('create_group', newGroup);
@@ -8481,8 +8568,29 @@ function CampusConnect({ student, setPage }) {
 
     setMessages((prev) => [...prev, newMsg]);
 
+    // Save to backend DB (persists across devices)
+    const convId = chatType === 'group'
+      ? `group_${activeChatId}`
+      : [currentBec, activeChatId.toUpperCase()].sort().join('_');
+    apiFetch('/api/db/chat/messages', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: newMsg.id,
+        conversation_id: convId,
+        sender_bec: currentBec,
+        recipient_bec: chatType === 'group' ? activeChatId : activeChatId,
+        content: newMsg.text || '',
+        type: newMsg.attachment ? 'file' : 'text',
+        file_name: newMsg.attachment?.name || '',
+        file_url: newMsg.attachment?.dataUrl || '',
+        is_group: chatType === 'group',
+        seen: false,
+        created_at: newMsg.createdAt || new Date().toISOString()
+      })
+    }).catch(() => {});
+
     if (socketRef.current) {
-      socketRef.current.emit('send_message', newMsg);
+      socketRef.current.emit('send_message', { ...newMsg, conversationId: convId });
     }
     try {
       new BroadcastChannel('bec_campus_connect_channel').postMessage({ type: 'NEW_MESSAGE', payload: newMsg });

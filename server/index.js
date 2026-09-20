@@ -34,6 +34,7 @@ import driveRoutes from './routes/drives.js';
 import registrationRoutes from './routes/registrations.js';
 import projectRoutes from './routes/projects.js';
 import aiRoutes from './routes/ai.js';
+import chatRoutes, { initChatTables } from './routes/chat.js';
 import { getDbPool } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -88,6 +89,7 @@ app.use('/api/db/drives', driveRoutes);
 app.use('/api/db', registrationRoutes);
 app.use('/api/db/registrations', registrationRoutes);
 app.use('/api/db', projectRoutes);
+app.use('/api/db/chat', chatRoutes);
 app.use('/api', aiRoutes);
 
 // Socket.IO Real-Time Messaging, Online Status & Typing Indicators
@@ -208,6 +210,11 @@ server.listen(PORT, '0.0.0.0', () => {
 // Initialize DB pool in background
 getDbPool().catch((err) => {
   console.warn('⚠️ DB pool background initialization notice:', err.message);
+});
+
+// Initialize chat tables
+initChatTables().catch((err) => {
+  console.warn('⚠️ Chat table init notice:', err.message);
 });
 
 export default app;
