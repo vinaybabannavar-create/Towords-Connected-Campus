@@ -868,7 +868,7 @@ function LoginSplashScreen({ user, onComplete }) {
 function App() {
   const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const verifyParam = useMemo(() => urlParams.get('verify'), [urlParams]);
-  const encodedDataParam = useMemo(() => urlParams.get('d'), [urlParams]);
+  const encodedDataParam = useMemo(() => urlParams.get('d') || urlParams.get('data'), [urlParams]);
   const roleParam = useMemo(() => (urlParams.get('role') || '').toLowerCase(), [urlParams]);
 
   const [students, setStudents] = useState(() => {
@@ -993,9 +993,13 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Check TiDB Cloud Status
+    // Check TiDB Cloud Status & Retrieve Host LAN IP for Mobile QR Verification
     apiFetch('/api/db/status').then((res) => {
       if (res?.online) setDbConnected(true);
+      if (res?.serverIp && res.serverIp !== '127.0.0.1') {
+        localStorage.setItem('bec_server_lan_ip', res.serverIp);
+        window.BEC_SERVER_IP = res.serverIp;
+      }
     });
 
     // Fetch existing students from TiDB Cloud when authenticated
@@ -6099,12 +6103,64 @@ const decodePassData = (encodedStr) => {
     return null;
   }
 };
+const getGatePassCertificateText = (pass) => {
+  if (!pass) return 'OFFICIAL GATE PASS';
+  if (typeof pass === 'string') return pass;
+  const college = pass.college_name || pass.collegeName || 'T. John Institute Of Technology';
+  const name = pass.name || 'Student';
+  const bec = pass.bec || pass.roll_no || 'N/A';
+  const branch = pass.branch || pass.department || 'CSE';
+  const year = pass.year_sem || pass.yearSem || 'IV Year';
+  const reason = pass.reason || 'Campus Exit';
+  const time = `${pass.out_time || '14:00'} (${pass.date || 'Today'})`;
+  const teacher = pass.teacher_approver || pass.teacher_approval || 'Prof. Teacher (Approved)';
+  const hod = pass.hod_approver || pass.hod_approval || 'Dr. HOD (Approved)';
+  const key = pass.security_key || 'VERIFIED';
+  const status = pass.status === 'USED' ? 'USED / EXITED' : 'OFFICIAL GATE PASS • VALID FOR EXIT';
+
+  return `🎓 ${college.toUpperCase()}
+━━━━━━━━━━━━━━━━━━━━
+OFFICIAL EXIT GATE PASS
+Status: ${status}
+Pass ID: ${pass.id}
+━━━━━━━━━━━━━━━━━━━━
+STUDENT: ${name}
+USN / BEC: ${bec}
+BRANCH: ${branch} • ${year}
+OUT TIME: ${time}
+REASON: "${reason}"
+━━━━━━━━━━━━━━━━━━━━
+APPROVAL TRAIL:
+1. Teacher: ${teacher}
+2. HOD: ${hod}
+SECRET SECURITY KEY: ${key}
+━━━━━━━━━━━━━━━━━━━━
+AUTHENTICATED VIA DIGITAL QR PROTOCOL`;
+};
 
 const getGatePassVerificationUrl = (passIdOrPass) => {
   const isObj = typeof passIdOrPass === 'object' && passIdOrPass !== null;
   const id = isObj ? passIdOrPass.id : passIdOrPass;
   if (!id) return '';
-  return `${window.location.protocol}//${window.location.host}/?verify=${encodeURIComponent(id)}`;
+  const dataParam = isObj ? `&d=${encodePassData(passIdOrPass)}` : '';
+
+  // Prefer public tunnel URL if set (works on any network / 5G mobile)
+  const tunnelUrl = localStorage.getItem('bec_tunnel_url');
+  if (tunnelUrl) {
+    const base = tunnelUrl.replace(/\/$/, '');
+    return `${base}/?verify=${encodeURIComponent(id)}${dataParam}`;
+  }
+
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  let host = window.location.host;
+
+  if (isLocal) {
+    const lanIp = window.BEC_SERVER_IP || localStorage.getItem('bec_server_lan_ip') || '192.168.0.171';
+    const port = window.location.port ? `:${window.location.port}` : ':5173';
+    host = `${lanIp}${port}`;
+  }
+
+  return `${window.location.protocol}//${host}/?verify=${encodeURIComponent(id)}${dataParam}`;
 };
 
 function RealQRCode({ value = 'GATEPASS', size = 200 }) {
@@ -6542,7 +6598,9 @@ function DocumentViewerModal({ pass, onClose }) {
   );
 }
 
+
 function GatePassField({ label, value, onChange, placeholder, type = 'text', required = false }) {
+
   return (
     <div>
       <label className="mb-1.5 block text-xs font-bold text-slate-700">{label}</label>
@@ -6575,6 +6633,7 @@ function GatePass({ student }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileDataUrl, setFileDataUrl] = useState('');
   const [viewingPass, setViewingPass] = useState(null);
+  const [qrFormat, setQrFormat] = useState('cert');
 
   const fetchPasses = async () => {
     const res = await apiFetch('/api/db/gatepasses');
@@ -6834,15 +6893,16 @@ function GatePass({ student }) {
                         </span>
                       </div>
                     </div>
-                    <div className="flex flex-col items-center justify-center pt-1">
+                    <div className="flex flex-col items-center justify-center pt-1 space-y-2">
                       <RealQRCode value={getGatePassVerificationUrl(pass)} size={160} />
+
                       <a
                         href={getGatePassVerificationUrl(pass)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-2 text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1"
+                        className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline inline-flex items-center gap-1"
                       >
-                        <ExternalLink className="h-3 w-3" /> Test / Open Verification Page
+                        <ExternalLink className="h-3 w-3" /> Open Verification Page
                       </a>
                     </div>
                   </div>
@@ -7061,6 +7121,7 @@ function HODGatePassView({ student }) {
   const [loading, setLoading] = useState(false);
   const [modalPass, setModalPass] = useState(null);
   const [viewingPass, setViewingPass] = useState(null);
+  const [hodQrFormat, setHodQrFormat] = useState('cert');
 
   const fetchPasses = async () => {
     const res = await apiFetch('/api/db/gatepasses');
@@ -7272,21 +7333,28 @@ function HODGatePassView({ student }) {
 
               <div className="rounded-2xl bg-stone-950 p-4 text-white">
                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">SECRET SECURITY KEY</p>
-                <p className="mt-1 font-mono text-3xl font-black tracking-widest">
-                  {modalPass.security_key || '904CD3'}
+                <p className="mt-1 font-mono text-3xl font-black tracking-widest text-emerald-300">
+                  {modalPass.security_key || '—'}
                 </p>
+                <p className="text-[10px] text-stone-500 mt-1">Visible only to HOD &amp; Security Guard</p>
               </div>
 
-              <div className="flex flex-col items-center justify-center py-2 space-y-2">
-                <RealQRCode value={getGatePassVerificationUrl(modalPass)} size={190} />
-                <a
-                  href={getGatePassVerificationUrl(modalPass)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1"
-                >
-                  <ExternalLink className="h-3 w-3" /> Test / Open Verification Details Page
-                </a>
+              <div className="flex flex-col items-center justify-center py-2 space-y-2.5">
+                <RealQRCode
+                  value={getGatePassVerificationUrl(modalPass)}
+                  size={180}
+                />
+
+                <div className="text-center">
+                  <a
+                    href={getGatePassVerificationUrl(modalPass)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline inline-flex items-center gap-1"
+                  >
+                    <ExternalLink className="h-3 w-3" /> Open Verification Page
+                  </a>
+                </div>
               </div>
 
               <button
@@ -7658,11 +7726,25 @@ function CampusConnect({ student, setPage }) {
   const [typingUsers, setTypingUsers] = useState({}); // {[bec.toUpperCase()]: boolean}
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
 
-  // Modal for new group
+  // Modal for new group & member selection
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDesc, setNewGroupDesc] = useState('');
   const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
+  const [groupDeptFilter, setGroupDeptFilter] = useState('ALL');
+  const [groupRoleFilter, setGroupRoleFilter] = useState('student'); // 'student' | 'all' | 'faculty'
+  const [groupMemberSearch, setGroupMemberSearch] = useState('');
+  const [groupMemberSource, setGroupMemberSource] = useState('all'); // 'all' (Directory) | 'friends' (Connected Friends)
+  const [dbStudentsList, setDbStudentsList] = useState([]);
+
+  // Fetch real-time student list from database
+  useEffect(() => {
+    apiFetch('/api/db/students').then((res) => {
+      if (res?.students && Array.isArray(res.students)) {
+        setDbStudentsList(res.students);
+      }
+    });
+  }, [showGroupModal]);
 
   const socketRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -7753,7 +7835,11 @@ function CampusConnect({ student, setPage }) {
         if (!groupData) return;
         setGroups((prev) => {
           if (prev.some((g) => g.id === groupData.id)) return prev;
-          return [groupData, ...prev];
+          const updated = [groupData, ...prev];
+          try {
+            setJSON(STORAGE_KEYS.chatGroups, updated);
+          } catch (e) {}
+          return updated;
         });
       });
 
@@ -7800,7 +7886,14 @@ function CampusConnect({ student, setPage }) {
         } else if (type === 'NEW_MESSAGE') {
           setMessages((prev) => (prev.some((m) => m.id === payload.id) ? prev : [...prev, payload]));
         } else if (type === 'NEW_GROUP') {
-          setGroups((prev) => (prev.some((g) => g.id === payload.id) ? prev : [payload, ...prev]));
+          setGroups((prev) => {
+            if (prev.some((g) => g.id === payload.id)) return prev;
+            const updated = [payload, ...prev];
+            try {
+              setJSON(STORAGE_KEYS.chatGroups, updated);
+            } catch (e) {}
+            return updated;
+          });
         } else if (type === 'MARK_SEEN') {
           const { senderBec, readerBec } = payload || {};
           if (senderBec && readerBec) {
@@ -7833,29 +7926,25 @@ function CampusConnect({ student, setPage }) {
     };
   }, [currentBec]);
 
-  // Directory of real registered/logged-in users (excluding current user)
+  // Directory of real registered/logged-in users (combining DB and LocalStorage, excluding current user)
   const allDirectoryUsers = useMemo(() => {
     const saved = getJSON(STORAGE_KEYS.students, []);
     const safeSaved = Array.isArray(saved) ? saved : [];
-    return safeSaved.filter((u) => u?.bec?.toUpperCase() !== currentBec);
-  }, [currentBec]);
-
-  // Available departments extracted from real users + standard college branches
-  const availableDepartments = useMemo(() => {
-    const defaultList = ['ALL', 'CSE', 'ISE', 'ECE', 'AIML', 'MECH', 'CIVIL', 'FACULTY'];
-    const extra = [];
-    allDirectoryUsers.forEach((u) => {
-      if (u.department && u.department.trim()) {
-        const d = u.department.trim().toUpperCase();
-        if (!defaultList.includes(d) && !extra.includes(d)) {
-          extra.push(d);
-        }
+    const map = new Map();
+    safeSaved.forEach((u) => {
+      if (u?.bec) map.set(u.bec.toUpperCase(), u);
+    });
+    dbStudentsList.forEach((u) => {
+      if (u?.bec) {
+        const key = u.bec.toUpperCase();
+        map.set(key, { ...map.get(key), ...u });
       }
     });
-    return [...defaultList, ...extra];
-  }, [allDirectoryUsers]);
+    const merged = Array.from(map.values());
+    return merged.filter((u) => u?.bec?.toUpperCase() !== currentBec);
+  }, [currentBec, dbStudentsList]);
 
-  // Accepted friends
+  // Accepted friends (must be declared before candidateGroupMembers & activeChatPartners)
   const acceptedFriends = useMemo(() => {
     return connections
       .filter((c) => {
@@ -7877,6 +7966,80 @@ function CampusConnect({ student, setPage }) {
         };
       });
   }, [connections, currentBec]);
+
+  // Candidate group members based on department and role filters
+  const candidateGroupMembers = useMemo(() => {
+    let list = [];
+    if (groupMemberSource === 'friends') {
+      list = acceptedFriends.map((f) => ({
+        bec: f.bec,
+        name: f.name,
+        department: f.department || 'Campus',
+        role: f.role || 'student',
+        year: f.year || ''
+      }));
+    } else {
+      list = allDirectoryUsers.map((u) => ({
+        bec: u.bec,
+        name: u.name,
+        department: u.department || 'Campus',
+        role: u.role || 'student',
+        year: u.year || ''
+      }));
+    }
+
+    // Role filter
+    if (groupRoleFilter === 'student') {
+      list = list.filter((u) => !u.role || u.role.toLowerCase() === 'student');
+    } else if (groupRoleFilter === 'faculty') {
+      list = list.filter((u) => u.role && (u.role.toLowerCase() === 'teacher' || u.role.toLowerCase() === 'hod' || u.role.toLowerCase() === 'po' || u.role.toLowerCase() === 'guard'));
+    }
+
+    // Department / Branch filter
+    if (groupDeptFilter !== 'ALL') {
+      list = list.filter((u) => {
+        const dept = (u.department || '').toUpperCase();
+        return dept === groupDeptFilter || dept.includes(groupDeptFilter);
+      });
+    }
+
+    // Search query
+    if (groupMemberSearch.trim()) {
+      const q = groupMemberSearch.trim().toLowerCase();
+      list = list.filter((u) =>
+        (u.name && u.name.toLowerCase().includes(q)) ||
+        (u.bec && u.bec.toLowerCase().includes(q)) ||
+        (u.department && u.department.toLowerCase().includes(q))
+      );
+    }
+
+    return list;
+  }, [groupMemberSource, acceptedFriends, allDirectoryUsers, groupRoleFilter, groupDeptFilter, groupMemberSearch]);
+
+  const handleSelectAllFiltered = () => {
+    const filteredBecs = candidateGroupMembers.map((m) => m.bec);
+    setSelectedGroupMembers((prev) => Array.from(new Set([...prev, ...filteredBecs])));
+  };
+
+  const handleDeselectAllFiltered = () => {
+    const filteredBecs = new Set(candidateGroupMembers.map((m) => m.bec));
+    setSelectedGroupMembers((prev) => prev.filter((b) => !filteredBecs.has(b)));
+  };
+
+  // Available departments extracted from real users + standard college branches
+  const availableDepartments = useMemo(() => {
+    const defaultList = ['ALL', 'CSE', 'ISE', 'ECE', 'AIML', 'MECH', 'CIVIL', 'FACULTY'];
+    const extra = [];
+    allDirectoryUsers.forEach((u) => {
+      if (u.department && u.department.trim()) {
+        const d = u.department.trim().toUpperCase();
+        if (!defaultList.includes(d) && !extra.includes(d)) {
+          extra.push(d);
+        }
+      }
+    });
+    return [...defaultList, ...extra];
+  }, [allDirectoryUsers]);
 
   // Active chat partners (friends + anyone with direct message history with current user)
   const activeChatPartners = useMemo(() => {
@@ -7978,13 +8141,13 @@ function CampusConnect({ student, setPage }) {
     });
   }, [connections, currentBec]);
 
-  // My groups
+  // My groups (Creators + All Selected Members)
   const myGroups = useMemo(() => {
+    const me = currentBec.toUpperCase();
     return groups.filter((g) => {
-      return (
-        g.createdBy?.toUpperCase() === currentBec ||
-        (Array.isArray(g.members) && g.members.map((m) => m.toUpperCase()).includes(currentBec))
-      );
+      const isCreator = (g.createdBy || '').toUpperCase() === me;
+      const isMember = Array.isArray(g.members) && g.members.some((m) => String(m).trim().toUpperCase() === me);
+      return isCreator || isMember;
     });
   }, [groups, currentBec]);
 
@@ -8219,16 +8382,31 @@ function CampusConnect({ student, setPage }) {
       return;
     }
 
+    const allMembers = Array.from(
+      new Set([
+        currentBec.toUpperCase(),
+        ...selectedGroupMembers.map((b) => String(b || '').trim().toUpperCase())
+      ])
+    ).filter(Boolean);
+
     const newGroup = {
       id: `group_${Date.now()}`,
       name: newGroupName.trim(),
       description: newGroupDesc.trim() || 'Campus Study & Project Group',
       createdBy: currentBec,
-      members: [currentBec, ...selectedGroupMembers],
+      createdByName: student?.name || currentBec,
+      department: groupDeptFilter !== 'ALL' ? groupDeptFilter : (student?.department || 'Campus'),
+      members: allMembers,
       createdAt: new Date().toISOString().split('T')[0]
     };
 
-    setGroups((prev) => [newGroup, ...prev]);
+    setGroups((prev) => {
+      const next = [newGroup, ...prev.filter((g) => g.id !== newGroup.id)];
+      try {
+        setJSON(STORAGE_KEYS.chatGroups, next);
+      } catch (err) {}
+      return next;
+    });
 
     if (socketRef.current) {
       socketRef.current.emit('create_group', newGroup);
@@ -9128,104 +9306,263 @@ function CampusConnect({ student, setPage }) {
 
       {/* ================= CREATE GROUP MODAL ================= */}
       {showGroupModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 backdrop-blur-xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl space-y-4"
+            className="w-full max-w-2xl rounded-2xl border border-stone-200 bg-white p-5 sm:p-6 shadow-2xl space-y-4 my-auto max-h-[90vh] flex flex-col"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
-              <div className="flex items-center gap-2">
-                <div className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-600 text-white shadow-xs">
-                  <Users className="h-4 w-4" />
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-white shadow-xs">
+                  <Users className="h-5 w-5" />
                 </div>
-                <h3 className="text-base font-black text-stone-900">Create Campus Group</h3>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-stone-900 leading-none">Create Campus Group</h3>
+                  <p className="text-xs text-stone-500 mt-1">Add students by department, semester, or from your connected network</p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowGroupModal(false)}
-                className="text-stone-400 hover:text-stone-700 p-1 rounded-lg"
+                className="text-stone-400 hover:text-stone-700 p-1.5 rounded-xl hover:bg-stone-100 transition cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateGroup} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1">Group Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Major Project Team Alpha"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  className="w-full rounded-xl border border-stone-200 px-3.5 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
+            <form onSubmit={handleCreateGroup} className="flex-1 flex flex-col space-y-3.5 overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-stone-600 mb-1">Group Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 6th Sem CSE Alpha / Project Group"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    className="w-full rounded-xl border border-stone-200 px-3.5 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-stone-50/50 focus:bg-white transition"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-stone-600 mb-1">Description / Topic</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Lab submissions, exam discussions & assignments"
+                    value={newGroupDesc}
+                    onChange={(e) => setNewGroupDesc(e.target.value)}
+                    className="w-full rounded-xl border border-stone-200 px-3.5 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-stone-50/50 focus:bg-white transition"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1">Group Purpose / Description</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Project milestones, sprint discussions & review notes"
-                  value={newGroupDesc}
-                  onChange={(e) => setNewGroupDesc(e.target.value)}
-                  className="w-full rounded-xl border border-stone-200 px-3.5 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+              {/* Member Selection Control Panel */}
+              <div className="flex-1 flex flex-col min-h-0 border border-stone-200 rounded-2xl bg-stone-50/70 p-3 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-stone-900 uppercase tracking-wider">Select Members</span>
+                    <span className="rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-[11px] font-black">
+                      {selectedGroupMembers.length} Selected
+                    </span>
+                  </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
-                  Select Members from Connected Friends
-                </label>
-                <div className="max-h-36 overflow-y-auto space-y-1.5 rounded-xl border border-stone-200 p-2 bg-stone-50">
-                  {acceptedFriends.length === 0 ? (
-                    <p className="text-[11px] text-stone-400 p-2 text-center">No connected friends yet. Connect with classmates first.</p>
+                  {/* Segmented Source Filter: All Campus vs Friends */}
+                  <div className="inline-flex rounded-xl bg-stone-200/70 p-0.5 text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setGroupMemberSource('all')}
+                      className={`px-3 py-1 rounded-lg transition cursor-pointer text-[11px] font-bold ${
+                        groupMemberSource === 'all'
+                          ? 'bg-white text-indigo-700 shadow-xs'
+                          : 'text-stone-600 hover:text-stone-900'
+                      }`}
+                    >
+                      All Campus Directory ({allDirectoryUsers.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGroupMemberSource('friends')}
+                      className={`px-3 py-1 rounded-lg transition cursor-pointer text-[11px] font-bold ${
+                        groupMemberSource === 'friends'
+                          ? 'bg-white text-indigo-700 shadow-xs'
+                          : 'text-stone-600 hover:text-stone-900'
+                      }`}
+                    >
+                      Connected Friends ({acceptedFriends.length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filters Row: Department Selector + Role Selector + Search Bar */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 shrink-0">
+                  {/* Department Select Dropdown */}
+                  <div className="sm:col-span-4">
+                    <select
+                      value={groupDeptFilter}
+                      onChange={(e) => setGroupDeptFilter(e.target.value)}
+                      className="w-full rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="ALL">🏛️ All Departments / Branches</option>
+                      <option value="CSE">💻 CSE (Computer Science)</option>
+                      <option value="ISE">📊 ISE (Information Science)</option>
+                      <option value="ECE">⚡ ECE (Electronics & Comm)</option>
+                      <option value="AIML">🤖 AIML (AI & Machine Learning)</option>
+                      <option value="MECH">⚙️ MECH (Mechanical)</option>
+                      <option value="CIVIL">🏗️ CIVIL (Civil Engg)</option>
+                      <option value="FACULTY">👨‍🏫 Faculty / Staff Only</option>
+                      {availableDepartments
+                        .filter((d) => !['ALL', 'CSE', 'ISE', 'ECE', 'AIML', 'MECH', 'CIVIL', 'FACULTY'].includes(d))
+                        .map((d) => (
+                          <option key={d} value={d}>
+                            📁 {d}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* Role Filter */}
+                  <div className="sm:col-span-3">
+                    <select
+                      value={groupRoleFilter}
+                      onChange={(e) => setGroupRoleFilter(e.target.value)}
+                      className="w-full rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="all">👥 All Roles</option>
+                      <option value="student">🎓 Students Only</option>
+                      <option value="faculty">👨‍🏫 Faculty / Staff</option>
+                    </select>
+                  </div>
+
+                  {/* Search Box */}
+                  <div className="sm:col-span-5 relative">
+                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-stone-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by name, USN, dept..."
+                      value={groupMemberSearch}
+                      onChange={(e) => setGroupMemberSearch(e.target.value)}
+                      className="w-full rounded-xl border border-stone-200 bg-white pl-8 pr-3 py-1.5 text-xs font-medium text-stone-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Bulk Action Controls */}
+                <div className="flex items-center justify-between text-[11px] shrink-0 pt-0.5">
+                  <div className="text-stone-500 font-medium">
+                    Showing <strong className="text-stone-800 font-bold">{candidateGroupMembers.length}</strong> matching members
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllFiltered}
+                      disabled={candidateGroupMembers.length === 0}
+                      className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] transition disabled:opacity-50 cursor-pointer"
+                    >
+                      + Select All ({candidateGroupMembers.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeselectAllFiltered}
+                      disabled={candidateGroupMembers.length === 0}
+                      className="px-2.5 py-1 rounded-lg bg-stone-200/80 hover:bg-stone-300 text-stone-700 font-bold text-[11px] transition disabled:opacity-50 cursor-pointer"
+                    >
+                      Deselect
+                    </button>
+                  </div>
+                </div>
+
+                {/* Candidates Scrollable List */}
+                <div className="flex-1 overflow-y-auto space-y-1.5 rounded-xl border border-stone-200 p-2 bg-white min-h-[160px] max-h-[220px]">
+                  {candidateGroupMembers.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center p-6 text-center text-stone-400 space-y-1">
+                      <Users className="h-8 w-8 text-stone-300" />
+                      <p className="text-xs font-bold text-stone-600">No matching campus users found</p>
+                      <p className="text-[11px] text-stone-400">Try changing the department or role filter above.</p>
+                    </div>
                   ) : (
-                    acceptedFriends.map((friend) => {
-                      const isChecked = selectedGroupMembers.includes(friend.bec);
+                    candidateGroupMembers.map((member) => {
+                      const isChecked = selectedGroupMembers.includes(member.bec);
+                      const isFac = member.role === 'teacher' || member.role === 'hod' || member.role === 'po' || member.role === 'guard';
                       return (
-                        <label
-                          key={friend.bec}
-                          className="flex items-center justify-between p-2 rounded-lg bg-white border border-stone-100 hover:bg-stone-100 cursor-pointer text-xs"
+                        <div
+                          key={member.bec}
+                          onClick={() => {
+                            if (isChecked) {
+                              setSelectedGroupMembers((prev) => prev.filter((b) => b !== member.bec));
+                            } else {
+                              setSelectedGroupMembers((prev) => [...prev, member.bec]);
+                            }
+                          }}
+                          className={`flex items-center justify-between p-2 rounded-xl border transition cursor-pointer ${
+                            isChecked
+                              ? 'bg-indigo-50/70 border-indigo-200 ring-1 ring-indigo-300/60'
+                              : 'bg-white border-stone-100 hover:bg-stone-50 hover:border-stone-200'
+                          }`}
                         >
-                          <div>
-                            <span className="font-bold text-stone-900">{friend.name}</span>
-                            <span className="text-[10px] text-stone-500 ml-1.5">({friend.bec})</span>
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div
+                              className={`grid h-8 w-8 place-items-center rounded-lg text-white font-black text-[11px] shrink-0 shadow-2xs ${
+                                isFac ? 'bg-emerald-600' : 'bg-gradient-to-tr from-indigo-500 to-violet-600'
+                              }`}
+                            >
+                              {member.name?.slice(0, 2).toUpperCase() || 'ST'}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-xs text-stone-900 truncate">{member.name}</span>
+                                <span className="text-[10px] font-mono text-stone-500 shrink-0">({member.bec})</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span
+                                  className={`rounded px-1.5 py-0.2 text-[9px] font-black uppercase ${
+                                    isFac ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'
+                                  }`}
+                                >
+                                  {isFac ? member.role : member.department || 'Campus'}
+                                </span>
+                                {member.department && !isFac && (
+                                  <span className="text-[10px] text-stone-400 font-medium truncate">
+                                    Dept: {member.department}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
+
                           <input
                             type="checkbox"
                             checked={isChecked}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedGroupMembers((prev) => [...prev, friend.bec]);
-                              } else {
-                                setSelectedGroupMembers((prev) => prev.filter((b) => b !== friend.bec));
-                              }
-                            }}
-                            className="rounded border-stone-300 text-indigo-600 focus:ring-indigo-500"
+                            onChange={() => {}} // Handled by outer div onClick
+                            className="h-4 w-4 rounded border-stone-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer ml-2"
                           />
-                        </label>
+                        </div>
                       );
                     })
                   )}
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
-                <button
-                  type="button"
-                  onClick={() => setShowGroupModal(false)}
-                  className="rounded-xl border border-stone-200 px-4 py-2 text-xs font-bold text-stone-700 hover:bg-stone-100 transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 text-xs font-black transition shadow-xs cursor-pointer"
-                >
-                  Create Group
-                </button>
+              {/* Modal Actions Footer */}
+              <div className="flex items-center justify-between pt-2 border-t border-stone-100 shrink-0">
+                <div className="text-xs text-stone-500">
+                  <span className="font-bold text-stone-800">{selectedGroupMembers.length + 1}</span> member{selectedGroupMembers.length + 1 === 1 ? '' : 's'} (including you)
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowGroupModal(false)}
+                    className="rounded-xl border border-stone-200 px-4 py-2 text-xs font-bold text-stone-700 hover:bg-stone-100 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 text-xs font-black transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Users className="h-4 w-4" />
+                    Create Group ({selectedGroupMembers.length})
+                  </button>
+                </div>
               </div>
             </form>
           </motion.div>
