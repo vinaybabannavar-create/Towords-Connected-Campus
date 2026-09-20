@@ -967,9 +967,9 @@ function App() {
     if (!activeStudent || !activeStudent.role) return;
     const role = activeStudent.role;
     const validPagesForRole = {
-      student: ['dashboard', 'projects', 'jd', 'placements', 'gatepass', 'calendar', 'connect'],
-      teacher: ['teacher_gatepasses', 'placements', 'calendar', 'connect'],
-      hod: ['hod_gatepasses', 'placements', 'calendar', 'connect'],
+      student: ['dashboard', 'projects', 'jd', 'placements', 'gatepass', 'attendance', 'calendar', 'connect'],
+      teacher: ['teacher_gatepasses', 'teacher_attendance', 'placements', 'calendar', 'connect'],
+      hod: ['hod_gatepasses', 'teacher_attendance', 'placements', 'calendar', 'connect'],
       guard: ['security_terminal'],
       po: ['dashboard', 'calendar', 'connect']
     };
@@ -1182,7 +1182,7 @@ function App() {
       {page === 'dashboard' && (
         <Dashboard
           student={activeStudent}
-          setPage={setPage}
+          setPage={handleSetPage}
           onOpenProfile={() => setShowProfileModal(true)}
         />
       )}
