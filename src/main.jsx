@@ -78,6 +78,7 @@ import './styles.css';
 import { CollegeCalendar } from './CollegeCalendar';
 import { COLLEGE_CALENDAR_EVENTS } from './collegeCalendarData';
 import { StudentProfileModal, calculateProfileCompletion, getMissingProfileItems, BANGALORE_COLLEGES } from './StudentProfileModal';
+import { StudentAttendanceView, TeacherAttendanceView } from './Attendance.jsx';
 
 const REPO_LOADING_STEPS = [
   {
@@ -158,7 +159,8 @@ const STORAGE_KEYS = {
   placementRegistrations: 'bec_portal_placement_registrations',
   chatConnections: 'bec_portal_chat_connections',
   chatMessages: 'bec_portal_chat_messages',
-  chatGroups: 'bec_portal_chat_groups'
+  chatGroups: 'bec_portal_chat_groups',
+  attendance: 'bec_portal_attendance'
 };
 
 const featureCards = [
@@ -167,7 +169,8 @@ const featureCards = [
   { id: 'placements', title: 'Placement Drives Ledger', summary: 'A future-ready ledger for placement office company updates.', icon: BriefcaseBusiness, accent: 'from-amber-500 to-orange-500' },
   { id: 'gatepass', title: 'Student Gate Pass', summary: 'Apply, track class teacher verification, and HOD approval.', icon: DoorOpen, accent: 'from-violet-500 to-indigo-500' },
   { id: 'calendar', title: 'College Calendar', summary: 'Explore 112 academic events, IA schedules, fests, and holidays.', icon: Calendar, accent: 'from-cyan-500 to-blue-600' },
-  { id: 'connect', title: 'Campus Connect', summary: 'Verified BEC friend requests, live 1-on-1 chats, study groups & document sharing.', icon: MessageCircle, accent: 'from-pink-500 to-rose-500' }
+  { id: 'connect', title: 'Campus Connect', summary: 'Verified BEC friend requests, live 1-on-1 chats, study groups & document sharing.', icon: MessageCircle, accent: 'from-pink-500 to-rose-500' },
+  { id: 'attendance', title: 'Attendance', summary: 'Track subject-wise lecture percentage, monthly attendance, and 75% VTU compliance.', icon: BookOpenCheck, accent: 'from-teal-500 to-emerald-600' }
 ];
 
 const INITIAL_PLACEMENT_DRIVES = [
@@ -1207,6 +1210,8 @@ function App() {
         />
       )}
       {page === 'gatepass' && <GatePass student={activeStudent} />}
+      {page === 'attendance' && <StudentAttendanceView student={activeStudent} apiFetch={apiFetch} />}
+      {page === 'teacher_attendance' && <TeacherAttendanceView student={activeStudent} apiFetch={apiFetch} />}
       {page === 'calendar' && <CollegeCalendar student={activeStudent} />}
       {page === 'connect' && <CampusConnect student={activeStudent} setPage={handleSetPage} />}
       {page === 'teacher_gatepasses' && <TeacherGatePassView student={activeStudent} />}
@@ -1601,15 +1606,18 @@ function PortalShell({
     ['jd', FileSearch, 'JD Matcher'],
     ['placements', BriefcaseBusiness, 'Placements'],
     ['gatepass', DoorOpen, 'Gate Pass'],
+    ['attendance', BookOpenCheck, 'Attendance'],
     ['calendar', Calendar, 'College Calendar'],
     ['connect', MessageCircle, 'Campus Connect']
   ] : role === 'teacher' ? [
     ['teacher_gatepasses', CheckCircle2, 'Gate Pass Approval'],
+    ['teacher_attendance', BookOpenCheck, 'Attendance'],
     ['placements', BriefcaseBusiness, 'Placement Drives'],
     ['calendar', Calendar, 'College Calendar'],
     ['connect', MessageCircle, 'Campus Connect']
   ] : role === 'hod' ? [
     ['hod_gatepasses', ShieldCheck, 'Gate Pass Approval'],
+    ['teacher_attendance', BookOpenCheck, 'Attendance'],
     ['placements', BriefcaseBusiness, 'Placement Drives'],
     ['calendar', Calendar, 'College Calendar'],
     ['connect', MessageCircle, 'Campus Connect']
@@ -2030,9 +2038,9 @@ function Dashboard({ student, setPage, onOpenProfile }) {
         </section>
       )}
 
-      {/* 4/5-Card Quick Action Grid */}
+      {/* 4/5/7-Card Quick Action Grid */}
       {!isPO ? (
-        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3.5 sm:gap-4">
           {featureCards.map((card) => {
             const Icon = card.icon;
             return (

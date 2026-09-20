@@ -35,6 +35,7 @@ import registrationRoutes from './routes/registrations.js';
 import projectRoutes from './routes/projects.js';
 import aiRoutes from './routes/ai.js';
 import chatRoutes, { initChatTables } from './routes/chat.js';
+import attendanceRoutes, { initAttendanceTable } from './routes/attendance.js';
 import { getDbPool } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -90,6 +91,7 @@ app.use('/api/db', registrationRoutes);
 app.use('/api/db/registrations', registrationRoutes);
 app.use('/api/db', projectRoutes);
 app.use('/api/db/chat', chatRoutes);
+app.use('/api/db/attendance', attendanceRoutes);
 app.use('/api', aiRoutes);
 
 // Socket.IO Real-Time Messaging, Online Status & Typing Indicators
@@ -215,6 +217,11 @@ getDbPool().catch((err) => {
 // Initialize chat tables
 initChatTables().catch((err) => {
   console.warn('⚠️ Chat table init notice:', err.message);
+});
+
+// Initialize attendance table
+initAttendanceTable().catch((err) => {
+  console.warn('⚠️ Attendance table init notice:', err.message);
 });
 
 export default app;
