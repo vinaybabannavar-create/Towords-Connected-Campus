@@ -251,7 +251,7 @@ export function StudentAttendanceView({ student, apiFetch }) {
       const total = subRecords.length;
       const present = subRecords.filter((r) => r.status === 'PRESENT').length;
       const absent = total - present;
-      const percentage = total > 0 ? Math.round((present / total) * 100) : 100;
+      const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
       return {
         subject: subName,
         total,
@@ -267,7 +267,7 @@ export function StudentAttendanceView({ student, apiFetch }) {
     const total = activeSemesterRecords.length;
     const present = activeSemesterRecords.filter((r) => r.status === 'PRESENT').length;
     const absent = total - present;
-    const percentage = total > 0 ? Math.round((present / total) * 100) : 100;
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
     return { total, present, absent, percentage };
   }, [activeSemesterRecords]);
 
@@ -382,21 +382,21 @@ export function StudentAttendanceView({ student, apiFetch }) {
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">
               Overall Attendance
             </span>
-            <div className={`p-1.5 rounded-xl ${overallStats.percentage >= 75 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+            <div className={`p-1.5 rounded-xl ${overallStats.total === 0 ? 'bg-emerald-50 text-emerald-600' : overallStats.percentage >= 75 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
               <Percent className="h-4 w-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className={`text-3xl sm:text-4xl font-black font-serif ${overallStats.percentage >= 75 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {overallStats.total === 0 ? '100%' : `${overallStats.percentage}%`}
+            <span className={`text-3xl sm:text-4xl font-black font-serif ${overallStats.total === 0 ? 'text-emerald-600' : overallStats.percentage >= 75 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {overallStats.percentage}%
             </span>
             <span className="text-xs font-bold text-slate-400">
-              {overallStats.percentage >= 75 ? 'Eligible' : 'Shortage'}
+              Eligible
             </span>
           </div>
           <div className="mt-3 w-full bg-slate-100 h-2 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${overallStats.percentage >= 75 ? 'bg-emerald-500' : 'bg-rose-500'}`}
+              className={`h-full rounded-full transition-all duration-500 ${overallStats.total === 0 ? 'bg-emerald-500' : overallStats.percentage >= 75 ? 'bg-emerald-500' : 'bg-rose-500'}`}
               style={{ width: `${Math.min(overallStats.percentage, 100)}%` }}
             />
           </div>
@@ -502,12 +502,12 @@ export function StudentAttendanceView({ student, apiFetch }) {
                   </div>
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-xs font-black ${
-                      isSafe
+                      item.total === 0 || isSafe
                         ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
                         : 'bg-rose-100 text-rose-900 border border-rose-200'
                     }`}
                   >
-                    {item.total === 0 ? '100%' : `${item.percentage}%`}
+                    {item.percentage}%
                   </span>
                 </div>
 
@@ -516,7 +516,7 @@ export function StudentAttendanceView({ student, apiFetch }) {
                   <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
-                        isSafe ? 'bg-emerald-500' : 'bg-rose-500'
+                        item.total === 0 || isSafe ? 'bg-emerald-500' : 'bg-rose-500'
                       }`}
                       style={{ width: `${Math.min(item.percentage, 100)}%` }}
                     />
