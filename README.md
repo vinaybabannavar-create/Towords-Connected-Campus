@@ -128,6 +128,4 @@ MIT — see `LICENSE`.
 
 ---
 
-<div align="center">
-Built for Basaveshwar Engineering College (Autonomous), Bagalkot.
-</div>
+
