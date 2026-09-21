@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import * as XLSX from 'xlsx';
 import {
   BookOpenCheck,
   CheckCircle2,
@@ -19,7 +20,11 @@ import {
   PieChart,
   Layers,
   ChevronRight,
-  ShieldAlert
+  ShieldAlert,
+  FileSpreadsheet,
+  Download,
+  CalendarRange,
+  FileText
 } from 'lucide-react';
 
 // All 8 semesters with proper values and display labels
@@ -662,6 +667,7 @@ export function TeacherAttendanceView({ student, apiFetch }) {
 
   // History of attendance recorded
   const [recentSessions, setRecentSessions] = useState([]);
+  const [allBranchRecords, setAllBranchRecords] = useState([]);
 
   // Fetch student list whenever branch or semester changes
   useEffect(() => {
@@ -712,6 +718,7 @@ export function TeacherAttendanceView({ student, apiFetch }) {
     try {
       const res = await apiFetch(`/api/db/attendance/all?branch=${encodeURIComponent(selectedBranch)}`);
       if (res?.records) {
+        setAllBranchRecords(res.records);
         setRecentSessions(res.records.slice(0, 50));
       }
     } catch (e) {}
@@ -720,6 +727,208 @@ export function TeacherAttendanceView({ student, apiFetch }) {
   useEffect(() => {
     fetchRecentHistory();
   }, [selectedBranch]);
+
+  // ─── Excel Export States & Calculation ───────────────────────────────────────
+  const [dailyExportDate, setDailyExportDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [dailyExportSubject, setDailyExportSubject] = useState('ALL');
+
+  const [monthlyStartDate, setMonthlyStartDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+
+  const monthlyEndDate = useMemo(() => {
+    try {
+      const d = new Date(monthlyStartDate);
+      if (isNaN(d.getTime())) return monthlyStartDate;
+      d.setDate(d.getDate() + 30);
+      return d.toISOString().split('T')[0];
+    } catch (e) {
+      return monthlyStartDate;
+    }
+  }, [monthlyStartDate]);
+
+  const availableSubjectsForExport = useMemo(() => {
+    const list = getSubjectsForSem(selectedBranch, selectedSem);
+    const set = new Set(list);
+    allBranchRecords.forEach((r) => {
+      if (r.subject) set.add(r.subject);
+    });
+    return Array.from(set);
+  }, [selectedBranch, selectedSem, allBranchRecords]);
+
+  const dailyMatchingRecords = useMemo(() => {
+    return allBranchRecords.filter((r) => {
+      const matchDate = r.date === dailyExportDate;
+      const matchSubject = dailyExportSubject === 'ALL' || r.subject === dailyExportSubject;
+      return matchDate && matchSubject;
+    });
+  }, [allBranchRecords, dailyExportDate, dailyExportSubject]);
+
+  const monthlyMatchingRecords = useMemo(() => {
+    return allBranchRecords.filter((r) => {
+      if (!r.date) return false;
+      return r.date >= monthlyStartDate && r.date <= monthlyEndDate;
+    });
+  }, [allBranchRecords, monthlyStartDate, monthlyEndDate]);
+
+  // 1. Download Daily Attendance Excel (.xlsx)
+  const handleDownloadDailyExcel = () => {
+    if (dailyMatchingRecords.length === 0) {
+      alert(`No attendance records found for ${selectedBranch} Department on ${dailyExportDate}. Please verify date or mark attendance first.`);
+      return;
+    }
+
+    const headers = [
+      'Sl No',
+      'Lecture Date',
+      'Student USN / BEC',
+      'Student Full Name',
+      'Department / Branch',
+      'Academic Semester',
+      'Subject / Course',
+      'Attendance Status',
+      'Faculty In-Charge',
+      'Submission Timestamp'
+    ];
+
+    const rows = dailyMatchingRecords.map((r, idx) => [
+      idx + 1,
+      r.date,
+      r.student_bec,
+      r.student_name,
+      r.branch,
+      r.year_sem || selectedSem,
+      r.subject,
+      r.status,
+      r.marked_by_name || teacherName,
+      r.created_at ? new Date(r.created_at).toLocaleString() : 'N/A'
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    worksheet['!cols'] = [
+      { wch: 8 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 24 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 34 },
+      { wch: 18 },
+      { wch: 24 },
+      { wch: 24 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Daily_${dailyExportDate}`);
+    const filename = `Attendance_Daily_${selectedBranch}_${dailyExportDate}.xlsx`;
+    XLSX.writeFile(workbook, filename);
+  };
+
+  // 2. Download Monthly (1 Month / 30-Day) Consolidated Attendance Excel (.xlsx)
+  const handleDownloadMonthlyExcel = () => {
+    if (monthlyMatchingRecords.length === 0) {
+      alert(`No attendance records found between ${monthlyStartDate} and ${monthlyEndDate} for ${selectedBranch} Department.`);
+      return;
+    }
+
+    const studentMap = new Map();
+    studentsList.forEach((s) => {
+      studentMap.set(s.bec.toUpperCase(), {
+        bec: s.bec.toUpperCase(),
+        name: s.name || 'Student',
+        department: s.department || selectedBranch,
+        semester: s.semester || selectedSem,
+        total: 0,
+        present: 0,
+        absent: 0
+      });
+    });
+
+    monthlyMatchingRecords.forEach((r) => {
+      const bec = (r.student_bec || '').toUpperCase();
+      const cur = studentMap.get(bec) || {
+        bec,
+        name: r.student_name || 'Student',
+        department: r.branch || selectedBranch,
+        semester: r.year_sem || selectedSem,
+        total: 0,
+        present: 0,
+        absent: 0
+      };
+      cur.total += 1;
+      if (r.status === 'PRESENT') cur.present += 1;
+      else cur.absent += 1;
+      studentMap.set(bec, cur);
+    });
+
+    const summaryHeaders = [
+      'Sl No',
+      'Student USN / BEC',
+      'Student Full Name',
+      'Department / Branch',
+      'Academic Semester',
+      'Total Conducted Lectures (1 Month)',
+      'Lectures Attended (Present)',
+      'Lectures Missed (Absent)',
+      'Attendance Percentage (%)',
+      'VTU Exam Eligibility (75% Criteria)'
+    ];
+
+    const summaryRows = Array.from(studentMap.values()).map((s, idx) => {
+      const pct = s.total > 0 ? Math.round((s.present / s.total) * 100) : 100;
+      const isEligible = pct >= 75;
+      return [
+        idx + 1,
+        s.bec,
+        s.name,
+        s.department,
+        s.semester,
+        s.total,
+        s.present,
+        s.absent,
+        `${pct}%`,
+        isEligible ? 'ELIGIBLE (>= 75%)' : 'ATTENDANCE SHORTAGE (< 75%)'
+      ];
+    });
+
+    const summarySheet = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryRows]);
+    summarySheet['!cols'] = [
+      { wch: 8 },
+      { wch: 18 },
+      { wch: 24 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 28 },
+      { wch: 24 },
+      { wch: 22 },
+      { wch: 24 },
+      { wch: 32 }
+    ];
+
+    const rawHeaders = ['Sl No', 'Date', 'USN / BEC', 'Student Name', 'Subject', 'Status', 'Faculty In-Charge'];
+    const rawRows = monthlyMatchingRecords.map((r, i) => [
+      i + 1,
+      r.date,
+      r.student_bec,
+      r.student_name,
+      r.subject,
+      r.status,
+      r.marked_by_name || teacherName
+    ]);
+    const rawSheet = XLSX.utils.aoa_to_sheet([rawHeaders, ...rawRows]);
+    rawSheet['!cols'] = [
+      { wch: 8 }, { wch: 14 }, { wch: 18 }, { wch: 24 }, { wch: 32 }, { wch: 14 }, { wch: 22 }
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Monthly Cumulative Summary');
+    XLSX.utils.book_append_sheet(workbook, rawSheet, 'Daily Session Logs (1 Month)');
+
+    const filename = `Attendance_1_Month_Consolidated_${selectedBranch}_${monthlyStartDate}_to_${monthlyEndDate}.xlsx`;
+    XLSX.writeFile(workbook, filename);
+  };
 
   // Toggle single student status
   const toggleStatus = (bec) => {
@@ -1024,11 +1233,19 @@ export function TeacherAttendanceView({ student, apiFetch }) {
       {/* Recent History Table for Teacher */}
       {recentSessions.length > 0 && (
         <div className="rounded-3xl bg-white p-5 sm:p-6 shadow-[0_6px_24px_rgba(38,64,85,0.06)] border border-slate-100 space-y-3">
-          <div className="border-b border-slate-100 pb-2">
+          <div className="border-b border-slate-100 pb-2 flex items-center justify-between">
             <h3 className="text-sm font-black text-[#264055] uppercase tracking-wider flex items-center gap-1.5">
               <Clock className="h-4 w-4 text-[#3B6280]" />
               <span>Recent Submissions ({selectedBranch} Department)</span>
             </h3>
+            <button
+              type="button"
+              onClick={handleDownloadDailyExcel}
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer border border-slate-200"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+              <span>Export Table (.xlsx)</span>
+            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -1067,6 +1284,171 @@ export function TeacherAttendanceView({ student, apiFetch }) {
           </div>
         </div>
       )}
+
+      {/* ─── OFFICIAL EXCEL REPORTS (TWO DEDICATED SECTIONS) ────────────────── */}
+      <div className="space-y-4 pt-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <FileSpreadsheet className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-[#264055] tracking-tight font-serif">
+                Classroom Attendance Excel Ledger Hub
+              </h3>
+              <p className="text-xs text-slate-500 font-semibold">
+                Generate and download official Microsoft Excel (.xlsx) spreadsheets in two formats: Daily and 1-Month Consolidated.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* ── SECTION 1: DAILY ATTENDANCE EXCEL ── */}
+          <div className="rounded-3xl bg-white p-5 sm:p-6 shadow-[0_6px_24px_rgba(38,64,85,0.06)] border border-emerald-100 flex flex-col justify-between space-y-4 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-100/50 to-transparent rounded-bl-full pointer-events-none" />
+
+            <div className="space-y-3 relative z-10">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-200">
+                  <Calendar className="h-3.5 w-3.5 text-emerald-700" />
+                  Section 1: Daily Register
+                </span>
+                <span className="text-[11px] font-bold text-slate-400 font-mono">Single-Day File</span>
+              </div>
+
+              <div>
+                <h4 className="text-base font-black text-[#264055]">
+                  Daily Classroom Attendance Sheet
+                </h4>
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                  Export verified Present/Absent marks for any particular day with full student roll numbers, branches, and timestamps.
+                </p>
+              </div>
+
+              {/* Filters */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Select Particular Day
+                  </label>
+                  <input
+                    type="date"
+                    value={dailyExportDate}
+                    onChange={(e) => setDailyExportDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-[#264055] focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Filter Course / Subject
+                  </label>
+                  <select
+                    value={dailyExportSubject}
+                    onChange={(e) => setDailyExportSubject(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-[#264055] focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  >
+                    <option value="ALL">All Subjects</option>
+                    {availableSubjectsForExport.map((sub) => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Status Preview */}
+              <div className="rounded-2xl bg-emerald-50/70 border border-emerald-200/80 p-3 text-xs flex items-center justify-between text-emerald-950 font-semibold">
+                <span>Matching Records on {dailyExportDate}:</span>
+                <span className="font-mono font-black text-emerald-800 bg-white px-2.5 py-0.5 rounded-lg border border-emerald-200">
+                  {dailyMatchingRecords.length} Students Logged
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 relative z-10">
+              <button
+                type="button"
+                onClick={handleDownloadDailyExcel}
+                className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Download className="h-4 w-4" />
+                <span>Download Daily Attendance (.xlsx)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ── SECTION 2: 1-MONTH CONSOLIDATED ATTENDANCE EXCEL ── */}
+          <div className="rounded-3xl bg-white p-5 sm:p-6 shadow-[0_6px_24px_rgba(38,64,85,0.06)] border border-blue-100 flex flex-col justify-between space-y-4 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-100/50 to-transparent rounded-bl-full pointer-events-none" />
+
+            <div className="space-y-3 relative z-10">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-blue-100 text-blue-900 border border-blue-200">
+                  <CalendarRange className="h-3.5 w-3.5 text-blue-700" />
+                  Section 2: 1-Month Consolidated
+                </span>
+                <span className="text-[11px] font-bold text-slate-400 font-mono">30-Day Analysis</span>
+              </div>
+
+              <div>
+                <h4 className="text-base font-black text-[#264055]">
+                  1-Month Cumulative Attendance Ledger
+                </h4>
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                  Start from a particular date and aggregate 1 month (30 days) of attendance, calculating total lectures, percentages, and VTU 75% exam eligibility.
+                </p>
+              </div>
+
+              {/* Date pickers */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    Start Date (Attendance Start)
+                  </label>
+                  <input
+                    type="date"
+                    value={monthlyStartDate}
+                    onChange={(e) => setMonthlyStartDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-[#264055] focus:outline-none focus:border-blue-500 cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    End Date (After 1 Month)
+                  </label>
+                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 flex items-center justify-between">
+                    <span className="font-mono">{monthlyEndDate}</span>
+                    <span className="text-[10px] text-blue-700 font-black uppercase bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                      +30 Days
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Summary stats */}
+              <div className="rounded-2xl bg-blue-50/70 border border-blue-200/80 p-3 text-xs flex items-center justify-between text-blue-950 font-semibold">
+                <span className="truncate mr-2">Window: {monthlyStartDate} ➔ {monthlyEndDate}</span>
+                <span className="font-mono font-black text-blue-800 bg-white px-2.5 py-0.5 rounded-lg border border-blue-200 shrink-0">
+                  {monthlyMatchingRecords.length} Sessions Conducted
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 relative z-10">
+              <button
+                type="button"
+                onClick={handleDownloadMonthlyExcel}
+                className="w-full py-3 px-4 rounded-2xl bg-[#3B6280] hover:bg-[#2c4b64] active:scale-[0.99] text-white font-black text-xs sm:text-sm shadow-md shadow-blue-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Download className="h-4 w-4" />
+                <span>Download 1-Month Consolidated (.xlsx)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
