@@ -964,6 +964,26 @@ function App() {
     }
   }, [page]);
 
+  // Synchronize student profile from database on session change
+  useEffect(() => {
+    if (!sessionBec) return;
+    let isMounted = true;
+    apiFetch('/api/db/students/me')
+      .then((res) => {
+        if (res?.student && isMounted) {
+          setStudents((prev) => {
+            const updated = prev.map((s) => (s.bec === res.student.bec ? { ...s, ...res.student } : s));
+            setJSON(STORAGE_KEYS.students, updated);
+            return updated;
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [sessionBec]);
+
   // Strictly enforce that current active page matches user role
   useEffect(() => {
     if (!activeStudent || !activeStudent.role) return;

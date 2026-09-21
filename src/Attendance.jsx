@@ -121,30 +121,53 @@ export function getSubjectsForBranch(branch) {
   return BRANCH_SUBJECTS[clean] || DEFAULT_SUBJECTS;
 }
 
-const YEAR_TO_DEFAULT_SEM = {
-  'I Year': '1st Sem',
-  'II Year': '3rd Sem',
-  'III Year': '5th Sem',
-  'IV Year': '7th Sem'
+export const SEMESTERS_BY_YEAR = {
+  'I Year':   ['1st Sem', '2nd Sem'],
+  'II Year':  ['3rd Sem', '4th Sem'],
+  'III Year': ['5th Sem', '6th Sem'],
+  'IV Year':  ['7th Sem', '8th Sem'],
+};
+
+export const getStudentAcademicYear = (student) => {
+  const yr = String(student?.year || '').trim();
+  if (yr.includes('IV') || yr.includes('4')) return 'IV Year';
+  if (yr.includes('III') || yr.includes('3')) return 'III Year';
+  if (yr.includes('II') || yr.includes('2')) return 'II Year';
+  if (yr.includes('I') || yr.includes('1')) return 'I Year';
+  return 'IV Year';
+};
+
+export const getStudentPresentSem = (student) => {
+  const sem = String(student?.semester || '').trim();
+  if (sem && SEMESTER_OPTIONS.some(o => o.value === sem)) {
+    return sem;
+  }
+  const yr = getStudentAcademicYear(student);
+  if (yr === 'IV Year') return '7th Sem';
+  if (yr === 'III Year') return '5th Sem';
+  if (yr === 'II Year') return '3rd Sem';
+  if (yr === 'I Year') return '1st Sem';
+  return '7th Sem';
 };
 
 // ─── 1. STUDENT ATTENDANCE PORTAL VIEW ──────────────────────────────────────────
 export function StudentAttendanceView({ student, apiFetch }) {
   const currentBec = (student?.bec || '').toUpperCase();
   const currentBranch = (student?.department || student?.branch || 'CSE').toUpperCase();
-  const defaultSem = student?.semester || YEAR_TO_DEFAULT_SEM[student?.year] || '7th Sem';
-  const [activeSem, setActiveSem] = useState(defaultSem);
+  const studentYear = getStudentAcademicYear(student);
+  const presentSem = getStudentPresentSem(student);
+
+  // Directly lock to present semester
+  const [activeSem, setActiveSem] = useState(presentSem);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState('ALL');
   const [selectedSubject, setSelectedSubject] = useState('ALL');
 
+  // Keep activeSem synchronized with student's actual present semester
   useEffect(() => {
-    if (student?.semester) {
-      setActiveSem(student.semester);
-    } else if (student?.year && YEAR_TO_DEFAULT_SEM[student.year]) {
-      setActiveSem(YEAR_TO_DEFAULT_SEM[student.year]);
-    }
+    const sem = getStudentPresentSem(student);
+    setActiveSem(sem);
   }, [student?.semester, student?.year]);
 
   const fetchAttendance = async () => {
@@ -167,36 +190,64 @@ export function StudentAttendanceView({ student, apiFetch }) {
     }
   }, [currentBec]);
 
-  // Derive unique months present in records
+  // Semester options available to this student:
+  // Shows ONLY their enrolled academic year's semesters + any past semester where records exist for them
+  const studentSemOptions = useMemo(() => {
+    const yearSems = SEMESTERS_BY_YEAR[studentYear] || ['7th Sem', '8th Sem'];
+    const set = new Set(yearSems);
+    if (presentSem) set.add(presentSem);
+
+    // Also include any past semester with actual recorded attendance
+    records.forEach((r) => {
+      if (r.year_sem && SEMESTER_OPTIONS.some(o => o.value === r.year_sem)) {
+        set.add(r.year_sem);
+      }
+    });
+
+    return SEMESTER_OPTIONS.filter((o) => set.has(o.value)).map((o) => ({
+      ...o,
+      isCurrent: o.value === presentSem
+    }));
+  }, [studentYear, presentSem, records]);
+
+  // Exact subjects for the active semester (5-8 subjects max)
+  const semesterSubjects = useMemo(() => {
+    return getSubjectsForSem(currentBranch, activeSem);
+  }, [currentBranch, activeSem]);
+
+  // Attendance records strictly belonging to the active semester
+  const activeSemesterRecords = useMemo(() => {
+    return records.filter((r) => {
+      if (r.year_sem) return r.year_sem === activeSem;
+      return semesterSubjects.includes(r.subject);
+    });
+  }, [records, activeSem, semesterSubjects]);
+
+  // Derive unique months strictly present in active semester records
   const availableMonths = useMemo(() => {
     const set = new Set();
-    records.forEach((r) => {
+    activeSemesterRecords.forEach((r) => {
       if (r.date) {
         const month = r.date.substring(0, 7); // 'YYYY-MM'
         set.add(month);
       }
     });
     return Array.from(set).sort().reverse();
-  }, [records]);
+  }, [activeSemesterRecords]);
 
-  // Filtered records by month and subject
+  // Filtered records by month and subject for active semester
   const filteredRecords = useMemo(() => {
-    return records.filter((r) => {
+    return activeSemesterRecords.filter((r) => {
       const matchMonth = selectedMonth === 'ALL' || (r.date && r.date.startsWith(selectedMonth));
       const matchSubject = selectedSubject === 'ALL' || r.subject === selectedSubject;
       return matchMonth && matchSubject;
     });
-  }, [records, selectedMonth, selectedSubject]);
-
-  // Exact subjects for the selected semester (max 5-8 subjects per semester)
-  const semesterSubjects = useMemo(() => {
-    return getSubjectsForSem(currentBranch, activeSem);
-  }, [currentBranch, activeSem]);
+  }, [activeSemesterRecords, selectedMonth, selectedSubject]);
 
   // Calculate Subject-wise Breakdown — strictly for the active semester's subjects
   const subjectStats = useMemo(() => {
     return semesterSubjects.map((subName) => {
-      const subRecords = records.filter((r) => r.subject === subName);
+      const subRecords = activeSemesterRecords.filter((r) => r.subject === subName);
       const total = subRecords.length;
       const present = subRecords.filter((r) => r.status === 'PRESENT').length;
       const absent = total - present;
@@ -209,23 +260,21 @@ export function StudentAttendanceView({ student, apiFetch }) {
         percentage
       };
     });
-  }, [records, semesterSubjects]);
+  }, [activeSemesterRecords, semesterSubjects]);
 
-  // Calculate Overall Statistics (for active semester subjects or all records)
+  // Calculate Overall Statistics strictly for active semester
   const overallStats = useMemo(() => {
-    const semRecords = records.filter(r => semesterSubjects.includes(r.subject) || r.year_sem === activeSem);
-    const targetRecords = semRecords.length > 0 ? semRecords : records;
-    const total = targetRecords.length;
-    const present = targetRecords.filter((r) => r.status === 'PRESENT').length;
+    const total = activeSemesterRecords.length;
+    const present = activeSemesterRecords.filter((r) => r.status === 'PRESENT').length;
     const absent = total - present;
     const percentage = total > 0 ? Math.round((present / total) * 100) : 100;
     return { total, present, absent, percentage };
-  }, [records, semesterSubjects, activeSem]);
+  }, [activeSemesterRecords]);
 
-  // Calculate Monthly Breakdown
+  // Calculate Monthly Breakdown strictly for active semester
   const monthlyStats = useMemo(() => {
     const map = new Map();
-    records.forEach((r) => {
+    activeSemesterRecords.forEach((r) => {
       if (!r.date) return;
       const monthKey = r.date.substring(0, 7); // '2026-09'
       const cur = map.get(monthKey) || { total: 0, present: 0, absent: 0 };
@@ -251,7 +300,7 @@ export function StudentAttendanceView({ student, apiFetch }) {
           percentage: pct
         };
       });
-  }, [records]);
+  }, [activeSemesterRecords]);
 
   const isLowAttendance = overallStats.total > 0 && overallStats.percentage < 75;
 
@@ -269,7 +318,7 @@ export function StudentAttendanceView({ student, apiFetch }) {
                 Attendance Ledger
               </h2>
               <span className="rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider">
-                {currentBranch} • {activeSem}
+                {currentBranch} • {activeSem} {activeSem === presentSem ? '• Present Sem' : ''}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-semibold mt-0.5">
@@ -287,9 +336,9 @@ export function StudentAttendanceView({ student, apiFetch }) {
               onChange={(e) => setActiveSem(e.target.value)}
               className="bg-transparent text-xs font-bold text-[#264055] focus:outline-none cursor-pointer"
             >
-              {SEMESTER_OPTIONS.map((opt) => (
+              {studentSemOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
-                  {opt.label}
+                  {opt.label} {opt.isCurrent ? '(Present Sem)' : ''}
                 </option>
               ))}
             </select>
@@ -561,7 +610,7 @@ export function StudentAttendanceView({ student, apiFetch }) {
               className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-[#264055] focus:outline-none focus:border-[#3B6280] max-w-[200px]"
             >
               <option value="ALL">All Subjects</option>
-              {getSubjectsForBranch(currentBranch).map((sub) => (
+              {semesterSubjects.map((sub) => (
                 <option key={sub} value={sub}>
                   {sub}
                 </option>
