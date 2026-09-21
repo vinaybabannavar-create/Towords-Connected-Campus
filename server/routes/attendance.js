@@ -96,7 +96,7 @@ router.get('/all', async (req, res) => {
       params.push(branch);
     }
 
-    query += ` ORDER BY date DESC`;
+    query += ` ORDER BY date DESC, created_at DESC`;
     const [records] = await executeQuery(query, params);
     res.json({ records: records || [] });
   } catch (err) {
@@ -137,7 +137,8 @@ router.post('/submit', async (req, res) => {
          ON DUPLICATE KEY UPDATE 
            status = VALUES(status), 
            marked_by = VALUES(marked_by), 
-           marked_by_name = VALUES(marked_by_name)`,
+           marked_by_name = VALUES(marked_by_name),
+           created_at = CURRENT_TIMESTAMP`,
         [
           recordId,
           cleanDate,

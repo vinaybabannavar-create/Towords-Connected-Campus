@@ -923,40 +923,49 @@ Generate the ENTIRE Markdown document in clear, professional markdown text. Do N
               </div>
             </div>
 
-            {/* HIGH-TECH NODE CANVAS (Dark Theme matching reference image) */}
-            <div className={`rounded-xl border border-stone-800 bg-stone-950 p-5 shadow-2xl text-white relative overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50 rounded-none p-8' : ''}`}>
+            {/* HIGH-TECH NODE CANVAS */}
+            <div className={`rounded-2xl border border-slate-800 bg-[#090d16] p-6 shadow-2xl text-slate-100 relative overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50 rounded-none p-8 overflow-y-auto' : ''}`}>
+              {/* Subtle background glow */}
+              <div className="absolute -top-24 -right-24 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
+
               {/* Canvas Controls Header */}
-              <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-stone-800 pb-4">
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4 relative z-10">
                 <div className="flex items-center gap-3">
-                  <div className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    <Workflow className="h-4 w-4" />
+                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-inner">
+                    <Workflow className="h-5 w-5" />
                   </div>
                   <div>
-                    <h4 className="text-base font-black text-white">System Architecture Node Canvas</h4>
-                    <p className="text-xs text-stone-400">Interactive subsystem groups, component nodes & data contracts</p>
+                    <h4 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
+                      System Architecture Node Canvas
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 border border-emerald-400/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" /> Live Diagram
+                      </span>
+                    </h4>
+                    <p className="text-xs text-slate-400">Interactive subsystem groups, component nodes & data contracts</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center rounded-lg border border-stone-800 bg-stone-900 p-1">
+                  <div className="flex items-center rounded-xl border border-slate-800 bg-slate-900/90 p-1 shadow-sm backdrop-blur-md">
                     <button
                       onClick={() => setZoomLevel((z) => Math.max(0.75, z - 0.15))}
-                      className="p-1.5 text-stone-400 hover:text-white rounded hover:bg-stone-800"
+                      className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
                       title="Zoom Out"
                     >
                       <ZoomOut className="h-4 w-4" />
                     </button>
-                    <span className="px-2 text-xs font-mono font-bold text-stone-300">{Math.round(zoomLevel * 100)}%</span>
+                    <span className="px-3 text-xs font-mono font-bold text-slate-200">{Math.round(zoomLevel * 100)}%</span>
                     <button
                       onClick={() => setZoomLevel((z) => Math.min(1.4, z + 0.15))}
-                      className="p-1.5 text-stone-400 hover:text-white rounded hover:bg-stone-800"
+                      className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
                       title="Zoom In"
                     >
                       <ZoomIn className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => setZoomLevel(1)}
-                      className="ml-1 px-2 py-1 text-[11px] font-bold text-stone-400 hover:text-white rounded hover:bg-stone-800"
+                      className="ml-1 px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
                     >
                       Reset
                     </button>
@@ -964,7 +973,7 @@ Generate the ENTIRE Markdown document in clear, professional markdown text. Do N
 
                   <button
                     onClick={() => setIsFullscreen(!isFullscreen)}
-                    className="p-2 text-stone-400 hover:text-white rounded-lg border border-stone-800 bg-stone-900 hover:bg-stone-800"
+                    className="p-2.5 text-slate-300 hover:text-white rounded-xl border border-slate-800 bg-slate-900/90 hover:bg-slate-800 transition shadow-sm"
                     title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Canvas'}
                   >
                     {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
@@ -974,56 +983,78 @@ Generate the ENTIRE Markdown document in clear, professional markdown text. Do N
 
               {/* Subsystems & Nodes Layout */}
               <div
-                className="space-y-6 transition-transform duration-200 origin-top-left"
+                className="space-y-6 transition-transform duration-200 origin-top-left relative z-10"
                 style={{ transform: `scale(${zoomLevel})` }}
               >
                 {(archResult.subsystems || []).map((subsystem, subIdx) => {
                   const getSubsystemStyle = (color) => {
                     switch (color) {
                       case 'blue':
-                        return { border: 'border-blue-500/40', bg: 'bg-blue-950/20', badge: 'bg-blue-500/20 text-blue-300 border-blue-500/30' };
+                        return {
+                          border: 'border-blue-500/30 hover:border-blue-400/50',
+                          bg: 'bg-gradient-to-br from-blue-950/20 via-slate-900/60 to-slate-950/80',
+                          badge: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+                          numBg: 'bg-blue-500/20 text-blue-400 border-blue-500/40'
+                        };
                       case 'amber':
-                        return { border: 'border-amber-500/40', bg: 'bg-amber-950/20', badge: 'bg-amber-500/20 text-amber-300 border-amber-500/30' };
+                        return {
+                          border: 'border-amber-500/30 hover:border-amber-400/50',
+                          bg: 'bg-gradient-to-br from-amber-950/20 via-slate-900/60 to-slate-950/80',
+                          badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+                          numBg: 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                        };
                       case 'purple':
-                        return { border: 'border-purple-500/40', bg: 'bg-purple-950/20', badge: 'bg-purple-500/20 text-purple-300 border-purple-500/30' };
+                        return {
+                          border: 'border-purple-500/30 hover:border-purple-400/50',
+                          bg: 'bg-gradient-to-br from-purple-950/20 via-slate-900/60 to-slate-950/80',
+                          badge: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+                          numBg: 'bg-purple-500/20 text-purple-400 border-purple-500/40'
+                        };
                       case 'emerald':
-                        return { border: 'border-emerald-500/40', bg: 'bg-emerald-950/20', badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' };
                       default:
-                        return { border: 'border-stone-700', bg: 'bg-stone-900/40', badge: 'bg-stone-800 text-stone-300 border-stone-700' };
+                        return {
+                          border: 'border-emerald-500/30 hover:border-emerald-400/50',
+                          bg: 'bg-gradient-to-br from-emerald-950/20 via-slate-900/60 to-slate-950/80',
+                          badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+                          numBg: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                        };
                     }
                   };
                   const style = getSubsystemStyle(subsystem.color);
 
                   return (
-                    <div key={subsystem.id || subIdx} className={`rounded-xl border ${style.border} ${style.bg} p-4 sm:p-5 backdrop-blur-md`}>
-                      <div className="mb-3.5 flex items-center justify-between border-b border-stone-800/80 pb-3">
-                        <div className="flex items-center gap-2.5">
-                          <span className="grid h-6 w-6 place-items-center rounded-md bg-stone-900 text-xs font-black text-emerald-400 border border-stone-700">
+                    <div key={subsystem.id || subIdx} className={`rounded-2xl border ${style.border} ${style.bg} p-5 backdrop-blur-xl shadow-lg transition-all`}>
+                      <div className="mb-4 flex items-center justify-between border-b border-slate-800/80 pb-3.5">
+                        <div className="flex items-center gap-3">
+                          <span className={`grid h-7 w-7 place-items-center rounded-lg text-xs font-black border shadow-inner ${style.numBg}`}>
                             {subIdx + 1}
                           </span>
-                          <h5 className="text-base font-black text-white">{subsystem.title}</h5>
+                          <h5 className="text-base font-black tracking-tight text-white flex items-center gap-2">
+                            {subsystem.title}
+                          </h5>
                         </div>
                         {subsystem.badge && (
-                          <span className={`rounded-full border px-3 py-0.5 text-xs font-bold ${style.badge}`}>
+                          <span className={`rounded-full border px-3 py-1 text-xs font-bold shadow-xs ${style.badge}`}>
                             {subsystem.badge}
                           </span>
                         )}
                       </div>
 
                       {/* Nodes Grid */}
-                      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {(subsystem.nodes || []).map((node, nodeIdx) => (
                           <div
                             key={node.id || nodeIdx}
                             onClick={() => setSelectedNode(node)}
-                            className="group relative cursor-pointer rounded-xl border border-stone-800 bg-stone-900/90 p-4 transition-all duration-200 hover:border-emerald-500/60 hover:bg-stone-900 hover:shadow-lg"
+                            className="group relative cursor-pointer rounded-xl border border-slate-800/90 bg-[#0d1424]/90 p-4 transition-all duration-200 hover:border-emerald-400/80 hover:bg-[#111a2e] hover:shadow-xl hover:shadow-emerald-500/5 hover:-translate-y-0.5"
                           >
-                            <div className="mb-2 flex items-center justify-between">
-                              <span className="rounded bg-stone-950 border border-stone-800 px-2 py-0.5 text-[10px] font-mono font-bold text-stone-400">
+                            <div className="mb-2.5 flex items-center justify-between gap-2">
+                              <span className="rounded-md bg-slate-950 border border-slate-800 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-wider">
                                 {node.tech || 'Component'}
                               </span>
                               {node.latency && (
-                                <span className="text-[11px] font-mono font-black text-emerald-400">
+                                <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-emerald-300">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                                   {node.latency}
                                 </span>
                               )}
@@ -1032,13 +1063,13 @@ Generate the ENTIRE Markdown document in clear, professional markdown text. Do N
                             <h6 className="font-black text-white text-sm group-hover:text-emerald-300 transition-colors">
                               {node.title}
                             </h6>
-                            <p className="mt-1 text-xs text-stone-400 leading-5 line-clamp-2">
+                            <p className="mt-1.5 text-xs text-slate-300 leading-relaxed font-normal">
                               {node.purpose}
                             </p>
 
-                            <div className="mt-3 flex items-center justify-between border-t border-stone-800/60 pt-2 text-[10px] text-stone-400">
-                              <span>Protocol: <strong className="text-stone-300">{node.protocol || 'HTTP'}</strong></span>
-                              <span className="text-emerald-400 font-bold">Inspect Details →</span>
+                            <div className="mt-3.5 flex items-center justify-between border-t border-slate-800/80 pt-2.5 text-[11px] text-slate-400">
+                              <span className="font-mono text-slate-400">Protocol: <strong className="text-slate-200 font-bold">{node.protocol || 'HTTP/2'}</strong></span>
+                              <span className="text-emerald-400 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">Inspect Details →</span>
                             </div>
                           </div>
                         ))}
@@ -1049,23 +1080,32 @@ Generate the ENTIRE Markdown document in clear, professional markdown text. Do N
               </div>
 
               {/* Data Flow Sequence Cards */}
-              <div className="mt-8 border-t border-stone-800 pt-6">
-                <h5 className="mb-4 text-sm font-black text-stone-300 uppercase tracking-wider">
-                  Sequential Workflow & Data Protocol Pipeline
-                </h5>
-                <div className="grid gap-3 sm:grid-cols-2">
+              <div className="mt-8 border-t border-slate-800/80 pt-6 relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h5 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                    Sequential Workflow & Data Protocol Pipeline
+                  </h5>
+                  <span className="text-[11px] font-mono font-bold text-slate-400">
+                    {archResult.flowSteps?.length || 0} Execution Stages
+                  </span>
+                </div>
+
+                <div className="grid gap-3.5 sm:grid-cols-2">
                   {(archResult.flowSteps || []).map((step, idx) => (
-                    <div key={idx} className="flex gap-3 rounded-lg border border-stone-800 bg-stone-900/60 p-3.5">
-                      <div className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/20 text-emerald-400 font-black text-xs shrink-0 border border-emerald-500/30">
-                        {step.step || idx + 1}
+                    <div key={idx} className="flex gap-3.5 rounded-xl border border-slate-800/90 bg-[#0d1424]/70 p-4 backdrop-blur-md hover:border-slate-700 transition">
+                      <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 text-emerald-400 font-black text-xs shrink-0 border border-emerald-500/30 shadow-inner">
+                        {String(step.step || idx + 1).padStart(2, '0')}
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h6 className="text-xs font-black text-white">{step.title}</h6>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <h6 className="text-xs font-black text-white truncate">{step.title}</h6>
                         </div>
-                        <p className="text-[11px] text-stone-400 leading-4">{step.desc}</p>
-                        <div className="mt-1.5 inline-block rounded bg-stone-950 border border-stone-800 px-2 py-0.5 text-[10px] font-mono text-emerald-400">
-                          {step.actor} → {step.target}
+                        <p className="text-xs text-slate-300 leading-relaxed">{step.desc}</p>
+                        <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-slate-950 border border-slate-800 px-2.5 py-1 text-[10px] font-mono font-bold text-emerald-300">
+                          <span>{step.actor}</span>
+                          <span className="text-slate-500">→</span>
+                          <span>{step.target}</span>
                         </div>
                       </div>
                     </div>

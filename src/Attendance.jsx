@@ -187,6 +187,9 @@ export function StudentAttendanceView({ student, apiFetch }) {
   useEffect(() => {
     if (currentBec) {
       fetchAttendance();
+      // Auto-poll every 6 seconds for real-time live updates when teacher marks attendance
+      const interval = setInterval(fetchAttendance, 6000);
+      return () => clearInterval(interval);
     }
   }, [currentBec]);
 
@@ -781,7 +784,13 @@ export function TeacherAttendanceView({ student, apiFetch }) {
   const [dailyExportDate, setDailyExportDate] = useState(() => {
     return new Date().toISOString().split('T')[0];
   });
-  const [dailyExportSubject, setDailyExportSubject] = useState('ALL');
+  // Default daily export subject to the currently selected subject
+  const [dailyExportSubject, setDailyExportSubject] = useState(selectedSubject);
+
+  // Sync dailyExportSubject whenever teacher changes subject
+  useEffect(() => {
+    setDailyExportSubject(selectedSubject);
+  }, [selectedSubject]);
 
   const [monthlyStartDate, setMonthlyStartDate] = useState(() => {
     return new Date().toISOString().split('T')[0];
@@ -811,16 +820,18 @@ export function TeacherAttendanceView({ student, apiFetch }) {
     return allBranchRecords.filter((r) => {
       const matchDate = r.date === dailyExportDate;
       const matchSubject = dailyExportSubject === 'ALL' || r.subject === dailyExportSubject;
-      return matchDate && matchSubject;
+      const matchSem = !r.year_sem || r.year_sem === selectedSem;
+      return matchDate && matchSubject && matchSem;
     });
-  }, [allBranchRecords, dailyExportDate, dailyExportSubject]);
+  }, [allBranchRecords, dailyExportDate, dailyExportSubject, selectedSem]);
 
   const monthlyMatchingRecords = useMemo(() => {
     return allBranchRecords.filter((r) => {
       if (!r.date) return false;
-      return r.date >= monthlyStartDate && r.date <= monthlyEndDate;
+      const matchSem = !r.year_sem || r.year_sem === selectedSem;
+      return r.date >= monthlyStartDate && r.date <= monthlyEndDate && matchSem;
     });
-  }, [allBranchRecords, monthlyStartDate, monthlyEndDate]);
+  }, [allBranchRecords, monthlyStartDate, monthlyEndDate, selectedSem]);
 
   // 1. Download Daily Attendance Excel (.xlsx)
   const handleDownloadDailyExcel = () => {
@@ -876,106 +887,108 @@ export function TeacherAttendanceView({ student, apiFetch }) {
   };
 
   // 2. Download Monthly (1 Month / 30-Day) Consolidated Attendance Excel (.xlsx)
+  //    Sheet 1: Date-Column Pivot (Student × Date with P/A per day)
+  //    Sheet 2: Cumulative Summary with % and eligibility
   const handleDownloadMonthlyExcel = () => {
     if (monthlyMatchingRecords.length === 0) {
       alert(`No attendance records found between ${monthlyStartDate} and ${monthlyEndDate} for ${selectedBranch} Department.`);
       return;
     }
 
-    const studentMap = new Map();
-    studentsList.forEach((s) => {
-      studentMap.set(s.bec.toUpperCase(), {
-        bec: s.bec.toUpperCase(),
-        name: s.name || 'Student',
-        department: s.department || selectedBranch,
-        semester: s.semester || selectedSem,
-        total: 0,
-        present: 0,
-        absent: 0
-      });
+    // ── Collect all unique dates (sorted) and unique subjects from the records
+    const dateSet = new Set();
+    const subjectSet = new Set();
+    monthlyMatchingRecords.forEach((r) => {
+      if (r.date) dateSet.add(r.date);
+      if (r.subject) subjectSet.add(r.subject);
+    });
+    const sortedDates = Array.from(dateSet).sort();
+    const subjects = Array.from(subjectSet).sort();
+
+    // ── Build a lookup: { 'BEC_DATE_SUBJECT' -> 'P'/'A' }
+    const lookup = {};
+    monthlyMatchingRecords.forEach((r) => {
+      const key = `${(r.student_bec || '').toUpperCase()}__${r.date}__${r.subject}`;
+      lookup[key] = r.status === 'PRESENT' ? 'P' : 'A';
     });
 
+    // ── Build student map (all students in this roster)
+    const studentMap = new Map();
+    studentsList.forEach((s) => {
+      studentMap.set(s.bec.toUpperCase(), { bec: s.bec.toUpperCase(), name: s.name || s.bec, department: s.department || selectedBranch, semester: s.semester || selectedSem });
+    });
+    // Also add any students from records not in the current roster
     monthlyMatchingRecords.forEach((r) => {
       const bec = (r.student_bec || '').toUpperCase();
-      const cur = studentMap.get(bec) || {
-        bec,
-        name: r.student_name || 'Student',
-        department: r.branch || selectedBranch,
-        semester: r.year_sem || selectedSem,
-        total: 0,
-        present: 0,
-        absent: 0
-      };
+      if (!studentMap.has(bec)) {
+        studentMap.set(bec, { bec, name: r.student_name || bec, department: r.branch || selectedBranch, semester: r.year_sem || selectedSem });
+      }
+    });
+    const students = Array.from(studentMap.values());
+
+    // ── SHEET 1: Date-Column Pivot (one row per student, one col per date×subject)
+    // Header row: Sl No | USN | Name | Subject | Day1(date) | Day2(date) | ... | Total | Present | Absent | % | Eligibility
+    // We make one section per subject
+    const pivotRows = [];
+    subjects.forEach((subj) => {
+      // Section label
+      pivotRows.push([`Subject: ${subj} | Semester: ${selectedSem} | Branch: ${selectedBranch}`]);
+      // Date header row
+      const dateHeader = ['Sl No', 'USN / BEC', 'Student Name', 'Semester'];
+      sortedDates.forEach((d, i) => { dateHeader.push(`Day ${i + 1}\n(${d})`); });
+      dateHeader.push('Total Classes', 'Present', 'Absent', 'Attendance %', 'VTU Eligibility (75%)');
+      pivotRows.push(dateHeader);
+
+      students.forEach((s, idx) => {
+        const row = [idx + 1, s.bec, s.name, s.semester];
+        let total = 0, present = 0;
+        sortedDates.forEach((d) => {
+          const key = `${s.bec}__${d}__${subj}`;
+          const val = lookup[key];
+          if (val) { total += 1; if (val === 'P') present += 1; }
+          row.push(val || '-');
+        });
+        const absent = total - present;
+        const pct = total > 0 ? Math.round((present / total) * 100) : 0;
+        const eligible = total > 0 && pct >= 75;
+        row.push(total, present, absent, total > 0 ? `${pct}%` : 'N/A', total === 0 ? 'NO DATA' : eligible ? 'ELIGIBLE' : 'SHORTAGE');
+        pivotRows.push(row);
+      });
+      pivotRows.push([]); // blank spacer row between subjects
+    });
+
+    const pivotSheet = XLSX.utils.aoa_to_sheet(pivotRows);
+    // Dynamic column widths
+    const pivotCols = [{ wch: 6 }, { wch: 18 }, { wch: 24 }, { wch: 14 }];
+    sortedDates.forEach(() => pivotCols.push({ wch: 14 }));
+    pivotCols.push({ wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 24 });
+    pivotSheet['!cols'] = pivotCols;
+
+    // ── SHEET 2: Cumulative Summary (overall across ALL subjects in the period)
+    const summaryMap = new Map();
+    students.forEach((s) => summaryMap.set(s.bec, { ...s, total: 0, present: 0, absent: 0 }));
+    monthlyMatchingRecords.forEach((r) => {
+      const bec = (r.student_bec || '').toUpperCase();
+      const cur = summaryMap.get(bec) || { bec, name: r.student_name || bec, department: r.branch || selectedBranch, semester: r.year_sem || selectedSem, total: 0, present: 0, absent: 0 };
       cur.total += 1;
       if (r.status === 'PRESENT') cur.present += 1;
       else cur.absent += 1;
-      studentMap.set(bec, cur);
+      summaryMap.set(bec, cur);
     });
 
-    const summaryHeaders = [
-      'Sl No',
-      'Student USN / BEC',
-      'Student Full Name',
-      'Department / Branch',
-      'Academic Semester',
-      'Total Conducted Lectures (1 Month)',
-      'Lectures Attended (Present)',
-      'Lectures Missed (Absent)',
-      'Attendance Percentage (%)',
-      'VTU Exam Eligibility (75% Criteria)'
-    ];
-
-    const summaryRows = Array.from(studentMap.values()).map((s, idx) => {
-      const pct = s.total > 0 ? Math.round((s.present / s.total) * 100) : 100;
-      const isEligible = pct >= 75;
-      return [
-        idx + 1,
-        s.bec,
-        s.name,
-        s.department,
-        s.semester,
-        s.total,
-        s.present,
-        s.absent,
-        `${pct}%`,
-        isEligible ? 'ELIGIBLE (>= 75%)' : 'ATTENDANCE SHORTAGE (< 75%)'
-      ];
+    const summaryHeaders = ['Sl No', 'Student USN / BEC', 'Student Full Name', 'Department', 'Semester', 'Total Lectures', 'Present', 'Absent', 'Attendance %', 'VTU Eligibility (>= 75%)'];
+    const summaryRows = Array.from(summaryMap.values()).map((s, idx) => {
+      const pct = s.total > 0 ? Math.round((s.present / s.total) * 100) : 0;
+      const eligible = s.total > 0 && pct >= 75;
+      return [idx + 1, s.bec, s.name, s.department, s.semester, s.total, s.present, s.absent, s.total > 0 ? `${pct}%` : '0%', s.total === 0 ? 'NO LECTURES LOGGED' : eligible ? 'ELIGIBLE (>= 75%)' : 'ATTENDANCE SHORTAGE (< 75%)'];
     });
-
     const summarySheet = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryRows]);
-    summarySheet['!cols'] = [
-      { wch: 8 },
-      { wch: 18 },
-      { wch: 24 },
-      { wch: 14 },
-      { wch: 18 },
-      { wch: 28 },
-      { wch: 24 },
-      { wch: 22 },
-      { wch: 24 },
-      { wch: 32 }
-    ];
-
-    const rawHeaders = ['Sl No', 'Date', 'USN / BEC', 'Student Name', 'Subject', 'Status', 'Faculty In-Charge'];
-    const rawRows = monthlyMatchingRecords.map((r, i) => [
-      i + 1,
-      r.date,
-      r.student_bec,
-      r.student_name,
-      r.subject,
-      r.status,
-      r.marked_by_name || teacherName
-    ]);
-    const rawSheet = XLSX.utils.aoa_to_sheet([rawHeaders, ...rawRows]);
-    rawSheet['!cols'] = [
-      { wch: 8 }, { wch: 14 }, { wch: 18 }, { wch: 24 }, { wch: 32 }, { wch: 14 }, { wch: 22 }
-    ];
+    summarySheet['!cols'] = [{ wch: 6 }, { wch: 18 }, { wch: 24 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 30 }];
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Monthly Cumulative Summary');
-    XLSX.utils.book_append_sheet(workbook, rawSheet, 'Daily Session Logs (1 Month)');
-
-    const filename = `Attendance_1_Month_Consolidated_${selectedBranch}_${monthlyStartDate}_to_${monthlyEndDate}.xlsx`;
+    XLSX.utils.book_append_sheet(workbook, pivotSheet, 'Date-Wise Attendance Register');
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Cumulative Summary');
+    const filename = `Attendance_1_Month_${selectedBranch}_${selectedSem.replace(/\s/g,'')}_${monthlyStartDate}_to_${monthlyEndDate}.xlsx`;
     XLSX.writeFile(workbook, filename);
   };
 
@@ -1279,13 +1292,13 @@ export function TeacherAttendanceView({ student, apiFetch }) {
         </div>
       </div>
 
-      {/* Recent History Table for Teacher */}
-      {recentSessions.length > 0 && (
+      {/* Recent History Table for Teacher — filtered to selected subject only */}
+      {recentSessions.filter((r) => r.subject === selectedSubject).length > 0 && (
         <div className="rounded-3xl bg-white p-5 sm:p-6 shadow-[0_6px_24px_rgba(38,64,85,0.06)] border border-slate-100 space-y-3">
           <div className="border-b border-slate-100 pb-2 flex items-center justify-between">
             <h3 className="text-sm font-black text-[#264055] uppercase tracking-wider flex items-center gap-1.5">
               <Clock className="h-4 w-4 text-[#3B6280]" />
-              <span>Recent Submissions ({selectedBranch} Department)</span>
+              <span>Recent Submissions — {selectedSubject} ({selectedBranch})</span>
             </h3>
             <button
               type="button"
@@ -1309,7 +1322,7 @@ export function TeacherAttendanceView({ student, apiFetch }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                {recentSessions.slice(0, 15).map((r) => (
+                {recentSessions.filter((r) => r.subject === selectedSubject).slice(0, 30).map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50">
                     <td className="px-3 py-2 font-mono text-[11px]">{r.date}</td>
                     <td className="px-3 py-2 font-bold text-slate-900">{r.student_name}</td>

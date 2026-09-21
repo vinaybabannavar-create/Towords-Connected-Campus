@@ -234,26 +234,10 @@ export const formatDriveForJD = (drive) => {
   const skillsStr = Array.isArray(drive.skills)
     ? drive.skills.join(', ')
     : (drive.skills || '');
-  const branchesStr = Array.isArray(drive.branches)
-    ? drive.branches.join(', ')
-    : (drive.branches || 'All Eligible Branches');
 
-  const lines = [
-    `COMPANY: ${drive.company || ''}`,
-    `ROLE / DESIGNATION: ${drive.role || ''}`,
-    drive.domain ? `DOMAIN: ${drive.domain}` : '',
-    drive.salary ? `SALARY / PACKAGE: ${drive.salary}` : '',
-    `ELIGIBILITY: Min CGPA ${drive.minCgpa || '6.0'}, Eligible Branches: ${branchesStr}`,
-    skillsStr ? `REQUIRED TECHNICAL SKILLS: ${skillsStr}` : '',
-    drive.driveDate ? `DRIVE DATE: ${drive.driveDate}` : '',
-    drive.deadline ? `APPLICATION DEADLINE: ${drive.deadline}` : '',
-    drive.description && drive.description.trim()
-      ? `\nJOB DESCRIPTION & ROLE REQUIREMENTS:\n${drive.description.trim()}`
-      : ''
-  ].filter(Boolean);
-
-  return lines.join('\n');
+  return skillsStr ? `REQUIRED TECHNICAL SKILLS: ${skillsStr}` : '';
 };
+
 
 const exportApplicantsToExcel = (drive, applicants) => {
   if (!applicants || applicants.length === 0) {
@@ -4562,7 +4546,7 @@ function POPlacementWorkspace({ student, setPage }) {
     };
 
     fetchDrivesAndRegistrations();
-    const interval = setInterval(fetchDrivesAndRegistrations, 6000);
+    const interval = setInterval(fetchDrivesAndRegistrations, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -4757,17 +4741,21 @@ function POPlacementWorkspace({ student, setPage }) {
               Placement Drives & Corporate Hiring Roster
             </h2>
             <p className="text-xs sm:text-sm text-stone-300 max-w-2xl leading-relaxed">
-              Post verified on-campus opportunities with role requirements and official registration links. Track live student applications and download official Excel candidate spreadsheets for corporate HR teams.
+              {student?.role === 'po'
+                ? 'Post verified on-campus opportunities with role requirements and official registration links. Track live student applications and download official Excel candidate spreadsheets for corporate HR teams.'
+                : 'View verified on-campus opportunities and download official Excel candidate spreadsheets for corporate HR teams.'}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-stone-950 font-black px-6 py-3.5 text-sm shadow-xl shadow-emerald-500/20 transition-all duration-200 hover:scale-105 shrink-0 cursor-pointer"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Post Placement Drive</span>
-          </button>
+          {student?.role === 'po' && (
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-stone-950 font-black px-6 py-3.5 text-sm shadow-xl shadow-emerald-500/20 transition-all duration-200 hover:scale-105 shrink-0 cursor-pointer"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Post Placement Drive</span>
+            </button>
+          )}
         </div>
 
         {/* Stats Strip */}
@@ -4976,34 +4964,38 @@ function POPlacementWorkspace({ student, setPage }) {
                         <span>Download Excel</span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(drive)}
-                        className="rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-2 text-xs font-bold transition cursor-pointer"
-                      >
-                        Edit
-                      </button>
+                      {student?.role === 'po' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(drive)}
+                            className="rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-2 text-xs font-bold transition cursor-pointer"
+                          >
+                            Edit
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStatus(drive.id)}
-                        className={`rounded-lg px-3 py-2 text-xs font-bold transition cursor-pointer ${
-                          isClosed
-                            ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                        }`}
-                      >
-                        {isClosed ? 'Reopen' : 'Close'}
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(drive.id)}
+                            className={`rounded-lg px-3 py-2 text-xs font-bold transition cursor-pointer ${
+                              isClosed
+                                ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                            }`}
+                          >
+                            {isClosed ? 'Reopen' : 'Close'}
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteDrive(drive.id)}
-                        className="rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 p-2 text-xs font-bold transition cursor-pointer"
-                        title="Delete Drive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDrive(drive.id)}
+                            className="rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 p-2 text-xs font-bold transition cursor-pointer"
+                            title="Delete Drive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -5014,7 +5006,7 @@ function POPlacementWorkspace({ student, setPage }) {
       </div>
 
       {/* Modal: Post / Edit Placement Drive */}
-      {isDriveModalOpen && (
+      {isDriveModalOpen && student?.role === 'po' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/75 backdrop-blur-sm">
           <div className="relative flex flex-col w-full max-w-2xl max-h-[90vh] rounded-2xl bg-white shadow-2xl border border-stone-200 overflow-hidden">
             {/* Modal Header */}
