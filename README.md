@@ -21,6 +21,8 @@ Student · Class Teacher · HOD · Gate Security · Placement Officer
 
 ---
 
+![Towords Connected Campus - Complete Portal Workflow](./campus_portal_architecture.jpg)
+
 ## Why this exists
 
 Most campuses run on the same disconnected paper trail: gate passes signed by hand across two offices, placement drives announced over WhatsApp, resumes screened one by one, and no shared record of what a student has actually built or achieved. **Towards Connected Campus** replaces that trail with one platform — five role-specific views over one shared source of truth, with AI doing the screening work a human would otherwise do manually.
