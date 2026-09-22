@@ -124,12 +124,11 @@ export function StudentProfileModal({ student, isOpen, onClose, onSave }) {
 
   useEffect(() => {
     if (student && isOpen) {
-      const isSaved = Boolean(student.isProfileSaved);
       setFormData({
-        name: isSaved ? (student.name || '') : '',
-        bec: isSaved ? (student.bec || '') : '',
-        college: isSaved ? (student.college || student.collegeName || '') : '',
-        department: isSaved ? (student.department || '') : '',
+        name: student.name || '',
+        bec: student.bec || '',
+        college: student.college || student.collegeName || 'T. John Institute Of Technology',
+        department: student.department || '',
         year: student.year || 'IV Year',
         email: student.email || '',
         phone: student.phone || '',
@@ -139,7 +138,7 @@ export function StudentProfileModal({ student, isOpen, onClose, onSave }) {
         linkedin: student.linkedin || '',
         portfolio: student.portfolio || '',
         resume: student.resume || null,
-        // Role-specific fields (start empty for user input)
+        // Role-specific fields
         assignedClass: student.assignedClass || '',
         subjects: student.subjects || '',
         cabin: student.cabin || '',

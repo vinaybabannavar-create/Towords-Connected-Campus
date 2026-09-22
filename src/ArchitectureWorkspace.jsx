@@ -50,35 +50,146 @@ const generateFallbackArchitecture = (promptText) => {
   const isHealth = /health|telemedicine|prescription|medical|doctor/i.test(clean);
 
   const sub1 = isAI
-    ? { id: '1', name: 'Inference & Context Engine', badge: 'Core AI', tech: 'FastAPI + Moss Cache', purpose: 'Sub-10ms prompt caching and agent orchestrator', metrics: 'Latency < 12ms', connections: ['2', '3'] }
+    ? {
+        id: 'subsystem_1',
+        title: 'Inference & Context Engine',
+        badge: 'Core AI',
+        color: 'blue',
+        nodes: [
+          { id: 'n1_1', title: 'Agent Orchestration Controller', tech: 'LangGraph + Python FastAPI', latency: '<12ms', protocol: 'HTTPS / gRPC', purpose: 'Sub-10ms prompt execution and agent workflow dispatch', status: 'Active' },
+          { id: 'n1_2', title: 'Prompt Ingestion Gateway', tech: 'Redis Streams + Event Queue', latency: '<5ms', protocol: 'Internal Bus', purpose: 'Asynchronous prompt ingestion and rate-limiting', status: 'Stateful' }
+        ]
+      }
     : isSecurity
-    ? { id: '1', name: 'Biometric Gate Gateway', badge: 'Edge IoT', tech: 'OpenCV + WebRTC', purpose: 'Face embedding matching and entry validation', metrics: 'Accuracy 99.4%', connections: ['2', '3'] }
+    ? {
+        id: 'subsystem_1',
+        title: 'Presentation & Gate Terminal',
+        badge: 'Edge IoT',
+        color: 'blue',
+        nodes: [
+          { id: 'n1_1', title: 'Security Guard Mobile Scanner', tech: 'React 19 PWA + HTML5 Camera Stream', latency: '<40ms', protocol: 'HTTPS / WSS', purpose: 'Live optical barcode & QR stream decoding', status: 'Active' },
+          { id: 'n1_2', title: 'Student Pass Portal UI', tech: 'React + Framer Motion + Tailwind', latency: '<25ms', protocol: 'HTTPS / REST', purpose: 'Pass application, status tracking & digital QR display', status: 'Active' }
+        ]
+      }
     : isHealth
-    ? { id: '1', name: 'Clinical Consultation Engine', badge: 'Core Health', tech: 'WebRTC + HL7 FHIR', purpose: 'End-to-end encrypted medical tele-consults', metrics: 'Latency < 50ms', connections: ['2', '3'] }
+    ? {
+        id: 'subsystem_1',
+        title: 'Clinical Consultation Engine',
+        badge: 'Core Health',
+        color: 'blue',
+        nodes: [
+          { id: 'n1_1', title: 'WebRTC Telehealth Gateway', tech: 'WebRTC + SFU Media Server', latency: '<50ms', protocol: 'SRTP / WebRTC', purpose: 'End-to-end encrypted medical video consultations', status: 'Active' },
+          { id: 'n1_2', title: 'EHR Ingestion Pipe', tech: 'HL7 FHIR + Node.js', latency: '<30ms', protocol: 'HTTPS / FHIR', purpose: 'Patient electronic health record synchronization', status: 'Primary' }
+        ]
+      }
     : isPlacement
-    ? { id: '1', name: 'Resume AI Semantic Matcher', badge: 'Core Parser', tech: 'spaCy + LangChain', purpose: 'Multi-factor ATS scoring and JD alignment', metrics: 'Accuracy 98.2%', connections: ['2', '3'] }
-    : { id: '1', name: 'Core Application Service', badge: 'Core API', tech: 'Node.js Express / Go', purpose: 'Primary business logic orchestrator', metrics: 'Uptime 99.9%', connections: ['2', '3'] };
+    ? {
+        id: 'subsystem_1',
+        title: 'Resume Semantic Matcher',
+        badge: 'Core Parser',
+        color: 'blue',
+        nodes: [
+          { id: 'n1_1', title: 'ATS Resume Parsing Engine', tech: 'spaCy + LangChain + PDF.js', latency: '<80ms', protocol: 'HTTPS / REST', purpose: 'Multi-factor ATS skill extraction & JD comparison', status: 'Active' },
+          { id: 'n1_2', title: 'Drive Eligibility Evaluator', tech: 'Rule Engine + Express', latency: '<20ms', protocol: 'Internal Route', purpose: 'Filters student CGPA and backlog criteria for drives', status: 'Active' }
+        ]
+      }
+    : {
+        id: 'subsystem_1',
+        title: 'Core Application Service',
+        badge: 'Core API',
+        color: 'blue',
+        nodes: [
+          { id: 'n1_1', title: 'Primary Application Server', tech: 'Node.js Express / Go', latency: '<15ms', protocol: 'HTTPS / REST', purpose: 'Primary business logic orchestrator and route dispatcher', status: 'Active' },
+          { id: 'n1_2', title: 'Client Gateway Proxy', tech: 'NGINX Reverse Proxy', latency: '<5ms', protocol: 'HTTP/2', purpose: 'TLS termination, load balancing and routing', status: 'Primary' }
+        ]
+      };
 
   const sub2 = isAI
-    ? { id: '2', name: 'Guardrail & Safety Validator', badge: 'Security', tech: 'Llama-Guard + Rust Validator', purpose: 'Prompt injection detection & halt guardrails', metrics: 'Halt < 45ms', connections: ['4'] }
+    ? {
+        id: 'subsystem_2',
+        title: 'Guardrail & Safety Validator',
+        badge: 'Security',
+        color: 'amber',
+        nodes: [
+          { id: 'n2_1', title: 'Prompt Injection Sentinel', tech: 'Llama-Guard + Rust Interceptor', latency: '<10ms', protocol: 'Internal Hook', purpose: 'Deep adversarial payload filtering and jailbreak defense', status: 'Guardrail' },
+          { id: 'n2_2', title: 'Output Sanitizer', tech: 'Schema Enforcement Regex', latency: '<2ms', protocol: 'In-Memory', purpose: 'Strict JSON schema formatting and PII redaction', status: 'Active' }
+        ]
+      }
     : isSecurity
-    ? { id: '2', name: 'Gate Pass Security Ledger', badge: 'Security', tech: 'ECDSA Signatures + QR Parser', purpose: 'Cryptographic gate authorization verification', metrics: 'Scan < 25ms', connections: ['4'] }
-    : { id: '2', name: 'Identity & Access Manager', badge: 'Security', tech: 'OAuth2 + JWT + RBAC', purpose: 'Role enforcement & cryptographic tokens', metrics: 'Auth < 15ms', connections: ['4'] };
+    ? {
+        id: 'subsystem_2',
+        title: 'Gate Pass Security & Auth Core',
+        badge: 'Security',
+        color: 'amber',
+        nodes: [
+          { id: 'n2_1', title: 'Cryptographic Signature Validator', tech: 'HMAC-SHA256 + Node.js Crypto', latency: '<8ms', protocol: 'Internal Route', purpose: 'Validates one-time pass tokens and cryptographic signatures', status: 'Guardrail' },
+          { id: 'n2_2', title: 'RBAC Authorization Gateway', tech: 'JWT + bcrypt Authentication', latency: '<12ms', protocol: 'REST Auth Middleware', purpose: 'Enforces Student, Teacher, HOD, and Guard permission tiers', status: 'Primary' }
+        ]
+      }
+    : {
+        id: 'subsystem_2',
+        title: 'Identity & Access Manager',
+        badge: 'Security',
+        color: 'amber',
+        nodes: [
+          { id: 'n2_1', title: 'OAuth2 / JWT Token Engine', tech: 'OAuth2 + JWT + bcrypt', latency: '<10ms', protocol: 'Auth Middleware', purpose: 'Role enforcement, session issuance & cryptographic sign-off', status: 'Primary' },
+          { id: 'n2_2', title: 'Rate Limiting Sentinel', tech: 'Token Bucket + Redis', latency: '<3ms', protocol: 'In-Memory', purpose: 'DDoS mitigation and IP-based rate throttle', status: 'Guardrail' }
+        ]
+      };
 
   const sub3 = isAI
-    ? { id: '3', name: 'Knowledge & Search Fallback', badge: 'Retrieval', tech: 'Tavily API + Qdrant Vector DB', purpose: 'Deep document grading & web search fallback', metrics: 'Recall 94.2%', connections: ['4'] }
+    ? {
+        id: 'subsystem_3',
+        title: 'Knowledge & Search Fallback',
+        badge: 'Retrieval',
+        color: 'purple',
+        nodes: [
+          { id: 'n3_1', title: 'Vector Retrieval Cluster', tech: 'Qdrant Vector DB + Embeddings', latency: '<45ms', protocol: 'gRPC / Vector Search', purpose: 'Semantic similarity search across documents', status: 'Stateful' },
+          { id: 'n3_2', title: 'Search Engine Fallback', tech: 'Tavily Search API', latency: '<250ms', protocol: 'HTTPS REST', purpose: 'Live web search retrieval for real-time questions', status: 'Active' }
+        ]
+      }
     : isPlacement
-    ? { id: '3', name: 'Placement Drive Coordinator', badge: 'Dispatch', tech: 'BullMQ + Redis Streams', purpose: 'Automated campus recruitment scheduling', metrics: 'Throughput 2k/min', connections: ['4'] }
-    : { id: '3', name: 'Event Queue & Dispatcher', badge: 'Async Ops', tech: 'Redis Streams / BullMQ', purpose: 'Background job processing & notification feed', metrics: 'Throughput 5k/s', connections: ['4'] };
+    ? {
+        id: 'subsystem_3',
+        title: 'Placement Drive Coordinator',
+        badge: 'Dispatch',
+        color: 'purple',
+        nodes: [
+          { id: 'n3_1', title: 'Drive Scheduler & Dispatcher', tech: 'BullMQ + Redis Streams', latency: '<25ms', protocol: 'Async Event Queue', purpose: 'Automated notification dispatch for campus drive alerts', status: 'Active' },
+          { id: 'n3_2', title: 'Candidate Ranking Engine', tech: 'Cosine Similarity Ranker', latency: '<35ms', protocol: 'Internal Worker', purpose: 'Scores and ranks eligible student applications', status: 'Stateful' }
+        ]
+      }
+    : isSecurity
+    ? {
+        id: 'subsystem_3',
+        title: 'Approval & Workflow State Engine',
+        badge: 'Workflow',
+        color: 'purple',
+        nodes: [
+          { id: 'n3_1', title: 'Multi-Tier Sign-Off Queue', tech: 'Node.js State Machine + WebSockets', latency: '<20ms', protocol: 'REST / Socket.io', purpose: 'Coordinates sequential approvals from Teacher to HOD', status: 'Stateful' },
+          { id: 'n3_2', title: 'Audit Alert Dispatcher', tech: 'Nodemailer + Push Notifications', latency: '<50ms', protocol: 'Async Queue', purpose: 'Sends live status alerts on pass approval or rejection', status: 'Active' }
+        ]
+      }
+    : {
+        id: 'subsystem_3',
+        title: 'Event Queue & Dispatcher',
+        badge: 'Async Ops',
+        color: 'purple',
+        nodes: [
+          { id: 'n3_1', title: 'Asynchronous Task Processor', tech: 'Redis Streams + BullMQ', latency: '<15ms', protocol: 'Event-Driven Bus', purpose: 'Background job dispatch and notification feed generator', status: 'Active' },
+          { id: 'n3_2', title: 'Worker Pool Manager', tech: 'Node.js Cluster Workers', latency: '<10ms', protocol: 'IPC Message Channel', purpose: 'High-concurrency parallel compute task handler', status: 'Stateful' }
+        ]
+      };
 
   const sub4 = {
-    id: '4',
-    name: 'Distributed Persistence Ledger',
+    id: 'subsystem_4',
+    title: 'Distributed Persistence Ledger',
     badge: 'Persistence',
-    tech: 'TiDB Cloud Distributed SQL',
-    purpose: 'Transactional audit trail and state persistence',
-    metrics: 'P99 Latency 18ms',
-    connections: []
+    color: 'emerald',
+    nodes: [
+      { id: 'n4_1', title: 'TiDB Cloud Distributed SQL', tech: 'TiDB Serverless (MySQL Protocol)', latency: '<18ms', protocol: 'MySQL over TLS', purpose: 'ACID transactional persistence for users, gate passes & records', status: 'Primary' },
+      { id: 'n4_2', title: 'Encrypted Audit Log Store', tech: 'Tamper-Evident Hash Chain Store', latency: '<12ms', protocol: 'Internal Storage Engine', purpose: 'Immutable security log history with timestamps', status: 'Guardrail' }
+    ]
   };
 
   return {

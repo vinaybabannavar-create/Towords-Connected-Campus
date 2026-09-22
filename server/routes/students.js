@@ -5,6 +5,18 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
+const parseStudentWithProfile = (row) => {
+  if (!row) return null;
+  let profile = {};
+  if (row.profile_data) {
+    try {
+      profile = typeof row.profile_data === 'string' ? JSON.parse(row.profile_data) : row.profile_data;
+    } catch (e) {}
+  }
+  const { profile_data, ...rest } = row;
+  return { ...profile, ...rest, ...profile };
+};
+
 // GET /api/db/students/me (Fetch current authenticated student/user profile)
 router.get('/students/me', requireAuth, async (req, res) => {
   try {
@@ -14,7 +26,7 @@ router.get('/students/me', requireAuth, async (req, res) => {
     }
 
     const [rows] = await executeQuery(
-      'SELECT bec, name, department, year, semester, role, created_at FROM students WHERE UPPER(TRIM(bec)) = UPPER(TRIM(?)) LIMIT 1',
+      'SELECT bec, name, department, year, semester, role, profile_data, created_at FROM students WHERE UPPER(TRIM(bec)) = UPPER(TRIM(?)) LIMIT 1',
       [userBec]
     );
 
@@ -22,7 +34,7 @@ router.get('/students/me', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'User profile not found.' });
     }
 
-    res.json({ student: rows[0] });
+    res.json({ student: parseStudentWithProfile(rows[0]) });
   } catch (err) {
     console.error('Fetch me error:', err.message);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
@@ -33,9 +45,10 @@ router.get('/students/me', requireAuth, async (req, res) => {
 router.get('/students', requireAuth, async (req, res) => {
   try {
     const [rows] = await executeQuery(
-      'SELECT bec, name, department, year, semester, role, created_at FROM students ORDER BY created_at DESC'
+      'SELECT bec, name, department, year, semester, role, profile_data, created_at FROM students ORDER BY created_at DESC'
     );
-    res.json({ students: rows || [] });
+    const parsedStudents = (rows || []).map(parseStudentWithProfile);
+    res.json({ students: parsedStudents });
   } catch (err) {
     console.error('Fetch students error:', err.message);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
@@ -45,7 +58,7 @@ router.get('/students', requireAuth, async (req, res) => {
 // POST /api/db/students (Create or Register Account)
 router.post('/students', async (req, res) => {
   try {
-    const { bec, name, department, year, semester, password, role } = req.body || {};
+    const { bec, name, department, year, semester, password, role, college, email, phone } = req.body || {};
     if (!bec || !name || !password) {
       return res.status(400).json({ error: 'BEC / Staff ID, name, and password are required.' });
     }
@@ -55,22 +68,32 @@ router.post('/students', async (req, res) => {
     const hashedPassword = await bcrypt.hash(cleanPassword, 10);
     const userRole = role ? String(role).trim().toLowerCase() : 'student';
 
-    // Add semester column if not exists (safe migration)
+    // Build initial profile data
+    const initialProfile = {
+      college: college || 'T. John Institute Of Technology',
+      email: email || '',
+      phone: phone || '',
+      isProfileSaved: false
+    };
+
+    // Add columns if not exists (safe migration)
     try {
       await executeQuery(`ALTER TABLE students ADD COLUMN IF NOT EXISTS semester VARCHAR(20) DEFAULT ''`);
+      await executeQuery(`ALTER TABLE students ADD COLUMN IF NOT EXISTS profile_data LONGTEXT`);
     } catch (e) { /* column may already exist */ }
 
     await executeQuery(
-      `INSERT INTO students (bec, name, department, year, semester, password, role) 
-       VALUES (?, ?, ?, ?, ?, ?, ?) 
+      `INSERT INTO students (bec, name, department, year, semester, password, role, profile_data) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
        ON DUPLICATE KEY UPDATE 
          name = VALUES(name), 
          department = VALUES(department), 
          year = VALUES(year), 
          semester = VALUES(semester),
          password = VALUES(password), 
-         role = VALUES(role)`,
-      [cleanBec, String(name).trim(), department || '', year || 'III Year', semester || '', hashedPassword, userRole]
+         role = VALUES(role),
+         profile_data = VALUES(profile_data)`,
+      [cleanBec, String(name).trim(), department || '', year || 'III Year', semester || '', hashedPassword, userRole, JSON.stringify(initialProfile)]
     );
 
     res.json({ success: true, message: 'Account saved successfully.' });
@@ -84,7 +107,12 @@ router.post('/students', async (req, res) => {
 router.post('/students/update', requireAuth, async (req, res) => {
   try {
     const student = req.body || {};
-    const { bec, name, department, year, semester, password, role } = student;
+    const {
+      bec, name, department, year, semester, password, role,
+      college, email, phone, bio, skills, github, linkedin, portfolio, resume,
+      assignedClass, subjects, cabin, specialization, experience, officeHours, division, gatePost, shift,
+      isProfileSaved
+    } = student;
 
     if (!bec) {
       return res.status(400).json({ error: 'BEC / USN identifier is required.' });
@@ -111,6 +139,47 @@ router.post('/students/update', requireAuth, async (req, res) => {
       hashedPassword = await bcrypt.hash(String(password).trim(), 10);
     }
 
+    // Fetch existing profile_data to cleanly merge
+    let existingProfile = {};
+    try {
+      const [existingRows] = await executeQuery('SELECT profile_data FROM students WHERE UPPER(TRIM(bec)) = UPPER(TRIM(?)) LIMIT 1', [cleanBec]);
+      if (existingRows?.[0]?.profile_data) {
+        existingProfile = typeof existingRows[0].profile_data === 'string'
+          ? JSON.parse(existingRows[0].profile_data)
+          : existingRows[0].profile_data;
+      }
+    } catch (e) {}
+
+    const updatedProfile = {
+      ...existingProfile,
+      college: college !== undefined ? college : existingProfile.college || 'T. John Institute Of Technology',
+      email: email !== undefined ? email : existingProfile.email || '',
+      phone: phone !== undefined ? phone : existingProfile.phone || '',
+      bio: bio !== undefined ? bio : existingProfile.bio || '',
+      skills: Array.isArray(skills) ? skills : existingProfile.skills || [],
+      github: github !== undefined ? github : existingProfile.github || '',
+      linkedin: linkedin !== undefined ? linkedin : existingProfile.linkedin || '',
+      portfolio: portfolio !== undefined ? portfolio : existingProfile.portfolio || '',
+      resume: resume !== undefined ? resume : existingProfile.resume || null,
+      assignedClass: assignedClass !== undefined ? assignedClass : existingProfile.assignedClass || '',
+      subjects: subjects !== undefined ? subjects : existingProfile.subjects || '',
+      cabin: cabin !== undefined ? cabin : existingProfile.cabin || '',
+      specialization: specialization !== undefined ? specialization : existingProfile.specialization || '',
+      experience: experience !== undefined ? experience : existingProfile.experience || '',
+      officeHours: officeHours !== undefined ? officeHours : existingProfile.officeHours || '',
+      division: division !== undefined ? division : existingProfile.division || '',
+      gatePost: gatePost !== undefined ? gatePost : existingProfile.gatePost || '',
+      shift: shift !== undefined ? shift : existingProfile.shift || '',
+      isProfileSaved: true
+    };
+
+    const profileDataStr = JSON.stringify(updatedProfile);
+
+    // Make sure column exists
+    try {
+      await executeQuery(`ALTER TABLE students ADD COLUMN IF NOT EXISTS profile_data LONGTEXT`);
+    } catch (e) {}
+
     const [result] = await executeQuery(
       `UPDATE students 
        SET 
@@ -119,7 +188,8 @@ router.post('/students/update', requireAuth, async (req, res) => {
          year = COALESCE(?, year), 
          semester = COALESCE(?, semester),
          password = COALESCE(?, password), 
-         role = COALESCE(?, role)
+         role = COALESCE(?, role),
+         profile_data = ?
        WHERE UPPER(TRIM(bec)) = UPPER(TRIM(?))`,
       [
         name ? String(name).trim() : null,
@@ -128,6 +198,7 @@ router.post('/students/update', requireAuth, async (req, res) => {
         semester ? String(semester).trim() : null,
         hashedPassword,
         targetRole,
+        profileDataStr,
         cleanBec
       ]
     );
@@ -135,9 +206,9 @@ router.post('/students/update', requireAuth, async (req, res) => {
     if (result.affectedRows === 0) {
       const defaultPass = hashedPassword || (await bcrypt.hash('password123', 10));
       await executeQuery(
-        `INSERT INTO students (bec, name, department, year, semester, password, role) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [cleanBec, name || '', department || '', year || 'III Year', semester || '', defaultPass, targetRole || 'student']
+        `INSERT INTO students (bec, name, department, year, semester, password, role, profile_data) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [cleanBec, name || '', department || '', year || 'III Year', semester || '', defaultPass, targetRole || 'student', profileDataStr]
       );
     }
 

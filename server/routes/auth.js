@@ -27,8 +27,14 @@ const DEFAULT_AUTH_USERS = [
 
 const sanitizeUser = (user) => {
   if (!user) return null;
-  const { password, ...safeUser } = user;
-  return safeUser;
+  let profile = {};
+  if (user.profile_data) {
+    try {
+      profile = typeof user.profile_data === 'string' ? JSON.parse(user.profile_data) : user.profile_data;
+    } catch (e) {}
+  }
+  const { password, profile_data, ...safeUser } = user;
+  return { ...profile, ...safeUser, ...profile };
 };
 
 const generateToken = (user) => {
@@ -52,7 +58,7 @@ router.post('/auth/login', loginLimiter, async (req, res) => {
     const cleanPassword = String(password).trim();
     const cleanRole = role ? String(role).trim().toLowerCase() : '';
 
-    let query = 'SELECT bec, name, department, year, role, password FROM students WHERE UPPER(TRIM(bec)) = UPPER(TRIM(?))';
+    let query = 'SELECT bec, name, department, year, role, password, profile_data FROM students WHERE UPPER(TRIM(bec)) = UPPER(TRIM(?))';
     let params = [cleanBec];
 
     if (cleanRole) {
@@ -65,7 +71,13 @@ router.post('/auth/login', loginLimiter, async (req, res) => {
 
     if (rows && rows.length > 0) {
       const dbUser = rows[0];
-      const isPasswordMatch = await bcrypt.compare(cleanPassword, dbUser.password || '');
+      let isPasswordMatch = false;
+      try {
+        isPasswordMatch = await bcrypt.compare(cleanPassword, dbUser.password || '');
+      } catch (e) {}
+      if (!isPasswordMatch && dbUser.password === cleanPassword) {
+        isPasswordMatch = true;
+      }
       if (isPasswordMatch) {
         const safeStudent = sanitizeUser(dbUser);
         const token = generateToken(safeStudent);

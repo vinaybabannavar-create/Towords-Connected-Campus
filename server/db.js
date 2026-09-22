@@ -96,6 +96,9 @@ const runMigrations = async (dbPool) => {
     try {
       await dbPool.query("ALTER TABLE students ADD COLUMN role VARCHAR(50) DEFAULT 'student';");
     } catch (e) {}
+    try {
+      await dbPool.query("ALTER TABLE students ADD COLUMN profile_data LONGTEXT;");
+    } catch (e) {}
 
     // 2. Projects
     await dbPool.query(`

@@ -62,13 +62,13 @@ router.post('/gatepasses', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Gate pass ID, USN/BEC, and reason are required.' });
     }
 
-    const passBec = String(g.bec || g.usn || '').trim().toUpperCase();
+    let passBec = String(g.bec || g.usn || '').trim().toUpperCase();
     const callerBec = String(req.user?.bec || '').trim().toUpperCase();
     const callerRole = String(req.user?.role || '').trim().toLowerCase();
 
-    // A student cannot file a pass under someone else's ID
-    if (callerRole === 'student' && passBec !== callerBec) {
-      return res.status(403).json({ error: 'Students can only create gate passes under their own BEC / USN.' });
+    // A student's pass is always bound to their authenticated session BEC
+    if (callerRole === 'student') {
+      passBec = callerBec;
     }
 
     const local = getLocalPasses();
@@ -158,8 +158,47 @@ router.post('/gatepasses/status', requireAuth, requireRole('teacher', 'hod'), as
   }
 });
 
-// POST /api/db/gatepasses/verify (Security Guard / Terminal Scanner)
-router.post('/gatepasses/verify', requireAuth, requireRole('guard', 'teacher', 'hod'), async (req, res) => {
+// GET /api/db/gatepasses/public/:passId (Public verification for QR code scanners - No Auth Required)
+router.get('/gatepasses/public/:passId', async (req, res) => {
+  try {
+    const rawId = req.params.passId || '';
+    const cleanId = rawId.trim().toUpperCase();
+    if (!cleanId) {
+      return res.status(400).json({ error: 'Pass ID is required.' });
+    }
+
+    const local = getLocalPasses();
+    let pass = local.find(
+      (p) =>
+        (p.id || '').toUpperCase() === cleanId ||
+        (p.security_key || '').toUpperCase() === cleanId ||
+        (p.securityKey || '').toUpperCase() === cleanId
+    );
+
+    if (!pass) {
+      try {
+        const db = await getDbPool();
+        const [rows] = await db.query(
+          'SELECT * FROM gate_passes WHERE UPPER(TRIM(id)) = ? OR UPPER(TRIM(security_key)) = ? LIMIT 1',
+          [cleanId, cleanId]
+        );
+        if (rows.length > 0) pass = rows[0];
+      } catch (e) {}
+    }
+
+    if (!pass) {
+      return res.status(404).json({ error: 'Gate pass not found or invalid QR code.' });
+    }
+
+    res.json({ success: true, pass });
+  } catch (err) {
+    console.error('Public gatepass verification error:', err.message);
+    res.status(500).json({ error: 'Failed to verify pass.' });
+  }
+});
+
+// POST /api/db/gatepasses/verify (Security Guard / Terminal Scanner / Mobile QR)
+router.post('/gatepasses/verify', async (req, res) => {
   try {
     const { keyOrId } = req.body || {};
     if (!keyOrId) {

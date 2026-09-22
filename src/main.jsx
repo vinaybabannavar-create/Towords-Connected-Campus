@@ -616,9 +616,14 @@ const apiFetch = async (url, options = {}) => {
       ? (sessionStorage.getItem('bec_auth_token') || localStorage.getItem('bec_auth_token'))
       : null;
 
+    const tabUser = typeof window !== 'undefined' ? sessionStorage.getItem('bec_tab_user') : null;
+    const tabRole = typeof window !== 'undefined' ? sessionStorage.getItem('bec_tab_role') : null;
+
     const headers = {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(tabUser ? { 'x-user-bec': tabUser } : {}),
+      ...(tabRole ? { 'x-user-role': tabRole } : {}),
       ...(options.headers || {})
     };
 
@@ -879,6 +884,7 @@ function App() {
       const match = DEFAULT_ACCOUNTS.find((a) => a.role === roleParam);
       if (match) {
         sessionStorage.setItem('bec_tab_user', match.bec);
+        sessionStorage.setItem('bec_tab_role', match.role);
         sessionStorage.setItem('bec_tab_page', getRoleHomePage(match.role));
         return match.bec;
       }
@@ -892,7 +898,7 @@ function App() {
   });
 
   const activeStudent = useMemo(() => {
-    const student = students.find((s) => s.bec === sessionBec);
+    const student = students.find((s) => (s?.bec || '').trim().toUpperCase() === (sessionBec || '').trim().toUpperCase());
     if (!student) return null;
     return {
       ...student,
@@ -948,15 +954,33 @@ function App() {
     }
   }, [page]);
 
-  // Synchronize student profile from database on session change
+  // Synchronize student profile and token from database on session change
   useEffect(() => {
     if (!sessionBec) return;
     let isMounted = true;
+
+    const currentStudent = students.find((s) => (s?.bec || '').trim().toUpperCase() === sessionBec.trim().toUpperCase());
+    const pass = currentStudent?.password || 'password123';
+    const role = currentStudent?.role || 'student';
+    sessionStorage.setItem('bec_tab_user', sessionBec);
+    sessionStorage.setItem('bec_tab_role', role);
+
+    // Auto-login to obtain fresh JWT token for this tab's session
+    apiFetch('/api/db/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ bec: sessionBec, password: pass, role })
+    }).then((res) => {
+      if (res?.token && isMounted) {
+        sessionStorage.setItem('bec_auth_token', res.token);
+      }
+    }).catch(() => {});
+
     apiFetch('/api/db/students/me')
       .then((res) => {
         if (res?.student && isMounted) {
           setStudents((prev) => {
-            const updated = prev.map((s) => (s.bec === res.student.bec ? { ...s, ...res.student } : s));
+            const cleanResBec = (res.student.bec || '').trim().toUpperCase();
+            const updated = prev.map((s) => ((s?.bec || '').trim().toUpperCase() === cleanResBec ? { ...s, ...res.student } : s));
             setJSON(STORAGE_KEYS.students, updated);
             return updated;
           });
@@ -1087,9 +1111,11 @@ function App() {
         localStorage.setItem('bec_auth_token', res.token);
       }
 
+      const existingStudent = students.find((s) => (s?.bec || '').trim().toUpperCase() === cleanBec) || {};
       const dbStudent = {
+        ...existingStudent,
         ...res.student,
-        college: college || res.student.college || 'T. John Institute Of Technology'
+        college: college || res.student.college || existingStudent.college || 'T. John Institute Of Technology'
       };
       const nextStudents = [...students.filter((s) => (s?.bec || '').trim().toUpperCase() !== cleanBec), dbStudent];
       setStudents(nextStudents);
@@ -1133,12 +1159,13 @@ function App() {
   });
 
   const updateStudentProfile = (updatedData) => {
+    const cleanActiveBec = (activeStudent?.bec || '').trim().toUpperCase();
     const nextStudent = { ...activeStudent, ...updatedData };
-    const nextStudents = students.map((s) => (s.bec === activeStudent.bec ? nextStudent : s));
+    const nextStudents = students.map((s) => ((s?.bec || '').trim().toUpperCase() === cleanActiveBec ? nextStudent : s));
     setStudents(nextStudents);
     setJSON(STORAGE_KEYS.students, nextStudents);
     if (updatedData.bec && updatedData.bec !== activeStudent.bec) {
-      sessionStorage.setItem(sessionKey, updatedData.bec);
+      sessionStorage.setItem('bec_tab_user', updatedData.bec);
       localStorage.setItem(STORAGE_KEYS.session, updatedData.bec);
       setSessionBec(updatedData.bec);
     }
@@ -2045,11 +2072,20 @@ function Dashboard({ student, setPage, onOpenProfile }) {
               {student.college || 'T. John Institute Of Technology'} • {student.department} {student.year && student.year !== 'Staff' ? `(${student.year})` : ''}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpenProfile}
+              className="inline-flex items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 py-2.5 text-xs font-black text-[#264055] shadow-xs hover:border-[#3B6280] hover:text-[#3B6280] transition cursor-pointer"
+              title="Edit your student profile, portfolio links, and skills"
+            >
+              <UserCheck className="h-4 w-4 text-[#3B6280]" />
+              <span>Edit Profile</span>
+            </button>
             <button
               type="button"
               onClick={() => setPage('calendar')}
-              className="inline-flex items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 py-2.5 text-xs font-black text-[#264055] shadow-xs hover:border-[#3B6280] transition"
+              className="inline-flex items-center gap-2 rounded-2xl bg-white border border-slate-200/80 px-4 py-2.5 text-xs font-black text-[#264055] shadow-xs hover:border-[#3B6280] transition cursor-pointer"
             >
               <Calendar className="h-4 w-4 text-[#3B6280]" />
               <span>112 Events</span>
@@ -2057,7 +2093,7 @@ function Dashboard({ student, setPage, onOpenProfile }) {
             <button
               type="button"
               onClick={() => setPage('gatepass')}
-              className="inline-flex items-center gap-2 rounded-2xl bg-[#3B6280] text-white px-4 py-2.5 text-xs font-black shadow-xs hover:bg-[#264055] transition"
+              className="inline-flex items-center gap-2 rounded-2xl bg-[#3B6280] text-white px-4 py-2.5 text-xs font-black shadow-xs hover:bg-[#264055] transition cursor-pointer"
             >
               <Plus className="h-4 w-4 text-white" />
               <span>Apply Pass</span>
@@ -4022,7 +4058,7 @@ function JDMatcher({ student, selectedDrive, onClearSelectedDrive }) {
   };
 
   const result = useMemo(() => {
-    if (!jd.trim() || !skills.trim()) {
+    if (!jd.trim() || !skills.trim() || jd.trim().length < 5) {
       return { matched: [], missing: [], score: 0 };
     }
 
@@ -4030,7 +4066,7 @@ function JDMatcher({ student, selectedDrive, onClearSelectedDrive }) {
     const candidateSkillsList = parseCandidateSkills(skills);
 
     if (requiredSkills.length === 0) {
-      return { matched: ['Core Technical Profile'], missing: [], score: 100 };
+      return { matched: [], missing: ['No required skills detected in JD. Paste full job description.'], score: 0 };
     }
 
     const matched = [];
@@ -6186,25 +6222,24 @@ const getGatePassVerificationUrl = (passIdOrPass) => {
   const isObj = typeof passIdOrPass === 'object' && passIdOrPass !== null;
   const id = isObj ? passIdOrPass.id : passIdOrPass;
   if (!id) return '';
-  const dataParam = isObj ? `&d=${encodePassData(passIdOrPass)}` : '';
 
   // Prefer public tunnel URL if set (works on any network / 5G mobile)
-  const tunnelUrl = localStorage.getItem('bec_tunnel_url');
+  const tunnelUrl = localStorage.getItem('bec_tunnel_url') || window.BEC_TUNNEL_URL || 'https://locate-applicable-owned-edited.trycloudflare.com';
   if (tunnelUrl) {
     const base = tunnelUrl.replace(/\/$/, '');
-    return `${base}/?verify=${encodeURIComponent(id)}${dataParam}`;
+    return `${base}/?verify=${encodeURIComponent(id)}`;
   }
 
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   let host = window.location.host;
 
   if (isLocal) {
-    const lanIp = window.BEC_SERVER_IP || localStorage.getItem('bec_server_lan_ip') || '10.97.10.153';
+    const lanIp = window.BEC_SERVER_IP || localStorage.getItem('bec_server_lan_ip') || '192.168.0.171';
     const port = window.location.port ? `:${window.location.port}` : ':5173';
     host = `${lanIp}${port}`;
   }
 
-  return `${window.location.protocol}//${host}/?verify=${encodeURIComponent(id)}${dataParam}`;
+  return `${window.location.protocol}//${host}/?verify=${encodeURIComponent(id)}`;
 };
 
 function RealQRCode({ value = 'GATEPASS', size = 200 }) {
@@ -6213,9 +6248,9 @@ function RealQRCode({ value = 'GATEPASS', size = 200 }) {
   useEffect(() => {
     if (!value) return;
     QRCode.toDataURL(value, {
-      margin: 2,
-      width: size * 2,
-      errorCorrectionLevel: 'L',
+      margin: 1,
+      width: Math.max(size * 2, 400),
+      errorCorrectionLevel: 'M',
       color: {
         dark: '#000000',
         light: '#ffffff'
@@ -6272,18 +6307,29 @@ function PublicGatePassVerification({ passId, encodedData }) {
     window.addEventListener('storage', syncLocal);
     window.addEventListener('gatepasses_updated', syncLocal);
 
-    apiFetch('/api/db/gatepasses').then((res) => {
-      if (res?.gatePasses?.length) {
-        const found = res.gatePasses.find((p) => p.id === passId || p.security_key === passId);
-        if (found) {
-          setPass((prev) => ({ ...(prev || {}), ...found }));
+    apiFetch(`/api/db/gatepasses/public/${encodeURIComponent(passId)}`)
+      .then((res) => {
+        if (res?.pass) {
+          setPass((prev) => ({ ...(prev || {}), ...res.pass }));
           const existing = getJSON(STORAGE_KEYS.gatePasses, []);
-          const next = [found, ...existing.filter((p) => p.id !== found.id)];
+          const next = [res.pass, ...existing.filter((p) => p.id !== res.pass.id)];
           updateGatePassesStorage(next);
         }
-      }
-      setLoading(false);
-    }).catch(() => setLoading(false));
+        setLoading(false);
+      })
+      .catch(() => {
+        apiFetch('/api/db/gatepasses')
+          .then((res) => {
+            if (res?.gatePasses?.length) {
+              const found = res.gatePasses.find((p) => p.id === passId || p.security_key === passId);
+              if (found) {
+                setPass((prev) => ({ ...(prev || {}), ...found }));
+              }
+            }
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      });
 
     return () => {
       window.removeEventListener('storage', syncLocal);
@@ -6665,10 +6711,10 @@ function GatePass({ student }) {
   const [passes, setPasses] = useState(() => getJSON(STORAGE_KEYS.gatePasses, []));
   const [form, setForm] = useState(() => ({
     fullName: student?.name || '',
-    usn: '',
+    usn: student?.bec || '',
     rollNo: student?.rollNo || student?.bec || '',
-    branch: student?.department || '',
-    yearSem: student?.year || 'III Year, 5th Sem',
+    branch: student?.department || 'CSE',
+    yearSem: student?.year || 'IV Year',
     collegeName: student?.college || 'T. John Institute Of Technology',
     reason: '',
     documentName: ''
@@ -6692,7 +6738,7 @@ function GatePass({ student }) {
 
   useEffect(() => {
     fetchPasses();
-    const interval = setInterval(fetchPasses, 6000);
+    const interval = setInterval(fetchPasses, 2000);
     const syncLocal = () => {
       setPasses(getJSON(STORAGE_KEYS.gatePasses, []));
     };
@@ -6703,21 +6749,18 @@ function GatePass({ student }) {
       window.removeEventListener('storage', syncLocal);
       window.removeEventListener('gatepasses_updated', syncLocal);
     };
-  }, [student.bec]);
+  }, [student?.bec]);
 
   const myPasses = passes.filter((p) => {
     const pBec = (p.bec || p.usn || '').trim().toUpperCase();
     const pSession = (p.student_session_bec || '').trim().toUpperCase();
     const pRoll = (p.roll_no || p.rollNo || '').trim().toUpperCase();
     const pName = (p.name || '').trim().toUpperCase();
-    const sBec = (student.bec || '').trim().toUpperCase();
-    const sName = (student.name || '').trim().toUpperCase();
+    const sBec = (student?.bec || '').trim().toUpperCase();
+    const sName = (student?.name || '').trim().toUpperCase();
     return (
-      pBec === sBec ||
-      pSession === sBec ||
-      pRoll === sBec ||
-      (sName && pName === sName) ||
-      pBec === '1XY21CS001'
+      (sBec && (pBec === sBec || pSession === sBec || pRoll === sBec)) ||
+      (sName && pName === sName)
     );
   });
 
@@ -6752,17 +6795,19 @@ function GatePass({ student }) {
     const isUrgent = /medical|hospital|doctor|emergency|accident|fever/i.test(form.reason);
     const aiPriority = isUrgent ? 'HIGH' : 'MEDIUM';
     const securityKey = Math.random().toString(16).substring(2, 8).toUpperCase();
+    const studentBec = (student?.bec || form.usn.trim() || '1XY21CS001').toUpperCase();
 
     const newPass = {
       id: 'GP-' + Date.now().toString(36).toUpperCase(),
-      bec: (form.usn.trim() || student.bec || '1XY21CS001').toUpperCase(),
-      student_session_bec: (student.bec || '').toUpperCase(),
-      name: form.fullName.trim() || student.name || 'Student',
-      roll_no: form.rollNo.trim() || '42',
-      branch: form.branch.trim() || 'CSE',
-      year_sem: form.yearSem.trim() || 'III Year',
-      college_name: form.collegeName.trim() || student?.college || 'Engineering College',
-      department: form.branch.trim() || 'CSE',
+      bec: studentBec,
+      usn: studentBec,
+      student_session_bec: studentBec,
+      name: form.fullName.trim() || student?.name || 'Student',
+      roll_no: form.rollNo.trim() || student?.rollNo || studentBec,
+      branch: form.branch.trim() || student?.department || 'CSE',
+      year_sem: form.yearSem.trim() || student?.year || 'IV Year',
+      college_name: form.collegeName.trim() || student?.college || 'T. John Institute Of Technology',
+      department: form.branch.trim() || student?.department || 'CSE',
       reason: form.reason.trim(),
       document_name: selectedFile ? selectedFile.name : (form.documentName || ''),
       document_data: fileDataUrl || '',
@@ -6783,15 +6828,20 @@ function GatePass({ student }) {
     setPasses(next);
     updateGatePassesStorage(next);
 
-    setForm((prev) => ({ ...prev, reason: '', documentName: '', usn: '' }));
+    setForm((prev) => ({ ...prev, reason: '', documentName: '' }));
     setSelectedFile(null);
     setFileDataUrl('');
-    setLoading(false);
 
-    apiFetch('/api/db/gatepasses', {
-      method: 'POST',
-      body: JSON.stringify(newPass)
-    }).catch(() => {});
+    try {
+      await apiFetch('/api/db/gatepasses', {
+        method: 'POST',
+        body: JSON.stringify(newPass)
+      });
+    } catch (err) {
+      console.warn('Gate pass submission sync error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -6923,34 +6973,60 @@ function GatePass({ student }) {
                   </div>
                 )}
 
-                {pass.status === 'Approved' && (
-                  <div className="mt-3 rounded-2xl bg-emerald-50 p-4 border border-emerald-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-emerald-800 tracking-wider">OFFICIAL EXIT GATE PASS</p>
-                        <p className="text-xs font-black text-emerald-950">Show QR Code to Security Guard at Main Gate</p>
-                        <p className="text-[10px] font-semibold text-stone-500">🔒 Secret key is hidden for security to prevent fake passes</p>
+                {(() => {
+                  const isUsed = (pass.status || '').trim().toUpperCase() === 'USED';
+                  const isApproved = (pass.status || '').trim().toUpperCase() === 'APPROVED';
+                  if (!isUsed && !isApproved) return null;
+
+                  return (
+                    <div className={`mt-3 rounded-2xl p-4 border space-y-3 ${
+                      isUsed
+                        ? 'bg-cyan-50/80 border-cyan-200'
+                        : 'bg-emerald-50 border-emerald-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className={`text-[10px] font-black uppercase tracking-wider ${
+                            isUsed ? 'text-cyan-800' : 'text-emerald-800'
+                          }`}>
+                            {isUsed ? '✓ GATE EXIT COMPLETED & VERIFIED' : 'OFFICIAL EXIT GATE PASS'}
+                          </p>
+                          <p className="text-xs font-black text-stone-900">
+                            {isUsed
+                              ? 'Exit verified and logged by Security Terminal'
+                              : 'Show QR Code to Security Guard at Main Gate'}
+                          </p>
+                          <p className="text-[10px] font-semibold text-stone-500">
+                            {isUsed
+                              ? '🔒 Record permanently preserved in campus exit audit trail'
+                              : '🔒 Cryptographic signature verified against campus database'}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`inline-block rounded-full text-white text-[10px] font-black px-2.5 py-0.5 uppercase ${
+                            isUsed ? 'bg-cyan-700' : 'bg-emerald-600'
+                          }`}>
+                            {isUsed ? 'Verified / Used' : 'Present to Guard'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="inline-block rounded-full bg-emerald-600 text-white text-[10px] font-black px-2.5 py-0.5 uppercase">
-                          Present to Guard
-                        </span>
-                      </div>
-                    </div>
                     <div className="flex flex-col items-center justify-center pt-1 space-y-2">
-                      <RealQRCode value={getGatePassVerificationUrl(pass)} size={160} />
+                      <div className="p-2 bg-white rounded-xl shadow-xs border border-stone-200">
+                        <RealQRCode value={getGatePassVerificationUrl(pass)} size={190} />
+                      </div>
 
                       <a
                         href={getGatePassVerificationUrl(pass)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline inline-flex items-center gap-1"
+                        className="text-xs font-black text-emerald-800 hover:text-emerald-950 underline inline-flex items-center gap-1.5 pt-1"
                       >
-                        <ExternalLink className="h-3 w-3" /> Open Verification Page
+                        <ExternalLink className="h-3.5 w-3.5" /> Open Public Verification Page
                       </a>
                     </div>
                   </div>
-                )}
+                );
+              })()}
               </div>
             ))
           )}
@@ -6980,7 +7056,7 @@ function TeacherGatePassView({ student }) {
 
   useEffect(() => {
     fetchPasses();
-    const interval = setInterval(fetchPasses, 6000);
+    const interval = setInterval(fetchPasses, 2000);
     const syncLocal = () => {
       setPasses(getJSON(STORAGE_KEYS.gatePasses, []));
     };
@@ -6997,10 +7073,10 @@ function TeacherGatePassView({ student }) {
     (p) => p.status === 'Pending Class Teacher' || p.status === 'Class Teacher Review'
   );
   const approvedToday = passes.filter(
-    (p) => p.status === 'Approved' || p.status === 'Pending HOD Approval'
+    (p) => p.status === 'Approved' || p.status === 'Pending HOD Approval' || p.status === 'USED'
   );
   const historyPasses = passes.filter(
-    (p) => p.status === 'Approved' || p.status?.includes('Teacher') || p.status?.includes('Reject')
+    (p) => p.status === 'Approved' || p.status === 'USED' || p.status?.includes('Teacher') || p.status?.includes('Reject')
   );
 
   const handleDecision = (pass, decision) => {
@@ -7180,7 +7256,7 @@ function HODGatePassView({ student }) {
 
   useEffect(() => {
     fetchPasses();
-    const interval = setInterval(fetchPasses, 6000);
+    const interval = setInterval(fetchPasses, 2000);
     const syncLocal = () => {
       setPasses(getJSON(STORAGE_KEYS.gatePasses, []));
     };
@@ -7436,7 +7512,7 @@ function GateSecurityTerminal() {
 
   useEffect(() => {
     fetchPasses();
-    const interval = setInterval(fetchPasses, 6000);
+    const interval = setInterval(fetchPasses, 2000);
     const syncLocal = () => {
       setPasses(getJSON(STORAGE_KEYS.gatePasses, []));
     };

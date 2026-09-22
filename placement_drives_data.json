@@ -1,13 +1,13 @@
 [
   {
-    "id": "drive_1790006060907",
+    "id": "drive_1790100289918",
     "company": "TCS",
-    "domain": "Software & Cloud Services",
-    "role": "FSD",
-    "salary": "7",
+    "domain": "IT Consulting & Analytics",
+    "role": "Python developer",
+    "salary": "9",
     "type": "Full-Time",
-    "skills": "Python",
-    "minCgpa": "6.5",
+    "skills": "python, sql",
+    "minCgpa": "9",
     "branches": [
       "CSE",
       "ISE",
@@ -15,13 +15,13 @@
       "EEE"
     ],
     "registrationLink": "",
-    "driveDate": "2026-10-03",
-    "deadline": "2026-09-23",
-    "description": "",
+    "driveDate": "2026-09-25",
+    "deadline": "2026-09-24",
+    "description": "Python developer",
     "pdfUrl": "",
     "pdfName": "",
     "status": "Active",
     "postedBy": "Placement Cell (PO)",
-    "createdAt": "2026-09-21"
+    "createdAt": "2026-09-22"
   }
 ]

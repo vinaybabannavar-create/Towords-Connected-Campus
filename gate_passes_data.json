@@ -1,1 +1,27 @@
-[]
+[
+  {
+    "id": "GP-MUD0PB7B",
+    "bec": "BEC233040",
+    "usn": "BEC233040",
+    "student_session_bec": "BEC233040",
+    "name": "Vinay",
+    "roll_no": "BEC233040",
+    "branch": "CSE",
+    "year_sem": "IV Year",
+    "college_name": "T. John Institute Of Technology",
+    "department": "CSE",
+    "reason": "fever",
+    "document_name": "Medical_Slip.pdf",
+    "ai_priority": "HIGH",
+    "security_key": "BC8E33",
+    "date": "2026-09-23",
+    "out_time": "00:08",
+    "return_time": "N/A",
+    "contact": "9876543210",
+    "status": "USED",
+    "teacher_approval": "Verified by Prof. Teacher (23/9/2026 at 12:08 am)",
+    "hod_approval": "Approved by HOD Dr. HOD (23/9/2026 at 12:09 am)",
+    "rejection_reason": null,
+    "created_at": "23/9/2026, 12:50:29 am"
+  }
+]

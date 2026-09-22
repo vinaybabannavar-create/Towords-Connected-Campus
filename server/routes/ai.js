@@ -1,7 +1,10 @@
 import express from 'express';
 import fs from 'fs';
+import https from 'https';
 
 const router = express.Router();
+
+// ─── CONFIG HELPERS ───────────────────────────────────────────────────────────
 
 const getApiKey = () => {
   let key = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
@@ -19,96 +22,126 @@ const getApiKey = () => {
   return key;
 };
 
-// POST /api/ai
+const getApiBase = () => {
+  let base = process.env.GEMINI_API_BASE;
+  if (!base) {
+    try {
+      ['.env.local', '.env'].forEach((file) => {
+        if (!base && fs.existsSync(file)) {
+          const content = fs.readFileSync(file, 'utf-8');
+          const match = content.match(/GEMINI_API_BASE\s*=\s*(.*)/);
+          if (match) base = match[1].trim().replace(/^['"]|['"]$/g, '');
+        }
+      });
+    } catch (e) {}
+  }
+  return base || 'https://llm.hidevs.xyz/v1';
+};
+
+// ─── Helper: make HTTPS POST using native Node https module ──────────────────
+function httpsPost(urlStr, headers, body, timeoutMs = 35000) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlStr);
+    const data = JSON.stringify(body);
+
+    const options = {
+      hostname: url.hostname,
+      port: url.port || 443,
+      path: url.pathname + url.search,
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data)
+      },
+      timeout: timeoutMs
+    };
+
+    const req = https.request(options, (res) => {
+      let raw = '';
+      res.on('data', (chunk) => { raw += chunk; });
+      res.on('end', () => {
+        try {
+          resolve({ status: res.statusCode, body: JSON.parse(raw) });
+        } catch {
+          resolve({ status: res.statusCode, body: { error: { message: raw } } });
+        }
+      });
+    });
+
+    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
+    req.on('error', (err) => reject(err));
+    req.write(data);
+    req.end();
+  });
+}
+
+// ─── POST /api/ai ─────────────────────────────────────────────────────────────
 router.post('/ai', async (req, res) => {
   const apiKey = getApiKey();
-  const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+  const apiBase = getApiBase();
+  const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 
   if (!apiKey) {
-    return res.status(500).json({ error: 'Gemini API key is missing. Please verify GEMINI_API_KEY in .env.local.' });
+    return res.status(500).json({
+      error: 'API key is missing. Please verify GEMINI_API_KEY in .env.local.'
+    });
   }
 
   try {
     const body = req.body || {};
-    const geminiPayload = {};
 
-    // 1. Native systemInstruction
+    // Build OpenAI-compatible messages array
+    const messages = [];
+
+    // System instruction
     if (body.systemInstruction && typeof body.systemInstruction === 'string' && body.systemInstruction.trim()) {
-      geminiPayload.systemInstruction = {
-        parts: [{ text: body.systemInstruction.trim() }]
-      };
+      messages.push({ role: 'system', content: body.systemInstruction.trim() });
     }
 
-    // 2. Structured contents
-    let contents = [];
-
+    // Chat history (supports both {role, text} and {role, content} formats)
     if (Array.isArray(body.history) && body.history.length > 0) {
       for (const item of body.history) {
-        if (item && item.text && typeof item.text === 'string' && item.text.trim()) {
-          const role = item.role === 'model' || item.role === 'assistant' ? 'model' : 'user';
-          contents.push({
-            role,
-            parts: [{ text: item.text.trim() }]
-          });
-        }
+        const content = (item.text || item.content || '').trim();
+        if (!content) continue;
+        const role = item.role === 'model' || item.role === 'assistant' ? 'assistant' : 'user';
+        messages.push({ role, content });
       }
     }
 
-    if (body.message && typeof body.message === 'string' && body.message.trim()) {
-      contents.push({
-        role: 'user',
-        parts: [{ text: body.message.trim() }]
-      });
-    } else if (contents.length === 0 && body.prompt && typeof body.prompt === 'string' && body.prompt.trim()) {
-      contents.push({
-        role: 'user',
-        parts: [{ text: body.prompt.trim() }]
-      });
+    // Current user message
+    const userMessage = (body.message || body.prompt || '').trim();
+    if (userMessage) {
+      messages.push({ role: 'user', content: userMessage });
     }
 
-    while (contents.length > 0 && contents[0].role === 'model') {
-      contents.shift();
-    }
-
-    if (contents.length === 0) {
+    if (messages.filter(m => m.role !== 'system').length === 0) {
       return res.status(400).json({ error: 'A message or prompt is required.' });
     }
 
-    geminiPayload.contents = contents;
-    geminiPayload.generationConfig = {
+    const payload = {
+      model,
+      messages,
       temperature: body.temperature ?? 0.3,
-      maxOutputTokens: body.maxOutputTokens ?? 2500
+      max_tokens: body.maxOutputTokens ?? 2500
     };
 
-    let geminiResponse;
+    const headers = { 'Authorization': `Bearer ${apiKey}` };
+    const endpoint = `${apiBase}/chat/completions`;
+
+    let result;
     let lastError = null;
 
+    // Retry up to 3 times on transient errors
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 35000);
-
-        geminiResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(geminiPayload),
-            signal: controller.signal
-          }
-        );
-        clearTimeout(timeoutId);
-
-        if (geminiResponse.ok) {
+        result = await httpsPost(endpoint, headers, payload, 35000);
+        if (result.status >= 200 && result.status < 300) {
           lastError = null;
           break;
         }
-
-        const errData = await geminiResponse.json().catch(() => ({}));
-        lastError = new Error(errData.error?.message || `Gemini API returned status ${geminiResponse.status}`);
-        
-        // If transient rate limit or gateway error, wait and retry
-        if (attempt < 3 && (geminiResponse.status === 429 || geminiResponse.status >= 500)) {
+        lastError = new Error(result.body?.error?.message || `API returned status ${result.status}`);
+        if (attempt < 3 && (result.status === 429 || result.status >= 500)) {
           await new Promise((r) => setTimeout(r, 1200 * attempt));
           continue;
         }
@@ -121,15 +154,15 @@ router.post('/ai', async (req, res) => {
       }
     }
 
-    if (!geminiResponse || !geminiResponse.ok) {
-      const errMsg = lastError?.message || 'Gemini AI request failed.';
-      console.warn('⚠️ Gemini API error notice:', errMsg);
-      return res.status(geminiResponse?.status || 500).json({ error: errMsg });
+    if (!result || result.status < 200 || result.status >= 300) {
+      const errMsg = lastError?.message || 'AI request failed.';
+      console.warn('⚠️ AI API error:', errMsg);
+      return res.status(result?.status || 500).json({ error: errMsg });
     }
 
-    const data = await geminiResponse.json();
-    const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('\n').trim();
+    const text = result.body?.choices?.[0]?.message?.content?.trim();
     res.json({ text: text || 'No response generated.' });
+
   } catch (error) {
     console.error('❌ AI route error:', error);
     res.status(500).json({ error: error.message || 'AI server error.' });
